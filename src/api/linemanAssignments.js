@@ -9,7 +9,7 @@ import { apiRequest, pickList } from './client';
  * is modelled client-side - `my.php` exists so a lineman's own scope is read back from
  * the server rather than assumed from their role.
  *
- * Confirmed contract (see `C:\xampp\htdocs\CrowdsourcedAPI\api\lineman_assignment`):
+ * Confirmed contract (see `backend\api\lineman_assignment`):
  *   get.php     GET  ?lineman_id=&barangay_id=&status=
  *                     -> { success, message, count, data: Assignment[] }
  *                     Managers only. Each filter is validated server-side; an invalid one

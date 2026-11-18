@@ -2,7 +2,7 @@
  * Record field normalisers.
  *
  * Every key here is taken from the real API responses in
- * `C:\xampp\htdocs\CrowdsourcedAPI\api\*` (see the comments per module). Reads go
+ * `backend\api\*` (see the comments per module). Reads go
  * through the `read*` helpers so a small column rename only needs editing here.
  */
 import { distanceInMeters, hasCoordinates, readField, toNumber } from './formatters';

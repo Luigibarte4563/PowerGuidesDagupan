@@ -67,7 +67,7 @@ export function GoogleButton({ text = 'Continue with Google', redirectTo }) {
   const startGoogleSignIn = () => {
     setOauthReturnTo(redirectTo || '');
     setBusy(true);
-    const base = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost/CrowdsourcedAPI'}/api/auth/google.php`;
+    const base = `${import.meta.env.VITE_API_BASE_URL || '/backend'}/api/auth/google.php`;
     window.location.href = base;
   };
 

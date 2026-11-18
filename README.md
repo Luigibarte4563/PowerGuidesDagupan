@@ -23,21 +23,21 @@ electric-company staff on `/company`, and admin on `/admin`. An admin can still 
 
 - Node.js 18+ (tested on Node 20)
 - npm 9+
-- The PHP API ([`CrowdsourcedAPI`](https://github.com/Luigibarte4563/CrowdsourcedAPI)), a
-  **separate repository**, served by XAMPP/Apache at `http://localhost/CrowdsourcedAPI`
-- A running MySQL/MariaDB server for that API
+- PHP 8 + XAMPP/Apache (the backend API now lives in this repo under `backend/`, served by
+  Apache at `http://localhost/PowerGuides/backend`)
+- Composer 2.x (to install the backend's PHP dependencies)
+- A running MySQL/MariaDB server for the backend
 - The `lineman_assignments` table (see **Lineman assignments** below; without it the `/company`
   assignment screens and a lineman's assigned scopes will not work)
 
 ## 2. Setup
 
 > **Setting up a machine that has never run this project?** Read
-> **[`SETUP.md`](SETUP.md)** first — it walks through both repositories (this one
-> and the PHP API), the database import, the `.env` files and CORS. The summary
-> below assumes the API is already running.
+> **[`SETUP.md`](SETUP.md)** first — it walks through the database import, the
+> `.env` files, Composer and CORS. The summary below assumes the API is already
+> running.
 
 ```bash
-cd frontend
 npm install
 cp .env.example .env      # Windows: copy .env.example .env
 npm run dev
@@ -55,9 +55,9 @@ rather than silently moving ports). Open that URL in your browser.
 
 ### Environment variables
 
-| Variable            | Default                 | Read by             | Purpose                                                     |
-| ------------------- | ----------------------- | ------------------- | ----------------------------------------------------------- |
-| `VITE_API_BASE_URL` | `/CrowdsourcedAPI`      | `src/api/client.js` | Base URL of the PHP API. Relative = proxied, same-origin   |
+| Variable            | Default | Read by             | Purpose                                                     |
+| ------------------- | ------- | ------------------- | ----------------------------------------------------------- |
+| `VITE_API_BASE_URL` | `/backend`      | `src/api/client.js` | Base URL of the PHP API. Relative = proxied, same-origin   |
 | `API_PROXY_TARGET`  | `http://localhost`      | `vite.config.js`    | Where the dev proxy forwards to. Change if Apache is elsewhere |
 
 `.env` is gitignored, so a fresh clone has to make its own copy of `.env.example` — which is
@@ -70,17 +70,19 @@ normalisation.
 
 ### Local development: the dev proxy (the default)
 
-`VITE_API_BASE_URL=/CrowdsourcedAPI` is a **relative** path, and `vite.config.js`
-proxies `/CrowdsourcedAPI` to Apache. The browser therefore only ever talks to
-one origin, so **CORS is not involved at all** and the `jwt_token` session cookie
-always works — on localhost, on 127.0.0.1, and on a LAN IP alike.
+`VITE_API_BASE_URL=/backend` is a **relative** path, and `vite.config.js`
+proxies `/backend` to Apache. In this monolith the PHP API lives in `backend/`
+inside this repo and is served by Apache (e.g. `http://localhost/PowerGuides/backend`).
+The browser therefore only ever talks to one origin, so **CORS is not involved at all**
+and the `jwt_token` session cookie always works — on localhost, on 127.0.0.1, and on a
+LAN IP alike.
 
 ```
 # vite.config.js
-server: { proxy: { '/CrowdsourcedAPI': { target: 'http://localhost' } } }
+server: { proxy: { '/backend': { target: 'http://localhost' } } }
 
 # .env
-VITE_API_BASE_URL=/CrowdsourcedAPI
+VITE_API_BASE_URL=/backend
 ```
 
 If Apache is not on this machine's `localhost:80`, set `API_PROXY_TARGET` in
@@ -93,27 +95,27 @@ sign-in** below.
 
 ### If you switch to the absolute URL
 
-Setting `VITE_API_BASE_URL=http://localhost/CrowdsourcedAPI` bypasses the proxy
-and makes every request cross-origin (different port), which brings the API's
-allow-list back into play. That file lives in the **other** repository:
+Setting `VITE_API_BASE_URL=http://localhost/backend` bypasses the proxy and makes every
+request cross-origin (different port), which brings the API's allow-list back into play.
+That file now lives in this repo:
 
 ```
-CrowdsourcedAPI/config/cors.php   # the only place Access-Control-* is set
+backend/config/cors.php   # the only place Access-Control-* is set
 ```
 
 It matches `Origin` against an exact list — `localhost:5173` / `localhost:5174`
 plus their `127.0.0.1` equivalents by default — and sends **no**
 `Access-Control-Allow-Origin` header on a miss. Override the list with
-`ALLOWED_ORIGINS` in `CrowdsourcedAPI/.env` (comma separated, replaces the
-defaults) if you need another origin, e.g. a LAN address.
+`ALLOWED_ORIGINS` in `backend/.env` (comma separated, replaces the defaults) if you
+need another origin, e.g. a LAN address.
 
 Two things that do **not** work, and are the usual time sink:
 
 - **`Access-Control-Allow-Origin: *` is not valid here.** The session is an
   httpOnly cookie sent with `credentials: 'include'`, which the spec requires to
   be matched by one exact origin.
-- **`FRONTEND_URL` has nothing to do with CORS.** In `CrowdsourcedAPI/.env` it is
-  the Google OAuth redirect target only.
+- **`FRONTEND_URL` has nothing to do with CORS.** In `backend/.env` it is the
+  Google OAuth redirect target only.
 
 `FRONTEND_URL` in the **backend** `.env` must match this app's origin (5174) or
 the Google OAuth redirect lands on the wrong app either way.
@@ -127,9 +129,19 @@ frontend/                     # project root (this folder)
 ├── tailwind.config.js        # design tokens (colours, radii, shadows, animation)
 ├── postcss.config.js
 ├── .env.example
-├── SETUP.md                   # from-scratch install guide for both repos, incl. CORS
+├── SETUP.md                   # from-scratch install guide (DB, .env, CORS)
 ├── public/
 │   └── favicon.svg
+├── backend/              # PHP API (merged CrowdsourcedAPI)
+│   ├── api/              # public HTTP endpoints
+│   ├── auth/             # JWT issue/verify, RBAC, Google OAuth
+│   ├── config/           # env.php, cors.php, db_connect.php
+│   ├── database/         # schema + migrations
+│   ├── .env              # local (gitignored); copy from .env.example
+│   ├── .env.example
+│   ├── .htaccess
+│   ├── composer.json / composer.lock
+│   └── README.md
 └── src/
     ├── main.jsx              # providers: QueryClient, Router, Toast, Auth, Reference
     ├── App.jsx               # routes + scroll manager
@@ -302,7 +314,7 @@ on failure. This app handles both:
   never shown.
 
 Because the redirect target is decided by the backend, `FRONTEND_URL` in
-`C:\xampp\htdocs\CrowdsourcedAPI\.env` **must match this dev server's origin** (currently
+`backend/.env` **must match this dev server's origin** (currently
 `http://localhost:5174`, because port 5173 is taken by another project). If Google sign-in lands on a
 blank page or the wrong app, check that value first.
 
@@ -364,7 +376,7 @@ Tokens live in `tailwind.config.js` and are used consistently on every page:
 
 ## 8. Confirmed API contract
 
-The contracts below were verified against the live API in `C:\xampp\htdocs\CrowdsourcedAPI`
+The contracts below were verified against the live API in `backend/`
 (every response shape and write payload was exercised with a throwaway account).
 
 ### Authentication
@@ -482,10 +494,6 @@ Two things worth knowing when working on this module:
 
 ## 10. Out of scope
 
-- The `/backend` folder — the PHP API is a **separate repository**
-  ([`CrowdsourcedAPI`](https://github.com/Luigibarte4563/CrowdsourcedAPI)), cloned to
-  `C:\xampp\htdocs\CrowdsourcedAPI`. That repo also owns `config/cors.php` and both `.env`
-  files. See [`SETUP.md`](SETUP.md)
 - Role definitions — `/admin/users` grants and changes **existing** roles, but the `roles`
   table itself is fixed; there is no endpoint to create a new role
 - Any audience/broadcast targeting: `notification/create.php` takes explicit `user_id`s, so

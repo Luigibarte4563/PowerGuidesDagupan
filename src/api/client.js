@@ -24,7 +24,7 @@
  * and puts the API's origin allow-list back in play; see SETUP.md.
  */
 export const API_BASE_URL = (
-  import.meta.env.VITE_API_BASE_URL || '/CrowdsourcedAPI'
+  import.meta.env.VITE_API_BASE_URL || '/backend'
 ).replace(/\/+$/, '');
 
 /**

@@ -3,7 +3,7 @@ import { apiRequest, absoluteUrl, setStoredToken, unwrapPayload } from './client
 /**
  * Authentication API.
  *
- * Confirmed contract (see `C:\xampp\htdocs\CrowdsourcedAPI\api\auth`):
+ * Confirmed contract (see `backend\api\auth`):
  *   login    POST { email, password } -> { success, message, user_id, token_issued }
  *   register POST { first_name, middle_name?, last_name, email, password }
  *                  -> { success, message } (min password length 6)

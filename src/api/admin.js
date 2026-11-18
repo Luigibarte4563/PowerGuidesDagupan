@@ -8,7 +8,7 @@ import { apiRequest, pickList } from './client';
  * because the platform had no way to list accounts or change roles without editing
  * the database by hand, and no aggregate view across users.
  *
- * Confirmed contract (see `C:\xampp\htdocs\CrowdsourcedAPI\api\admin`):
+ * Confirmed contract (see `backend\api\admin`):
  *   users.php       GET  ?role=&q=  -> { success, count, data: AdminUser[] }
  *                        Directory of every account: name, email, role, provider,
  *                        created_at, last_login. No password hash, google_id or
