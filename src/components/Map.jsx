@@ -57,6 +57,8 @@ function BaseLayer() {
 
 /** Dark outline drawn outside the light ring so pins stay visible on pale tiles. */
 const PIN_OUTLINE = '#0B1B26';
+/** Visible black band is half the gap between this and the white ring's 2.5 stroke. */
+const PIN_OUTLINE_WIDTH = 4.5;
 
 const PIN_COLORS = {
   primary: '#f18f01',
@@ -150,7 +152,7 @@ export function pinSvg(tone = 'primary', glyph = '') {
 
   return (
     `<svg viewBox="0 0 ${PIN_BOX.width} ${PIN_BOX.height}" width="100%" height="100%" aria-hidden="true" focusable="false">` +
-    `<path d="${PIN_PATH}" fill="${color}" stroke="${PIN_OUTLINE}" stroke-width="5" stroke-linejoin="round" />` +
+    `<path d="${PIN_PATH}" fill="${color}" stroke="${PIN_OUTLINE}" stroke-width="${PIN_OUTLINE_WIDTH}" stroke-linejoin="round" />` +
     `<path d="${PIN_PATH}" fill="${color}" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round" />` +
     centre +
     `</svg>`
