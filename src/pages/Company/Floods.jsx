@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import DataView from '@/components/DataView';
 import RecordCard from '@/components/RecordCard';
+import ViewableImage from '@/components/ViewableImage';
 import AppMap, {
   FitPoints,
   MapLegend,
@@ -21,7 +22,7 @@ import { useToast } from '@/context/ToastContext';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { floodsApi, FLOOD_STATUSES } from '@/api';
 import { COMPANY_PAGE_SIZE, COMPANY_QUERY_KEYS, severityTone, statusTone } from '@/utils/constants';
-import { readFlood, resolveImageUrl } from '@/utils/records';
+import { readFlood } from '@/utils/records';
 import { formatDateTime, formatRelativeTime, formatTime, humanize } from '@/utils/formatters';
 import { toUserMessage } from '@/utils/errorMessage';
 
@@ -292,21 +293,7 @@ export default function Floods() {
                   </Button>
                 }
               >
-                {flood.image ? (
-                  <a
-                    href={resolveImageUrl(flood.image)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-3 block"
-                  >
-                    <img
-                      src={resolveImageUrl(flood.image)}
-                      alt="Flood evidence"
-                      loading="lazy"
-                      className="h-32 w-full rounded-control border border-navy-100 object-cover"
-                    />
-                  </a>
-                ) : null}
+                {flood.image ? <ViewableImage src={flood.image} alt="Flood evidence" /> : null}
               </RecordCard>
             )}
           />

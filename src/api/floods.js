@@ -1,4 +1,4 @@
-import { apiRequest, pickList } from './client';
+import { apiRequest, pickList, uploadWithProgress } from './client';
 
 /**
  * Flood reports.
@@ -14,7 +14,9 @@ import { apiRequest, pickList } from './client';
  *                    { id, reported_by, location_name, latitude, longitude, flood_depth_cm,
  *                      flood_level, description, image_proof, status, reported_at, updated_at,
  *                      barangay_name }
- *   get_nearby.php ?lat=&lng=&radius= (radius in metres, server default 3000)
+ *   upload_image.php multipart: field `image` + `flood_report_id`, max 5 MB
+  *                    -> { success, image_url }; attaches it as `image_proof`
+  *   get_nearby.php ?lat=&lng=&radius= (radius in metres, server default 3000)
  *                    -> data rows as above plus `distance` (metres)
  */
 export const FLOOD_LEVELS = ['low', 'moderate', 'high', 'severe'];
@@ -30,6 +32,14 @@ export const floodsApi = {
   async list(params, { signal } = {}) {
     const payload = await apiRequest('/api/flood_report/get.php', { params, signal });
     return { items: pickList(payload), count: payload?.count ?? null, raw: payload };
+  },
+
+  /** Owner-only. Stores the photo and attaches it to the report. */
+  uploadImage(file, { onProgress, signal, floodReportId } = {}) {
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('flood_report_id', String(floodReportId));
+    return uploadWithProgress('/api/flood_report/upload_image.php', formData, { onProgress, signal });
   },
 
   async getNearby({ lat, lng, radius, ...params } = {}, { signal } = {}) {

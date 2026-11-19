@@ -17,6 +17,7 @@ import { useSavedLocation } from '@/hooks/useSavedLocation';
 import { hazardsApi } from '@/api';
 import { QUERY_KEYS } from '@/utils/constants';
 import { isOwnedBy, readHazard } from '@/utils/records';
+import ViewableImage from '@/components/ViewableImage';
 import { severityTone, statusTone } from '@/utils/constants';
 import { formatDateTime, formatTime, humanize } from '@/utils/formatters';
 import { toUserMessage } from '@/utils/errorMessage';
@@ -329,7 +330,9 @@ export default function Hazards() {
                   </div>
                 ) : null
               }
-            />
+            >
+              {hazard.image ? <ViewableImage src={hazard.image} alt="Hazard evidence" /> : null}
+            </RecordCard>
           );
         }}
       />

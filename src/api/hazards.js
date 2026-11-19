@@ -1,4 +1,4 @@
-import { apiRequest, pickList } from './client';
+import { apiRequest, pickList, uploadWithProgress } from './client';
 
 /**
  * Electrical hazards.
@@ -17,7 +17,9 @@ import { apiRequest, pickList } from './client';
  *                         { id, reported_by, location_name, latitude, longitude, description,
  *                           severity, status, image_proof, reported_at, resolved_at,
  *                           barangay_name, hazard_type }
- *   update_status.php   POST { status*, hazard_id* } (owner-only)
+ *   upload_image.php    multipart: field `image` + `hazard_id`, max 5 MB
+  *                         -> { success, image_url }; attaches it as `image_proof`
+  *   update_status.php   POST { status*, hazard_id* } (owner-only)
  *                         `status` enum: reported | verified | resolved
  */
 export const HAZARD_SEVERITIES = ['low', 'moderate', 'high', 'critical'];
@@ -40,6 +42,14 @@ export const hazardsApi = {
   async list(params, { signal } = {}) {
     const payload = await apiRequest('/api/electrical_hazard/get.php', { params, signal });
     return { items: pickList(payload), count: payload?.count ?? null, raw: payload };
+  },
+
+  /** Owner-only. Stores the photo and attaches it to the report. */
+  uploadImage(file, { onProgress, signal, hazardId } = {}) {
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('hazard_id', String(hazardId));
+    return uploadWithProgress('/api/electrical_hazard/upload_image.php', formData, { onProgress, signal });
   },
 
   /** Owner-only. */

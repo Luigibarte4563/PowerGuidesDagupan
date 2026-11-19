@@ -5,6 +5,7 @@ import { AlertTriangle, Loader2, MapPin, Users, X } from 'lucide-react';
 import { Input, Textarea } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import Modal from '@/components/ui/Modal';
+import ImageUploader from '@/components/ImageUploader';
 import AppMap, { pinIcon } from '@/components/Map';
 import { useReference } from '@/context/ReferenceContext';
 import { useToast } from '@/context/ToastContext';
@@ -76,6 +77,8 @@ export default function HazardFormModal({ open, onClose, hazard = null, onResult
   const [viewCenter, setViewCenter] = useState(initialPoint || DEFAULT_POINT);
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
+  const [image, setImage] = useState(null);
+  const [progress, setProgress] = useState(0);
 
   const markerPoint = useMemo(
     () => values.location || coordsFor(values.barangayName) || DEFAULT_POINT,
@@ -146,7 +149,22 @@ export default function HazardFormModal({ open, onClose, hazard = null, onResult
 
   const createMutation = useMutation({
     mutationFn: (payload) => hazardsApi.create(payload),
-    onSuccess: () => {
+    onSuccess: async (response) => {
+      const hazardId = response?.hazard_id ?? response?.data?.hazard_id;
+      if (image && hazardId) {
+        setProgress(1);
+        try {
+          await hazardsApi.uploadImage(image, { onProgress: setProgress, hazardId });
+        } catch (uploadError) {
+          toast.warning(
+            toUserMessage(uploadError, 'Your report was saved but the photo could not be uploaded.'),
+            { title: 'Photo not uploaded' }
+          );
+        }
+        setProgress(0);
+      }
+
+      setImage(null);
       queryClient.invalidateQueries({ queryKey: ['hazards'] });
       queryClient.invalidateQueries({ queryKey: ['risks'] });
       if (onResult) {
@@ -416,6 +434,22 @@ export default function HazardFormModal({ open, onClose, hazard = null, onResult
                   hint={`${String(values.description || '').trim().length}/10 characters minimum`}
                 />
               </div>
+
+              {!isEdit ? (
+                <div className="mt-3">
+                  <ImageUploader
+                    value={image}
+                    onChange={setImage}
+                    progress={progress}
+                    uploading={progress > 0 && progress < 100}
+                    label="Photo proof (optional)"
+                    labelClassName={FIELD_LABEL}
+                    maxWidth="max-w-none"
+                    hint="JPG, PNG, WEBP or GIF. A photo helps the utility verify the hazard."
+                    disabled={submitting}
+                  />
+                </div>
+              ) : null}
 
               <div className="mt-4 space-y-2 text-[11px] leading-relaxed text-white/35">
                 {isEdit ? (

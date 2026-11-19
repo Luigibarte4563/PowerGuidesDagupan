@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import FormModal from '@/components/FormModal';
+import ImageUploader from '@/components/ImageUploader';
 import MapPicker from '@/components/MapPicker';
 import { Input, Textarea } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -45,6 +46,8 @@ export default function FloodFormModal({
   });
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
+  const [image, setImage] = useState(null);
+  const [progress, setProgress] = useState(0);
 
   // Reset form when initialData changes (e.g., opening for a different report)
   useEffect(() => {
@@ -77,7 +80,21 @@ export default function FloodFormModal({
 
   const mutation = useMutation({
     mutationFn: (payload) => isEditing ? floodsApi.update(payload) : floodsApi.create(payload),
-    onSuccess: () => {
+    onSuccess: async (response) => {
+      const reportId = response?.flood_report_id ?? response?.data?.flood_report_id;
+      if (image && !isEditing && reportId) {
+        setProgress(1);
+        try {
+          await floodsApi.uploadImage(image, { onProgress: setProgress, floodReportId: reportId });
+        } catch (uploadError) {
+          toast.warning(
+            toUserMessage(uploadError, 'Your report was saved but the photo could not be uploaded.'),
+            { title: 'Photo not uploaded' }
+          );
+        }
+        setProgress(0);
+      }
+
       const message = isEditing
         ? 'Flood report updated successfully.'
         : 'Flood report submitted. Thank you for reporting.';
@@ -90,6 +107,7 @@ export default function FloodFormModal({
         depth: '',
         location: null,
       });
+      setImage(null);
       setErrors({});
       queryClient.invalidateQueries({ queryKey: ['floods'] });
       queryClient.invalidateQueries({ queryKey: ['risks'] });
@@ -217,6 +235,19 @@ export default function FloodFormModal({
         onChange={(event) => setField('description', event.target.value)}
         error={errors.description}
       />
+
+      {!isEditing ? (
+        <ImageUploader
+          value={image}
+          onChange={setImage}
+          progress={progress}
+          uploading={progress > 0 && progress < 100}
+          label="Photo proof (optional)"
+          maxWidth="max-w-none"
+          hint="JPG, PNG, WEBP or GIF. A photo helps the utility verify the flooding."
+          disabled={mutation.isPending}
+        />
+      ) : null}
 
       <div className="rounded-card border border-navy-100 p-4">
         <MapPicker

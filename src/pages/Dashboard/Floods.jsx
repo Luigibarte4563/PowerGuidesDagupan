@@ -23,6 +23,7 @@ import { useSavedLocation } from '@/hooks/useSavedLocation';
 import { floodsApi } from '@/api';
 import { QUERY_KEYS } from '@/utils/constants';
 import { readFlood, withDistance, isOwnedBy } from '@/utils/records';
+import ViewableImage from '@/components/ViewableImage';
 import { DEFAULT_RADIUS_METERS, RADIUS_OPTIONS, severityTone, statusTone } from '@/utils/constants';
 import { formatDateTime, formatDistance, formatTime, humanize } from '@/utils/formatters';
 import { toUserMessage } from '@/utils/errorMessage';
@@ -70,20 +71,7 @@ export default function Floods() {
     }
   }, [searchParams, setSearchParams]);
 
-  // Mutations for edit/delete
-  const updateMutation = useMutation({
-    mutationFn: (payload) => floodsApi.update(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['floods'] });
-      queryClient.invalidateQueries({ queryKey: ['risks'] });
-      setEditor(null);
-      toast.success('Flood report updated successfully.', { title: 'Report updated' });
-    },
-    onError: (error) => {
-      toast.error(toUserMessage(error, 'We could not update your flood report.'), { title: 'Error' });
-    },
-  });
-
+  // Deletes are handled here; edits go through FloodFormModal.
   const deleteMutation = useMutation({
     mutationFn: (id) => floodsApi.remove(id),
   });
@@ -385,7 +373,9 @@ export default function Floods() {
                   </button>
                 </div>
               ) : null}
-            />
+            >
+              {flood.image ? <ViewableImage src={flood.image} alt="Flood evidence" /> : null}
+            </RecordCard>
           );
         }}
       />

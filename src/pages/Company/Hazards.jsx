@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/Select';
 import { InfoNote } from '@/components/ui/Alert';
 import DataView from '@/components/DataView';
 import RecordCard from '@/components/RecordCard';
+import ViewableImage from '@/components/ViewableImage';
 import AppMap, {
   FitPoints,
   MapLegend,
@@ -32,7 +33,7 @@ import {
   severityTone,
   statusTone,
 } from '@/utils/constants';
-import { readHazard, resolveImageUrl } from '@/utils/records';
+import { readHazard } from '@/utils/records';
 import { formatDateTime, formatRelativeTime, formatTime, humanize } from '@/utils/formatters';
 import { toUserMessage } from '@/utils/errorMessage';
 
@@ -358,21 +359,7 @@ export default function Hazards() {
                     </>
                   }
                 >
-                  {hazard.image ? (
-                    <a
-                      href={resolveImageUrl(hazard.image)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-3 block"
-                    >
-                      <img
-                        src={resolveImageUrl(hazard.image)}
-                        alt="Hazard evidence"
-                        loading="lazy"
-                        className="h-32 w-full rounded-control border border-navy-100 object-cover"
-                      />
-                    </a>
-                  ) : null}
+                  {hazard.image ? <ViewableImage src={hazard.image} alt="Hazard evidence" /> : null}
                 </RecordCard>
               );
             }}
