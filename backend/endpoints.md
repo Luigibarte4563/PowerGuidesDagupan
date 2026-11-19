@@ -397,7 +397,7 @@ Cancel (soft-delete) own active report. Body: `id`. Sets status `rejected`,
 ### `POST /api/outage_report/upload_image.php`
 Multipart upload. Fields: `image` (file, max 5 MB, jpg/png/gif/webp),
 `outage_report_id`. Owner or staff only. Stores under `uploads/outage/` and
-records in `outage_report_images`.
+saves the path to `outage_reports.image_proof`.
 
 ---
 

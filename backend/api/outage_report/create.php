@@ -160,8 +160,9 @@ try {
             latitude,
             longitude,
             description,
+            image_proof,
             started_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
 
     $status = getStatus($conn, 'active');
@@ -178,6 +179,7 @@ try {
         $latitude,
         $longitude,
         $description,
+        $image_url,
         $started_at
     ]);
 
@@ -214,15 +216,6 @@ try {
         }
     } catch (Throwable $e) {
         error_log("Outage report notification failed: " . $e->getMessage());
-    }
-
-    /* Optional evidence image -> outage_report_images */
-    if (!empty($image_url)) {
-        $imgStmt = $conn->prepare("
-            INSERT INTO outage_report_images (outage_report_id, uploaded_by, image_url)
-            VALUES (?, ?, ?)
-        ");
-        $imgStmt->execute([$outage_report_id, $user_id, $image_url]);
     }
 
     echo json_encode([

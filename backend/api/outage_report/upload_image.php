@@ -11,16 +11,28 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 $user = requireAuthUser();
 
-if (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
-    http_response_code(400);
-    echo json_encode(["success" => false, "message" => "No valid image uploaded"]);
-    exit;
-}
-
 $outageReportId = (int)($_POST['outage_report_id'] ?? 0);
 if ($outageReportId <= 0) {
     http_response_code(400);
     echo json_encode(["success" => false, "message" => "outage_report_id is required"]);
+    exit;
+}
+
+/* Check ownership before moving the file, so a rejected upload leaves no orphan on disk. */
+$role = $user['role'] ?? '';
+$isStaff = in_array($role, ['lineman', 'electric_company', 'admin'], true);
+
+$ownsStmt = $conn->prepare("SELECT id FROM outage_reports WHERE id = ? AND user_id = ? LIMIT 1");
+$ownsStmt->execute([$outageReportId, $user['id']]);
+if (!$ownsStmt->fetch() && !$isStaff) {
+    http_response_code(403);
+    echo json_encode(["success" => false, "message" => "Forbidden"]);
+    exit;
+}
+
+if (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+    http_response_code(400);
+    echo json_encode(["success" => false, "message" => "No valid image uploaded"]);
     exit;
 }
 
@@ -73,34 +85,17 @@ if (!move_uploaded_file($file['tmp_name'], $destination)) {
 
 $imageUrl = 'uploads/outage/' . $filename;
 
-/* =========================================
-   VERIFY USER OWNS THE REPORT (or staff)
-========================================= */
-$role = $user['role'] ?? '';
-$isStaff = in_array($role, ['lineman', 'electric_company', 'admin'], true);
-
-$ownsStmt = $conn->prepare("SELECT id FROM outage_reports WHERE id = ? AND user_id = ? LIMIT 1");
-$ownsStmt->execute([$outageReportId, $user['id']]);
-$owns = (bool)$ownsStmt->fetch();
-
-if (!$owns && !$isStaff) {
-    http_response_code(403);
-    echo json_encode(["success" => false, "message" => "Forbidden"]);
+try {
+    $update = $conn->prepare("UPDATE outage_reports SET image_proof = ? WHERE id = ?");
+    $update->execute([$imageUrl, $outageReportId]);
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo json_encode(["success" => false, "message" => "Failed to attach image"]);
     exit;
 }
-
-/* =========================================
-   RECORD
-========================================= */
-$insert = $conn->prepare("
-    INSERT INTO outage_report_images (outage_report_id, uploaded_by, image_url)
-    VALUES (?, ?, ?)
-");
-$insert->execute([$outageReportId, $user['id'], $imageUrl]);
 
 echo json_encode([
     "success" => true,
     "message" => "Image uploaded",
-    "image_id" => (int)$conn->lastInsertId(),
     "image_url" => $imageUrl
 ]);

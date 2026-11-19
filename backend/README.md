@@ -161,7 +161,7 @@ The canonical schema is `database/powerguidedagupan.sql` — a **normalized** de
   `hazard_types`, `outage_statuses`, `power_station_types`, `notification_types`.
 - **Reference:** `barangays` (36 Dagupan barangays seeded).
 - **Users/roles:** `users` (with embedded location columns).
-- **Outage tracking:** `outage_reports`, `outage_report_images`,
+- **Outage tracking:** `outage_reports` (with `image_proof`),
   `outage_report_updates`, `outage_report_verifications`; spatial aggregation in
   `outage_clusters` and `outage_cluster_reports`.
 - **Disaster reports:** `flood_reports`, `electrical_hazards`.

@@ -63,10 +63,8 @@ try {
         denyAccess("This outage is not in one of your assigned barangays.");
     }
 
-    /* Images */
-    $imgStmt = $conn->prepare("SELECT id, uploaded_by, image_url, created_at FROM outage_report_images WHERE outage_report_id = ? ORDER BY id");
-    $imgStmt->execute([$id]);
-    $report['images'] = $imgStmt->fetchAll(PDO::FETCH_ASSOC);
+    /* Image (single proof, stored on the report) */
+    $report['images'] = !empty($report['image_proof']) ? [$report['image_proof']] : [];
 
     /* Latest update message (stored directly on the report) */
     $report['update_message'] = $report['update_message'] ?? null;

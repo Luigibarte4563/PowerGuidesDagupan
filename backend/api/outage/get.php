@@ -41,8 +41,7 @@ $sql = "
         orp.severity,
         orp.hazard_type,
         orp.status AS status,
-        (SELECT img.image_url FROM outage_report_images img
-         WHERE img.outage_report_id = orp.id ORDER BY img.id LIMIT 1) AS image_url
+        orp.image_proof AS image_url
     FROM outage_reports orp
     LEFT JOIN barangays b    ON b.id = orp.barangay_id
     LEFT JOIN users u        ON u.id = orp.user_id

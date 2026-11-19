@@ -118,6 +118,8 @@ CREATE TABLE outage_reports (
 
     description TEXT NULL,
 
+    image_proof TEXT NULL,
+
     started_at DATETIME NULL,
 
     resolved_at DATETIME NULL,
@@ -160,32 +162,7 @@ ON outage_reports(created_at);
 
 
 -- =========================================================
--- 4. OUTAGE REPORT IMAGES
--- =========================================================
-
-CREATE TABLE outage_report_images (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-
-    outage_report_id INT NOT NULL,
-
-    uploaded_by INT NOT NULL,
-
-    image_url TEXT NOT NULL,
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (outage_report_id)
-        REFERENCES outage_reports(id)
-        ON DELETE CASCADE,
-
-    FOREIGN KEY (uploaded_by)
-        REFERENCES users(id)
-        ON DELETE CASCADE
-);
-
-
--- =========================================================
--- 5. OUTAGE REPORT VERIFICATIONS
+-- 4. OUTAGE REPORT VERIFICATIONS
 -- =========================================================
 
 CREATE TABLE outage_report_verifications (
