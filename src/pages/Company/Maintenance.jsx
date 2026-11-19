@@ -4,7 +4,6 @@ import { ZoomControl } from 'react-leaflet';
 import { CalendarClock, CheckCircle2, Pencil, Plus, Trash2, UserCheck, Wrench } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Select } from '@/components/ui/Select';
 import DataView from '@/components/DataView';
 import RecordCard from '@/components/RecordCard';
 import ConfirmDialog from '@/components/ConfirmDialog';
@@ -50,7 +49,6 @@ export default function Maintenance() {
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [assigning, setAssigning] = useState(null);
-  const [mapStatus, setMapStatus] = useState('');
 
   const listQuery = useQuery({
     queryKey: COMPANY_QUERY_KEYS.maintenance({ tab }),
@@ -136,11 +134,11 @@ export default function Maintenance() {
   // Each schedule expands into one point per affected barangay so a multi-barangay
   // schedule is drawn in full rather than only at its first location.
   const mapPoints = useMemo(() => {
-    const filtered = mapStatus
-      ? (mapQuery.data || []).filter(
-          (row) => String(readMaintenance(row).status).toLowerCase() === mapStatus
-        )
-      : mapQuery.data || [];
+    // The feed's status tab is the single filter for both panes: completed schedules
+    // must not stay plotted while Upcoming or Ongoing is selected.
+    const filtered = (mapQuery.data || []).filter(
+      (row) => String(readMaintenance(row).status).toLowerCase() === tab
+    );
     return filtered.flatMap((row) => {
       const schedule = readMaintenance(row);
       // `located` only - a location without coordinates has no pin to draw, though it
@@ -154,7 +152,7 @@ export default function Maintenance() {
         date: schedule.date,
       }));
     });
-  }, [mapQuery.data, mapStatus]);
+  }, [mapQuery.data, tab]);
 
   /**
    * Coverage is a CIRCLE per affected barangay, not a pin.
@@ -299,22 +297,6 @@ export default function Maintenance() {
           { label: 'Ongoing', value: counts.ongoing, icon: Wrench, color: '#f18f01' },
           { label: 'Completed', value: counts.completed, icon: CheckCircle2, color: '#34FB34' },
         ]}
-        filters={
-          <div className="mt-2 grid grid-cols-2 gap-1.5">
-            <Select
-              aria-label="Filter map by status"
-              options={[
-                { value: 'upcoming', label: 'Upcoming' },
-                { value: 'ongoing', label: 'Ongoing' },
-                { value: 'completed', label: 'Completed' },
-              ]}
-              placeholder="All statuses"
-              value={mapStatus}
-              onChange={(event) => setMapStatus(event.target.value)}
-              className="h-9 py-0 text-xs"
-            />
-          </div>
-        }
         plottedCount={mapPoints.length}
         mapEmpty={!mapQuery.isLoading && mapPoints.length === 0}
         mapEmptyLabel="No mapped maintenance areas yet"
