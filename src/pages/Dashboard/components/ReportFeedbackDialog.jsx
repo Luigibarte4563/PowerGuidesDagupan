@@ -53,7 +53,7 @@ export default function ReportFeedbackDialog({
       onClose={loading ? undefined : onClose}
       title={title}
       bare
-      className={`font-montserrat max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[26rem] overflow-y-auto rounded-[24px] border bg-gradient-to-br from-[#1E203C] to-[#141527] p-6 text-center shadow-[0_30px_100px_rgba(16,27,45,0.7)] ${
+      className={`font-montserrat max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[26rem] overflow-y-auto rounded-[24px] border bg-[#153243] p-6 text-center shadow-[0_30px_100px_rgba(16,27,45,0.7)] ${
         danger ? 'border-[#FF2E1F]/60' : 'border-white/10'
       }`}
     >

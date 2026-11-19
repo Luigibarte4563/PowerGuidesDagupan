@@ -267,7 +267,7 @@ export default function HazardFormModal({ open, onClose, hazard = null, onResult
       onClose={submitting ? undefined : onClose}
       title={isEdit ? 'Update an Incident' : 'Report an electrical hazard'}
       bare
-      className="font-montserrat h-[min(92vh,760px)] w-[calc(100%-1.5rem)] max-w-[1000px] overflow-hidden rounded-[24px] border border-white/10 bg-gradient-to-br from-[#1E203C] to-[#141527] shadow-[0_30px_100px_rgba(16,27,45,0.7)] lg:h-[640px]"
+      className="font-montserrat h-[min(92vh,760px)] w-[calc(100%-1.5rem)] max-w-[1000px] overflow-hidden rounded-[24px] border border-white/10 bg-[#153243] shadow-[0_30px_100px_rgba(16,27,45,0.7)] lg:h-[640px]"
     >
       <div data-theme="dark" className="flex h-full min-h-0 flex-col lg:flex-row">
         <div className="relative h-[210px] shrink-0 overflow-hidden border-b border-white/10 sm:h-[230px] lg:h-auto lg:w-[45%] lg:border-b-0 lg:border-r">
@@ -463,7 +463,7 @@ export default function HazardFormModal({ open, onClose, hazard = null, onResult
               </div>
             </div>
 
-            <div className="border-t border-white/10 bg-[#141527]/50 p-4">
+            <div className="border-t border-white/10 bg-[#153243] p-4">
               <button
                 type="submit"
                 disabled={submitting}
