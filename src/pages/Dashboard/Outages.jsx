@@ -17,7 +17,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import AppMap, { MapLegend } from '@/components/Map';
+import AppMap, { MapLegend, SEVERITY_COLORS } from '@/components/Map';
 import { outagesApi } from '@/api';
 import { QUERY_KEYS } from '@/utils/constants';
 import { formatRelativeTime, formatTime, hasCoordinates } from '@/utils/formatters';
@@ -47,7 +47,7 @@ const STATUS_OPTIONS = [
 ];
 
 const SURFACE_INPUT =
-  'h-11 rounded-xl border border-white/10 bg-[#1C1D30]/60 text-sm text-white placeholder:text-white/30 focus:border-[#FFBB02] focus:outline-none focus:ring-2 focus:ring-[#FFBB02]/25';
+  'h-11 rounded-xl border border-white/10 bg-[#153243]/60 text-sm text-white placeholder:text-white/30 focus:border-[#f18f01] focus:outline-none focus:ring-2 focus:ring-[#f18f01]/25';
 
 function statusClasses(status) {
   const key = String(status ?? '').toLowerCase();
@@ -58,7 +58,7 @@ function statusClasses(status) {
     return 'border-[#FF2E1F]/20 bg-[#FF2E1F]/10 text-[#FF2E1F]';
   }
   if (/progress|review|verif|investigat|pending/.test(key)) {
-    return 'border-[#FFBB02]/20 bg-[#FFBB02]/10 text-[#FFBB02]';
+    return 'border-[#f18f01]/20 bg-[#f18f01]/10 text-[#f18f01]';
   }
   if (/active|open|reported/.test(key)) {
     return 'border-[#22D3EE]/20 bg-[#22D3EE]/10 text-[#22D3EE]';
@@ -212,13 +212,13 @@ export default function Outages() {
   return (
     <div
       data-theme="dark"
-      className="min-h-full bg-[#03041A] px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
+      className="min-h-full bg-[#153243] dashboard-grid px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
     >
       <div className="flex flex-wrap items-center justify-end gap-2">
         <button
           type="button"
           onClick={openCreate}
-          className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#FFBB02] px-5 text-sm font-extrabold text-[#191400] shadow-[0_8px_24px_rgba(255,187,2,0.18)] transition hover:bg-[#FFD400]"
+          className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#f18f01] px-5 text-sm font-extrabold text-[#191400] shadow-[0_8px_24px_rgba(255,187,2,0.18)] transition hover:bg-[#f6c200]"
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
           Report Outage
@@ -260,14 +260,14 @@ export default function Outages() {
 
       <div className="mt-5 flex flex-col gap-6 xl:flex-row xl:items-stretch">
         <section
-          className="relative h-[440px] min-w-0 overflow-hidden rounded-2xl border border-white/5 bg-[#31324C]/20 shadow-[0_20px_50px_rgba(0,0,0,0.25)] lg:h-[550px] xl:flex-1"
+          className="relative h-[440px] min-w-0 overflow-hidden rounded-2xl border border-white/5 bg-white/[0.04] shadow-[0_20px_50px_rgba(0,0,0,0.25)] lg:h-[550px] xl:flex-1"
           aria-label="Outage map"
         >
           <AppMap
             center={MAP_CENTER}
             zoom={12}
             zoomControl={false}
-            className="pg-dark-map h-full w-full"
+            className="h-full w-full"
           >
             <ZoomControl position="bottomright" />
             {mappableReports.map((outage) => {
@@ -321,7 +321,7 @@ export default function Outages() {
                       {isOwnedBy(outage, null, { myIds }) ? (
                         <Link
                           to={`/dashboard/outages/${outage.id}`}
-                          className="mt-3 inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide !text-[#FFBB02] hover:!text-[#FFD400]"
+                          className="mt-3 inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide !text-[#f18f01] hover:!text-[#f6c200]"
                         >
                           View report details
                           <ChevronRight className="h-3 w-3" aria-hidden="true" />
@@ -334,7 +334,7 @@ export default function Outages() {
             })}
             </AppMap>
 
-            <div className="pointer-events-none absolute left-3 top-3 z-[500] rounded-full border border-white/10 bg-[#0B0D20]/80 px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[0.16em] text-white/60 shadow-xl backdrop-blur-md">
+            <div className="pointer-events-none absolute left-3 top-3 z-[500] rounded-full border border-white/10 bg-[#153243]/80 px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[0.16em] text-white/60 shadow-xl backdrop-blur-md">
               <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[#34FB34]" />
               {mappableReports.length} plotted
             </div>
@@ -342,16 +342,16 @@ export default function Outages() {
             <MapLegend
               title="Severity level"
               items={[
-                { label: 'Critical', tone: 'danger' },
-                { label: 'Moderate', tone: 'primary' },
-                { label: 'Minor', tone: 'success' },
+                { label: 'Critical', color: SEVERITY_COLORS.critical },
+                { label: 'Moderate', color: SEVERITY_COLORS.moderate },
+                { label: 'Minor', color: SEVERITY_COLORS.low },
               ]}
             />
 
             {!feedQuery.isLoading && !feedQuery.isError && !mappableReports.length ? (
               <div className="pointer-events-none absolute inset-x-3 top-14 z-[450] flex justify-center">
-                <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/10 bg-[#0B0D20]/80 px-3.5 py-2 text-[10px] font-semibold text-white/65 shadow-lg backdrop-blur-md">
-                  <MapPin className="h-3.5 w-3.5 shrink-0 text-[#FFBB02]" aria-hidden="true" />
+                <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/10 bg-[#153243]/80 px-3.5 py-2 text-[10px] font-semibold text-white/65 shadow-lg backdrop-blur-md">
+                  <MapPin className="h-3.5 w-3.5 shrink-0 text-[#f18f01]" aria-hidden="true" />
                   <span className="truncate">No mapped reports yet</span>
                   <span className="hidden truncate text-white/35 sm:inline">
                     · Reports with a saved pin appear here
@@ -361,7 +361,7 @@ export default function Outages() {
             ) : null}
           </section>
 
-          <aside className="flex h-[440px] w-full flex-col overflow-hidden rounded-2xl border border-white/5 bg-[#31324C]/20 shadow-[0_20px_50px_rgba(0,0,0,0.25)] lg:h-[550px] xl:w-[420px] xl:shrink-0">
+          <aside className="flex h-[440px] w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-[0_20px_50px_rgba(0,0,0,0.25)] lg:h-[550px] xl:w-[420px] xl:shrink-0">
             <div className="border-b border-white/5 p-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -381,7 +381,7 @@ export default function Outages() {
                 </span>
               </div>
 
-              <div className="mt-2.5 grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-[#03041A]/60 p-1">
+              <div className="mt-2.5 grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-[#153243]/60 p-1">
                 {[
                   { value: 'all', label: 'All Reports', count: reports.length },
                   { value: 'mine', label: 'My Reports', count: myIds.length },
@@ -395,7 +395,7 @@ export default function Outages() {
                       aria-pressed={active}
                       className={`flex h-8 items-center justify-center gap-1.5 rounded-lg text-[11px] font-bold transition ${
                         active
-                          ? 'bg-[#FFBB02] text-[#191400] shadow-[0_4px_16px_rgba(255,187,2,0.16)]'
+                          ? 'bg-[#f18f01] text-[#191400] shadow-[0_4px_16px_rgba(255,187,2,0.16)]'
                           : 'text-white/45 hover:bg-white/5 hover:text-white/75'}
                       }`}
                     >
@@ -416,13 +416,13 @@ export default function Outages() {
                 {[
                   { label: 'Active', value: stats.active, icon: Activity, color: '#22D3EE' },
                   { label: 'Critical', value: stats.critical, icon: AlertTriangle, color: '#FF2E1F' },
-                  { label: 'Homes', value: stats.affectedHomes, icon: Home, color: '#FFBB02' },
+                  { label: 'Homes', value: stats.affectedHomes, icon: Home, color: '#f18f01' },
                 ].map((tile) => {
                   const Icon = tile.icon;
                   return (
                     <div
                       key={tile.label}
-                      className="rounded-xl border border-white/5 bg-[#1C1D30]/40 px-2 py-1.5"
+                      className="rounded-xl border border-white/10 bg-white/[0.06] px-2 py-1.5"
                     >
                       <div className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-[0.12em] text-white/40">
                         <Icon className="h-2.5 w-2.5" style={{ color: tile.color }} aria-hidden="true" />
@@ -445,7 +445,7 @@ export default function Outages() {
                     aria-pressed={status === option.value}
                     className={`h-7 rounded-full border px-2.5 text-[9px] font-bold transition ${
                       status === option.value
-                        ? 'border-[#FFBB02]/40 bg-[#FFBB02]/15 text-[#FFBB02]'
+                        ? 'border-[#f18f01]/40 bg-[#f18f01]/15 text-[#f18f01]'
                         : 'border-white/10 bg-transparent text-white/45 hover:border-white/20 hover:text-white/70'}
                     }`}
                   >
@@ -461,7 +461,7 @@ export default function Outages() {
             <div className="min-h-0 flex-1 overflow-y-auto p-3">
               {feedQuery.isLoading ? (
                 <div className="flex h-full min-h-[220px] flex-col items-center justify-center text-center">
-                  <Loader2 className="h-6 w-6 animate-spin text-[#FFBB02]" aria-hidden="true" />
+                  <Loader2 className="h-6 w-6 animate-spin text-[#f18f01]" aria-hidden="true" />
                   <p className="mt-2 text-xs font-semibold text-white/45">Loading outage reports…</p>
                 </div>
               ) : feedQuery.isError && !feedQuery.data ? (
@@ -482,7 +482,7 @@ export default function Outages() {
               ) : !filteredReports.length ? (
                 <div className="flex h-full min-h-[220px] flex-col items-center justify-center px-4 text-center">
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04]">
-                    <Zap className="h-5 w-5 text-[#FFBB02]" aria-hidden="true" />
+                    <Zap className="h-5 w-5 text-[#f18f01]" aria-hidden="true" />
                   </div>
                   <p className="mt-3 text-sm font-bold text-white">{emptyTitle}</p>
                   <p className="mt-1 max-w-[240px] text-[11px] leading-relaxed text-white/40">
@@ -493,7 +493,7 @@ export default function Outages() {
                   <button
                     type="button"
                     onClick={openCreate}
-                    className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-[#FFBB02]/30 bg-[#FFBB02]/10 px-3 py-1.5 text-[10px] font-bold text-[#FFBB02] transition:hover:bg-[#FFBB02]/15"
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-[#f18f01]/30 bg-[#f18f01]/10 px-3 py-1.5 text-[10px] font-bold text-[#f18f01] transition:hover:bg-[#f18f01]/15"
                   >
                     <Plus className="h-3 w-3" aria-hidden="true" />
                     Report an outage
@@ -502,7 +502,7 @@ export default function Outages() {
               ) : (
                 <div className="space-y-2">
                   {feedQuery.isError ? (
-                    <p className="rounded-lg border border-[#FFBB02]/20 bg-[#FFBB02]/10 px-2.5 py-2 text-[9px] leading-relaxed text-[#FFD400]">
+                    <p className="rounded-lg border border-[#f18f01]/20 bg-[#f18f01]/10 px-2.5 py-2 text-[9px] leading-relaxed text-[#f6c200]">
                       Showing the last known reports. Reconnecting…
                     </p>
                   ) : null}
@@ -515,8 +515,8 @@ export default function Outages() {
                         key={outage.id}
                         className={`group rounded-xl border p-2.5 transition duration-200 hover:-translate-y-0.5 ${
                           owned
-                            ? 'border-[#FFBB02]/25 bg-[#1C1D30]/50 hover:border-[#FFBB02]/40'
-                            : 'border-white/5 bg-[#1C1D30]/35 hover:border-white/15'}
+                            ? 'border-[#f18f01]/25 bg-white/[0.06] hover:border-[#f18f01]/40'
+                            : 'border-white/10 bg-white/[0.05] hover:border-white/15'}
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -528,7 +528,7 @@ export default function Outages() {
                               {style.label}
                             </span>
                             {owned ? (
-                              <span className="rounded-full border border-[#FFBB02]/25 bg-[#FFBB02]/10 px-1.5 py-0.5 text-[8px] font-extrabold tracking-[0.1em] text-[#FFBB02]">
+                              <span className="rounded-full border border-[#f18f01]/25 bg-[#f18f01]/10 px-1.5 py-0.5 text-[8px] font-extrabold tracking-[0.1em] text-[#f18f01]">
                                 YOURS
                               </span>
                             ) : null}
@@ -549,7 +549,7 @@ export default function Outages() {
                           {owned ? (
                             <Link
                               to={`/dashboard/outages/${outage.id}`}
-                              className="transition hover:text-[#FFBB02]"
+                              className="transition hover:text-[#f18f01]"
                             >
                               {outage.locationName || outage.barangay || 'Outage report'}
                             </Link>
@@ -563,7 +563,7 @@ export default function Outages() {
 
                         <div className="mt-1.5 flex items-center justify-between gap-2">
                           <div className="flex min-w-0 items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-white/40">
-                            <Zap className="h-2.5 w-2.5 shrink-0 text-[#FFBB02]/60" aria-hidden="true" />
+                            <Zap className="h-2.5 w-2.5 shrink-0 text-[#f18f01]/60" aria-hidden="true" />
                             <span className="truncate">{formatCategory(outage.category)}</span>
                             {outage.barangay ? (
                               <>
@@ -578,7 +578,7 @@ export default function Outages() {
                               <button
                                 type="button"
                                 onClick={() => openEdit(outage)}
-                                className="inline-flex h-6 items-center gap-1 rounded-md border border-white/10 bg-white/[0.03] px-1.5 text-[9px] font-bold text-white/55 transition:hover:border-[#FFBB02]/30:hover:bg-[#FFBB02]/10:hover:text-[#FFBB02]"
+                                className="inline-flex h-6 items-center gap-1 rounded-md border border-white/10 bg-white/[0.03] px-1.5 text-[9px] font-bold text-white/55 transition:hover:border-[#f18f01]/30:hover:bg-[#f18f01]/10:hover:text-[#f18f01]"
                                 aria-label={`Edit report ${outage.reportKey || outage.id}`}
                               >
                                 <Pencil className="h-2.5 w-2.5" aria-hidden="true" />

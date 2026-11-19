@@ -15,8 +15,8 @@ import { clearFieldError, collectErrors, hasErrors, validateRequired } from '@/u
  *
  * Confirmed contract:
  *   create.php POST { station_name*, location_name*, station_type, access_type,
- *                     availability_status, barangay_name, operating_hours, charging_type,
- *                     description }
+ *                     availability_status, barangay_name, opening_time, closing_time,
+ *                     is_24_hours, charging_type, description }
  *   update.php POST { id*, ...same optional fields..., latitude, longitude }
  * Coordinates are GEOCODED from `location_name`, so no map pin is sent.
  * Enums are validated server-side and silently fall back to a default, so they are
@@ -55,11 +55,10 @@ function knownChargingType(value) {
   return CHARGING_TYPES.includes(value) ? value : null;
 }
 
-function validateOperatingHours(value) {
+function validateTime(value, fieldName) {
   if (!value) return null; // optional
-  const n = Number(value);
-  if (!Number.isFinite(n)) return 'Operating hours must be a number.';
-  if (n < 0 || n > 24) return 'Operating hours must be between 0 and 24.';
+  const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+  if (!timeRegex.test(value)) return `${fieldName} must be in HH:MM format (24-hour).`;
   return null;
 }
 
@@ -70,7 +69,7 @@ function validateChargingType(chargingType, chargingTypeOther) {
   return null;
 }
 
-const FIELD_ORDER = ['stationName', 'locationName', 'stationType', 'accessType', 'availabilityStatus', 'barangayName', 'operatingHours', 'chargingType', 'chargingTypeOther'];
+const FIELD_ORDER = ['stationName', 'locationName', 'stationType', 'accessType', 'availabilityStatus', 'barangayName', 'openingTime', 'closingTime', 'is24Hours', 'chargingType', 'chargingTypeOther'];
 
 export default function PowerStationFormModal({ open, onClose, station = null, barangays = [] }) {
   const isEdit = Boolean(station?.id);
@@ -85,7 +84,9 @@ export default function PowerStationFormModal({ open, onClose, station = null, b
     accessType: station?.accessType || 'free',
     availabilityStatus: station?.availability || 'available',
     barangayName: station?.barangay || '',
-    operatingHours: station?.operatingHours || '',
+    openingTime: station?.openingTime || '',
+    closingTime: station?.closingTime || '',
+    is24Hours: station?.is24Hours || false,
     chargingType: knownChargingType(station?.chargingType) || 'Type-2 AC',
     chargingTypeOther: !knownChargingType(station?.chargingType) && station?.chargingType ? station?.chargingType : '',
     description: station?.description || '',
@@ -127,7 +128,8 @@ export default function PowerStationFormModal({ open, onClose, station = null, b
       stationName: () => validateRequired(values.stationName, 'Station name'),
       locationName: () => validateRequired(values.locationName, 'Location'),
       barangayName: () => validateRequired(values.barangayName, 'Barangay'),
-      operatingHours: () => validateOperatingHours(values.operatingHours),
+      openingTime: () => validateTime(values.openingTime, 'Opening time'),
+      closingTime: () => validateTime(values.closingTime, 'Closing time'),
       chargingType: () => validateChargingType(values.chargingType, values.chargingTypeOther),
     });
 
@@ -152,14 +154,17 @@ export default function PowerStationFormModal({ open, onClose, station = null, b
       access_type: values.accessType,
       availability_status: values.availabilityStatus,
       barangay_name: values.barangayName || '',
-      operating_hours: values.operatingHours.trim(),
+      opening_time: values.openingTime || null,
+      closing_time: values.closingTime || null,
+      is_24_hours: values.is24Hours,
       // When "Other" is chosen, the custom text is the charging type; otherwise the selected label is sent.
       charging_type: values.chargingType === 'Other' ? values.chargingTypeOther.trim() : values.chargingType,
       description: values.description.trim(),
       // Only sent when the user refined the pin past the barangay centroid.
       ...(values.location
         ? { latitude: values.location.lat, longitude: values.location.lng }
-        : {}),    };
+        : {}),
+    };
 
     save.mutate(isEdit ? { ...payload, id: station.id } : payload);
   };
@@ -232,15 +237,27 @@ export default function PowerStationFormModal({ open, onClose, station = null, b
           error={errors.barangayName}
         />
         <Input
-          label="Operating hours (optional)"
-          type="number"
-          min="0"
-          max="24"
-          placeholder="e.g. 24"
-          value={values.operatingHours}
-          onChange={(event) => setField('operatingHours', event.target.value)}
-          error={errors.operatingHours}
-          hint="Hours per day the station is open. Leave blank if not set."
+          label="Opening time (optional)"
+          type="time"
+          value={values.openingTime}
+          onChange={(event) => setField('openingTime', event.target.value)}
+          error={errors.openingTime}
+          hint="When the station opens (24-hour format)."
+        />
+        <Input
+          label="Closing time (optional)"
+          type="time"
+          value={values.closingTime}
+          onChange={(event) => setField('closingTime', event.target.value)}
+          error={errors.closingTime}
+          hint="When the station closes (24-hour format)."
+        />
+        <Input
+          label="24 hours"
+          type="checkbox"
+          checked={values.is24Hours}
+          onChange={(event) => setField('is24Hours', event.target.checked)}
+          hint="Check if the station is open 24 hours."
         />
         <Select
           label="Charging type (optional)"

@@ -48,7 +48,7 @@ export default function Profile() {
   return (
     <div
       data-theme="dark"
-      className="min-h-full space-y-6 bg-[#03041A] px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
+      className="min-h-full space-y-6 bg-[#153243] dashboard-grid px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
     >
       <PageHeader title="Profile" description="Your account details and session." />
 
@@ -57,7 +57,7 @@ export default function Profile() {
       <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
         <Card>
           <CardBody className="flex flex-col items-center gap-4 text-center">
-            <span className="flex h-24 w-24 items-center justify-center rounded-full border border-[#FFBB02]/40 bg-[#FFBB02]/15 text-2xl font-extrabold text-[#FFBB02]">
+            <span className="flex h-24 w-24 items-center justify-center rounded-full border border-[#f18f01]/40 bg-[#f18f01]/15 text-2xl font-extrabold text-[#f18f01]">
               {initials(user?.name)}
             </span>
             <div>
@@ -141,7 +141,7 @@ function Row({ icon: Icon, label, value }) {
 
 function Stat({ label, value }) {
   return (
-    <div className="rounded-xl border border-white/5 bg-[#1C1D30]/40 px-3 py-2.5">
+    <div className="rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2.5">
       <p className="text-[8px] font-bold uppercase tracking-[0.12em] text-white/40">{label}</p>
       <p className="mt-0.5 truncate text-base font-black leading-none text-white">{value}</p>
     </div>

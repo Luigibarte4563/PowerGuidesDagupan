@@ -1,19 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { ZoomControl } from 'react-leaflet';
-import { Activity, AlertTriangle, CalendarClock, CheckCircle2, Plus, RefreshCw } from 'lucide-react';
+import { Activity, AlertTriangle, CalendarClock, CheckCircle2, Plus } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import Modal from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import DataView from '@/components/DataView';
 import RecordCard from '@/components/RecordCard';
-import AppMap, { FitPoints, MapLegend, MapPoints } from '@/components/Map';
+import AppMap, { FitPoints, MapLegend, MapPoints, SEVERITY_COLORS } from '@/components/Map';
 import MapWorkspace, { FeedActions, FeedPills } from '@/components/MapWorkspace';
 import { useAuth } from '@/context/AuthContext';
 import { useReference } from '@/context/ReferenceContext';
-import { useToast } from '@/context/ToastContext';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useSavedLocation } from '@/hooks/useSavedLocation';
 import { hazardsApi } from '@/api';
@@ -28,10 +26,10 @@ import { HAZARD_STATUSES } from '@/api';
 const HAZARD_STATUS_OPTIONS = HAZARD_STATUSES.map((status) => ({ id: status, name: humanize(status) }));
 
 const SEVERITY_LEGEND = [
-  { label: 'Low', tone: 'success' },
-  { label: 'Moderate', tone: 'warning' },
-  { label: 'High', tone: 'danger' },
-  { label: 'Critical', tone: 'danger' },
+  { label: 'Low', color: SEVERITY_COLORS.low },
+  { label: 'Moderate', color: SEVERITY_COLORS.moderate },
+  { label: 'High', color: SEVERITY_COLORS.high },
+  { label: 'Critical', color: SEVERITY_COLORS.critical },
 ];
 
 /**
@@ -49,8 +47,6 @@ export default function Hazards() {
   const { user } = useAuth();
   const { hazardTypes } = useReference();
   const { coords } = useSavedLocation();
-  const queryClient = useQueryClient();
-  const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [search, setSearch] = useState('');
@@ -59,7 +55,6 @@ export default function Hazards() {
   const [statusFilter, setStatusFilter] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
-  const [statusTarget, setStatusTarget] = useState(null);
   const debouncedSearch = useDebouncedValue(search);
 
   useEffect(() => {
@@ -77,6 +72,13 @@ export default function Hazards() {
     queryFn: async ({ signal }) => (await hazardsApi.list({}, { signal })).items,
     retry: 1,
   });
+
+  // Check if user has any unresolved hazards (reported or verified) to enforce "report once" rule
+  const userHazards = useMemo(
+    () => (listQuery.data || []).map((record) => readHazard(record)).filter((h) => isOwnedBy(h.raw, user)),
+    [listQuery.data, user]
+  );
+  const hasUnresolvedHazard = userHazards.some((h) => h.status && h.status !== 'resolved');
 
   const items = (listQuery.data || [])
     .map((record) => readHazard(record))
@@ -115,7 +117,7 @@ export default function Hazards() {
       {/* No explicit centre: FitPoints frames the hazards themselves. */}
       <ZoomControl position="bottomright" />
       <FitPoints items={plotted} />
-      <MapPoints items={plotted} toneFor={(item) => (item.severity ? severityTone(item.severity) : 'neutral')}>
+      <MapPoints items={plotted} toneFor={(item) => (item.severity ? SEVERITY_COLORS[item.severity.toLowerCase()] : 'neutral')}>
         {(item) => (
           <div className="min-w-[13rem]">
             <p className="font-bold text-navy-900">{item.hazardType || 'Electrical hazard'}</p>
@@ -144,20 +146,10 @@ export default function Hazards() {
     </AppMap>
   );
 
-  const statusMutation = useMutation({
-    mutationFn: ({ hazardId, status }) => hazardsApi.updateStatus({ hazard_id: hazardId, status }),
-    onSuccess: () => {
-      toast.success('Hazard status updated.', { title: 'Updated' });
-      queryClient.invalidateQueries({ queryKey: ['hazards'] });
-      queryClient.invalidateQueries({ queryKey: ['risks'] });
-      setStatusTarget(null);
-    },
-  });
-
   return (
     <div
       data-theme="dark"
-      className="min-h-full bg-[#03041A] px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
+      className="min-h-full bg-[#153243] dashboard-grid px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
     >
       <FeedActions
         actions={
@@ -165,9 +157,10 @@ export default function Hazards() {
             variant="primary"
             icon={Plus}
             onClick={() => setFormOpen(true)}
+            disabled={hasUnresolvedHazard}
             className="rounded-xl px-5 shadow-[0_8px_24px_rgba(255,187,2,0.18)]"
           >
-            Report Hazard
+            {hasUnresolvedHazard ? 'Resolve existing hazard first' : 'Report Hazard'}
           </Button>
         }
         search={search}
@@ -238,8 +231,13 @@ export default function Hazards() {
           description:
             'That is good news. If you spot a downed wire or exposed cable, please report it so your neighbours know.',
           action: (
-            <Button variant="primary" icon={Plus} onClick={() => setFormOpen(true)}>
-              Report Hazard
+            <Button
+              variant="primary"
+              icon={Plus}
+              onClick={() => setFormOpen(true)}
+              disabled={hasUnresolvedHazard}
+            >
+              {hasUnresolvedHazard ? 'Resolve existing hazard first' : 'Report Hazard'}
             </Button>
           ),
         }}
@@ -265,14 +263,9 @@ export default function Hazards() {
               ].filter(Boolean)}
               actions={
                 owned ? (
-                  <>
-                    <Button size="xs" variant="outline" icon={RefreshCw} onClick={() => setStatusTarget(hazard)}>
-                      Update status
-                    </Button>
-                    <Button size="xs" variant="outline" icon={AlertTriangle} onClick={() => setEditTarget(hazard)}>
-                      Edit
-                    </Button>
-                  </>
+                  <Button size="xs" variant="outline" icon={AlertTriangle} onClick={() => setEditTarget(hazard)}>
+                    Edit
+                  </Button>
                 ) : null
               }
             />
@@ -290,50 +283,6 @@ export default function Hazards() {
         hazard={editTarget || null}
         defaultLocation={coords}
       />
-
-      <StatusModal
-        hazard={statusTarget}
-        loading={statusMutation.isPending}
-        onClose={() => setStatusTarget(null)}
-        onSubmit={(status) => statusMutation.mutate({ id: statusTarget.id, status })}
-      />
     </div>
-  );
-}
-
-/** Owner-only status update (`electrical_hazard/update_status.php`). */
-function StatusModal({ hazard, loading, onClose, onSubmit }) {
-  const [status, setStatus] = useState('');
-
-  useEffect(() => {
-    setStatus(hazard?.status || '');
-  }, [hazard]);
-
-  return (
-    <Modal
-      open={Boolean(hazard)}
-      onClose={onClose}
-      title="Update hazard status"
-      description={hazard ? 'Let the community know whether this hazard is still a problem.' : ''}
-      size="sm"
-      footer={
-        <>
-          <Button variant="outline" onClick={onClose} disabled={loading}>
-            Cancel
-          </Button>
-          <Button onClick={() => onSubmit(status)} loading={loading} disabled={!status}>
-            Save status
-          </Button>
-        </>
-      }
-    >
-      <Select
-        label="Status"
-        value={status}
-        onChange={(event) => setStatus(event.target.value)}
-        options={HAZARD_STATUS_OPTIONS}
-        placeholder="Select a status"
-      />
-    </Modal>
   );
 }

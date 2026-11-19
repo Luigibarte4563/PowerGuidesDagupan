@@ -6,7 +6,7 @@ import Badge from '@/components/ui/Badge';
 import { Select } from '@/components/ui/Select';
 import DataView from '@/components/DataView';
 import RecordCard from '@/components/RecordCard';
-import AppMap, { FitPoints, MapCircle, MapLegend, MapPoints, PIN_COLORS } from '@/components/Map';
+import AppMap, { FitPoints, MapCircle, MapLegend, MapPoints, PIN_COLORS, MAINTENANCE_STATUS_COLORS } from '@/components/Map';
 import MapWorkspace, { FeedActions, FeedToggle } from '@/components/MapWorkspace';
 import { maintenanceApi, UPCOMING_STATUSES } from '@/api';
 import { QUERY_KEYS } from '@/utils/constants';
@@ -48,13 +48,31 @@ export default function Maintenance() {
     retry: 1,
   });
 
+  // Filter map points by current tab (matches list filter logic)
+  const filteredMapItems = useMemo(() => {
+    const data = mapQuery.data || [];
+    const status = tab === 'upcoming' ? UPCOMING_STATUSES : tab;
+    return data
+      .map(readMaintenance)
+      .filter((item) => {
+        const s = String(item.status).toLowerCase();
+        if (tab === 'upcoming') return UPCOMING_STATUSES.includes(s);
+        if (tab === 'ongoing') return s === 'ongoing';
+        if (tab === 'completed') return s === 'completed';
+        return true; // 'all' tab
+      });
+  }, [mapQuery.data, tab]);
+
   const all = useMemo(() => (listQuery.data || []).map(readMaintenance), [listQuery.data]);
 
   const items = useMemo(() => {
     const term = search.trim().toLowerCase();
     return all
       .filter((item) => {
-        if (tab === 'upcoming' && !UPCOMING_STATUSES.includes(String(item.status).toLowerCase())) return false;
+        const status = String(item.status).toLowerCase();
+        if (tab === 'upcoming' && !UPCOMING_STATUSES.includes(status)) return false;
+        if (tab === 'ongoing' && status !== 'ongoing') return false;
+        if (tab === 'completed' && status !== 'completed') return false;
         if (statusFilter && item.status !== statusFilter) return false;
         if (!term) return true;
         return [item.title, item.barangay, item.description, item.company]
@@ -64,7 +82,7 @@ export default function Maintenance() {
       .sort((a, b) => new Date(a.startAt || 0) - new Date(b.startAt || 0));
   }, [all, tab, statusFilter, search]);
 
-  const mapItems = useMemo(() => (mapQuery.data || []).map(readMaintenance), [mapQuery.data]);
+  const mapItems = filteredMapItems;
   // `located` only - nameless/unlocated areas have no pin, so they are not plotted.
   const mapPoints = mapItems.flatMap((item) =>
     item.located.map((location) => ({
@@ -116,7 +134,7 @@ export default function Maintenance() {
 
   const mapSummary = mapQuery.isLoading
     ? 'Loading affected areas…'
-    : `${mapPoints.length} affected area${mapPoints.length === 1 ? '' : 's'} plotted`;
+    : `${mapPoints.length} affected area${mapPoints.length === 1 ? '' : 's'} plotted (${tab})`;
 
   // Feed stat tiles, counted the same way the tabs filter.
   const upcomingCount = all.filter((item) =>
@@ -139,7 +157,7 @@ export default function Maintenance() {
             key={point.id}
             center={point}
             radius={Number(point.schedule.radius)}
-            color={PIN_COLORS[statusTone(point.schedule.status)]}
+            color={MAINTENANCE_STATUS_COLORS[point.schedule.status] || MAINTENANCE_STATUS_COLORS.upcoming}
             fillOpacity={0.12}
           >
             {renderMapPopup(point)}
@@ -148,7 +166,7 @@ export default function Maintenance() {
 
         {/* Fallback only: a location with no usable radius keeps its pin. */}
         {pinPoints.length ? (
-          <MapPoints items={pinPoints} toneFor={(point) => statusTone(point.schedule.status)}>
+          <MapPoints items={pinPoints} toneFor={(point) => MAINTENANCE_STATUS_COLORS[point.schedule.status] || 'neutral'}>
             {renderMapPopup}
           </MapPoints>
         ) : null}
@@ -156,9 +174,9 @@ export default function Maintenance() {
         <MapLegend
           title="Status"
           items={[
-            { label: 'Upcoming / scheduled', tone: 'info' },
-            { label: 'Ongoing', tone: 'warning' },
-            { label: 'Completed', tone: 'success' },
+            { label: 'Upcoming / scheduled', color: MAINTENANCE_STATUS_COLORS.upcoming },
+            { label: 'Ongoing', color: MAINTENANCE_STATUS_COLORS.ongoing },
+            { label: 'Completed', color: MAINTENANCE_STATUS_COLORS.completed },
           ]}
         />
       </AppMap>
@@ -167,7 +185,7 @@ export default function Maintenance() {
   return (
     <div
       data-theme="dark"
-      className="min-h-full bg-[#03041A] px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
+      className="min-h-full bg-[#153243] dashboard-grid px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
     >
       <FeedActions
         search={search}
@@ -190,13 +208,15 @@ export default function Maintenance() {
             onChange={setTab}
             options={[
               { value: 'upcoming', label: 'Upcoming', count: upcomingCountQuery.data ?? upcomingCount },
+              { value: 'ongoing', label: 'Ongoing', count: ongoingCount },
+              { value: 'completed', label: 'Completed', count: completedCount },
               { value: 'all', label: 'All schedules', count: all.length },
             ]}
           />
         }
         stats={[
           { label: 'Upcoming', value: upcomingCount, icon: CalendarClock, color: '#22D3EE' },
-          { label: 'Ongoing', value: ongoingCount, icon: Wrench, color: '#FFBB02' },
+          { label: 'Ongoing', value: ongoingCount, icon: Wrench, color: '#f18f01' },
           { label: 'Completed', value: completedCount, icon: CheckCircle2, color: '#34FB34' },
         ]}
         filters={
@@ -227,10 +247,21 @@ export default function Maintenance() {
           items={items}
           empty={{
             icon: Wrench,
-            title: tab === 'upcoming' ? 'No upcoming maintenance' : 'No maintenance schedules',
+            title:
+              tab === 'upcoming'
+                ? 'No upcoming maintenance'
+                : tab === 'ongoing'
+                ? 'No ongoing maintenance'
+                : tab === 'completed'
+                ? 'No completed maintenance'
+                : 'No maintenance schedules',
             description:
               tab === 'upcoming'
                 ? 'Nothing is scheduled at the moment. Check back later.'
+                : tab === 'ongoing'
+                ? 'No maintenance is currently in progress.'
+                : tab === 'completed'
+                ? 'No maintenance has been completed yet.'
                 : 'Maintenance schedules published by the utility will appear here.',
           }}
           renderCard={(item) => (

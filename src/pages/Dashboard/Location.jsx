@@ -80,7 +80,7 @@ export default function Location() {
   return (
     <div
       data-theme="dark"
-      className="min-h-full space-y-6 bg-[#03041A] px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
+      className="min-h-full space-y-6 bg-[#153243] dashboard-grid px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
     >
       <PageHeader
         title="My Location"
@@ -145,7 +145,7 @@ export default function Location() {
                 </div>
 
                 {geo.error ? (
-                  <p className="text-xs font-medium text-[#FFBB02]" role="status">
+                  <p className="text-xs font-medium text-[#f18f01]" role="status">
                     {geo.error}
                   </p>
                 ) : null}

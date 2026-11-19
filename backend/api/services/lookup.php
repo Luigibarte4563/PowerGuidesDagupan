@@ -23,17 +23,7 @@ const STATUS_VALUES     = ['active', 'under_review', 'verified', 'resolved', 're
 const CATEGORY_VALUES   = ['power_outage', 'low_voltage', 'power_fluctuation', 'transformer_explosion', 'fallen_power_line', 'electrical_fire', 'scheduled_maintenance', 'unknown_issue'];
 const HAZARD_TYPE_VALUES = ['none', 'smoke', 'sparks', 'fire', 'fallen_wire', 'explosion_sound', 'submerged_electrical_equipment', 'low_hanging_cable', 'exposed_wire', 'electrical_shock_risk'];
 const STATION_TYPE_VALUES = ['power_station', 'solar_station', 'charging_station', 'generator_station'];
-const NOTIFICATION_TYPE_VALUES = ['maintenance', 'outage', 'emergency', 'flood', 'electrical_hazard', 'battery', 'safety_timer', 'system'];
-const TIMER_TYPE_VALUES = ['sealed_refrigerator', 'deep_freezer_24h', 'deep_freezer_48h', 'medication'];
-
-// Default durations (hours) and warning hours per timer_type, matching the
-// retired safety_timer_types table. Copy into PHP backend constants.
-const TIMER_DEFAULTS = [
-    'sealed_refrigerator'  => ['duration' => 4.0,  'warning' => 1.0],
-    'deep_freezer_24h'     => ['duration' => 24.0, 'warning' => 4.0],
-    'deep_freezer_48h'     => ['duration' => 48.0, 'warning' => 6.0],
-    'medication'           => ['duration' => 4.0,  'warning' => 1.0],
-];
+const NOTIFICATION_TYPE_VALUES = ['maintenance', 'outage', 'emergency', 'flood', 'electrical_hazard', 'system'];
 
 function getCategory(?string $name): ?string {
     return validateEnum($name, CATEGORY_VALUES, 'power_outage');
@@ -57,14 +47,6 @@ function getStationType(?string $name): ?string {
 
 function getNotificationType(?string $name): ?string {
     return validateEnum($name, NOTIFICATION_TYPE_VALUES, 'system');
-}
-
-function getTimerType(?string $name): ?string {
-    return validateEnum($name, TIMER_TYPE_VALUES, 'medication');
-}
-
-function getTimerDefaults(?string $timerType): ?array {
-    return TIMER_DEFAULTS[$timerType] ?? null;
 }
 
 /**

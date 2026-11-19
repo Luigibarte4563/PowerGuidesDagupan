@@ -87,7 +87,6 @@ export const REFERENCE_KEYS = {
   hazardTypes: ['hazard_types', 'hazard_type', 'types'],
   statuses: ['statuses', 'status', 'outage_statuses', 'hazard_statuses'],
   powerStationTypes: ['power_station_types', 'power_station_type', 'station_types'],
-  safetyTimerTypes: ['safety_timer_types', 'safety_timer_type', 'timer_types'],
   notificationTypes: ['notification_types', 'notification_type'],
 };
 
@@ -184,8 +183,6 @@ export const NOTIFICATION_TYPE_ICON = {
   maintenance: 'Wrench',
   hazard: 'AlertTriangle',
   flood: 'Waves',
-  battery: 'BatteryCharging',
-  timer: 'Timer',
   system: 'Bell',
   info: 'Bell',
 };
@@ -203,9 +200,6 @@ export const QUERY_KEYS = {
   maintenanceMap: ['maintenance', 'map'],
   powerStations: (params) => ['power-stations', params],
   powerStation: (id) => ['power-stations', 'detail', id],
-  battery: ['battery', 'list'],
-  batteryHistory: (id) => ['battery', 'history', id],
-  safetyTimers: ['safety-timers'],
   floods: (params) => ['floods', params],
   hazards: (params) => ['hazards', params],
   risks: (params) => ['risks', params],

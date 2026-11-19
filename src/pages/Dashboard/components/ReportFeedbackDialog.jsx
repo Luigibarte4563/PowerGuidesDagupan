@@ -14,8 +14,8 @@ const KINDS = {
   },
   warning: {
     icon: TriangleAlert,
-    color: '#FFBB02',
-    button: 'bg-[#FFBB02] text-[#191400] hover:bg-[#FFD400] focus-visible:ring-[#FFBB02]/50',
+    color: '#f18f01',
+    button: 'bg-[#f18f01] text-[#191400] hover:bg-[#f6c200] focus-visible:ring-[#f18f01]/50',
   },
   info: {
     icon: Info,
@@ -25,9 +25,9 @@ const KINDS = {
 };
 
 /**
- * The page's replacement for window.alert / window.confirm, and the low-battery
- * notice. Built on the shared Modal so the focus trap, Escape key, backdrop and
- * scroll lock are not reimplemented.
+ * The page's replacement for window.alert / window.confirm. Built on the shared
+ * Modal so the focus trap, Escape key, backdrop and scroll lock are not
+ * reimplemented.
  */
 export default function ReportFeedbackDialog({
   open,

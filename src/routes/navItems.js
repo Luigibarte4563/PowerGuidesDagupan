@@ -1,13 +1,10 @@
 import {
   AlertTriangle,
-  BatteryCharging,
   Bell,
   Flame,
   LayoutDashboard,
-  MapPin,
   Plug,
   ShieldAlert,
-  Timer,
   UserCheck,
   Waves,
   Wrench,
@@ -40,15 +37,12 @@ export const DASHBOARD_NAV = [
   { to: '/dashboard/heatmap', label: 'Heatmap', icon: Flame, group: 'Explore' },
   { to: '/dashboard/maintenance', label: 'Maintenance', icon: Wrench, group: 'Explore' },
   { to: '/dashboard/power-stations', label: 'Power Stations', icon: Plug, group: 'Explore' },
-  { to: '/dashboard/location', label: 'My Location', icon: MapPin, group: 'Tools' },
-  { to: '/dashboard/battery', label: 'Battery Tracking', icon: BatteryCharging, group: 'Tools' },
-  { to: '/dashboard/safety-timers', label: 'Safety Timers', icon: Timer, group: 'Tools' },
   { to: '/dashboard/notifications', label: 'Notifications', icon: Bell, group: 'Account', sidebar: false },
   { to: '/dashboard/profile', label: 'Profile', icon: LayoutDashboard, group: 'Account', sidebar: false },
 ];
 
 /** Group order used by the sidebar. */
-export const NAV_GROUPS = ['Monitor', 'Report', 'Explore', 'Tools', 'Account'];
+export const NAV_GROUPS = ['Monitor', 'Report', 'Explore', 'Account'];
 
 export function findNavItem(pathname) {
   return (

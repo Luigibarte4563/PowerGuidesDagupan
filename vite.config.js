@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import fs from 'node:fs';
 import path from 'node:path';
 
 // https://vitejs.dev/config/
@@ -21,10 +22,10 @@ export default defineConfig(({ mode }) => {
       // when the browser reached the dev server through a LAN IP.
       changeOrigin: true,
       secure: false,
-      // The repo lives inside a `PowerGuides` folder under htdocs, so Apache
-      // serves the API at /PowerGuides/backend. Rewrite the proxied path so
-      // /backend/api/... reaches /PowerGuides/backend/api/... on Apache.
-      rewrite: (path) => path.replace(/^\/backend/, '/PowerGuides/backend'),
+      // The repo lives inside a `PowerGuidesDagupan` folder under htdocs, so
+      // Apache serves the API at /PowerGuidesDagupan/backend. Rewrite the
+      // proxied path so /backend/api/... reaches /PowerGuidesDagupan/backend/api/... on Apache.
+      rewrite: (path) => path.replace(/^\/backend/, '/PowerGuidesDagupan/backend'),
     },
   };
 
@@ -52,6 +53,25 @@ export default defineConfig(({ mode }) => {
       // http://192.168.1.20:5174 would not be in the API's hardcoded localhost list,
       // but the proxy makes that irrelevant.
       proxy,
+      // SPA fallback for the dev server: client-side routes such as /register
+      // have no physical file, so Vite would 404 on them. Serve index.html and
+      // let react-router render the matching page instead. API proxy (/backend),
+      // Vite internals (/@fs, /@vite) and static assets pass through unchanged.
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          if (
+            req.url.startsWith('/backend') ||
+            req.url.startsWith('/@fs') ||
+            req.url.startsWith('/@vite') ||
+            req.url.includes('.')
+          ) {
+            return next();
+          }
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'text/html');
+          res.end(fs.createReadStream(path.resolve(process.cwd(), 'index.html')));
+        });
+      },
     },
     // Same proxy for `npm run preview`, so the built app behaves like the dev one.
     preview: { proxy },

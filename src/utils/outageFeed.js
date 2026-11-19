@@ -31,9 +31,9 @@ export const SEVERITY_STYLES = {
   moderate: {
     key: 'moderate',
     label: 'MODERATE',
-    color: '#FFBB02',
-    badge: 'border-[#FFBB02]/25 bg-[#FFBB02]/15 text-[#FFBB02]',
-    swatch: 'bg-[#FFBB02]',
+    color: '#f18f01',
+    badge: 'border-[#f18f01]/25 bg-[#f18f01]/15 text-[#f18f01]',
+    swatch: 'bg-[#f18f01]',
   },
   minor: {
     key: 'minor',

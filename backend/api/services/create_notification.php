@@ -7,8 +7,7 @@ require_once __DIR__ . '/lookup.php';
  *
  * The old schema stored `type` as a string and had `source_type`/`location`.
  * The new schema uses a `notification_type_id` FK plus reference foreign keys
- * (outage_report_id, maintenance_id, flood_report_id, electrical_hazard_id,
- * safety_timer_id).
+ * (outage_report_id, maintenance_id, flood_report_id, electrical_hazard_id).
  *
  * Signature is kept compatible with existing callers. The `$location`
  * argument is accepted for backward compatibility but is no longer stored.
@@ -37,8 +36,7 @@ function createNotification(
         'outage'            => 'outage_report_id',
         'maintenance'       => 'maintenance_id',
         'flood'             => 'flood_report_id',
-        'electrical_hazard' => 'electrical_hazard_id',
-        'safety_timer'      => 'safety_timer_id'
+        'electrical_hazard' => 'electrical_hazard_id'
     ];
 
     $refCol   = $refMap[$sourceType] ?? null;

@@ -40,13 +40,13 @@ export default function MapWorkspace({
   return (
     <div className={clsx('mt-5 flex flex-col gap-6 xl:flex-row xl:items-stretch', className)}>
       <section
-        className="relative h-[440px] min-w-0 overflow-hidden rounded-2xl border border-white/5 bg-[#31324C]/20 shadow-[0_20px_50px_rgba(0,0,0,0.25)] lg:h-[550px] xl:flex-1"
+        className="relative h-[440px] min-w-0 overflow-hidden rounded-2xl border border-white/5 bg-[#0E0F26] shadow-[0_20px_50px_rgba(0,0,0,0.25)] lg:h-[550px] xl:flex-1"
         aria-label={mapLabel || mapTitle || 'Map'}
       >
         <div className="h-full w-full">{map}</div>
 
         {Number.isFinite(plottedCount) ? (
-          <div className="pointer-events-none absolute left-3 top-3 z-[500] rounded-full border border-white/10 bg-[#0B0D20]/80 px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[0.16em] text-white/60 shadow-xl backdrop-blur-md">
+          <div className="pointer-events-none absolute left-3 top-3 z-[500] rounded-full border border-white/10 bg-[#153243]/80 px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[0.16em] text-white/60 shadow-xl backdrop-blur-md">
             <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[#34FB34]" aria-hidden="true" />
             {plottedCount} plotted
           </div>
@@ -54,15 +54,15 @@ export default function MapWorkspace({
 
         {mapEmpty ? (
           <div className="pointer-events-none absolute inset-x-3 top-14 z-[450] flex justify-center">
-            <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/10 bg-[#0B0D20]/80 px-3.5 py-2 text-[10px] font-semibold text-white/65 shadow-lg backdrop-blur-md">
-              <MapPin className="h-3.5 w-3.5 shrink-0 text-[#FFBB02]" aria-hidden="true" />
+            <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/10 bg-[#153243]/80 px-3.5 py-2 text-[10px] font-semibold text-white/65 shadow-lg backdrop-blur-md">
+              <MapPin className="h-3.5 w-3.5 shrink-0 text-[#f18f01]" aria-hidden="true" />
               <span className="truncate">{mapEmptyLabel}</span>
             </div>
           </div>
         ) : null}
       </section>
 
-      <aside className="flex h-[440px] w-full flex-col overflow-hidden rounded-2xl border border-white/5 bg-[#31324C]/20 shadow-[0_20px_50px_rgba(0,0,0,0.25)] lg:h-[550px] xl:w-[420px] xl:shrink-0">
+      <aside className="flex h-[440px] w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-[0_20px_50px_rgba(0,0,0,0.25)] lg:h-[550px] xl:w-[420px] xl:shrink-0">
         {hasHeader ? (
           <div className="border-b border-white/5 p-3">
             {mapTitle || live ? (
@@ -146,7 +146,7 @@ export function FeedActions({
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder={searchPlaceholder}
-            className="h-11 w-full rounded-xl border border-white/10 bg-[#1C1D30]/60 pl-10 pr-10 text-sm text-white placeholder:text-white/30 focus:border-[#FFBB02] focus:outline-none focus:ring-2 focus:ring-[#FFBB02]/25 [&::-webkit-search-cancel-button]:appearance-none"
+            className="h-11 w-full rounded-xl border border-white/10 bg-[#153243]/60 pl-10 pr-10 text-sm text-white placeholder:text-white/30 focus:border-[#f18f01] focus:outline-none focus:ring-2 focus:ring-[#f18f01]/25 [&::-webkit-search-cancel-button]:appearance-none"
           />
           {search ? (
             <button
@@ -171,7 +171,7 @@ export function FeedToggle({ options, value, onChange, ariaLabel = 'Feed scope' 
 
   return (
     <div
-      className="mt-2.5 grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-[#03041A]/60 p-1"
+      className="mt-2.5 grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-[#153243]/60 p-1"
       role="tablist"
       aria-label={ariaLabel}
     >
@@ -186,7 +186,7 @@ export function FeedToggle({ options, value, onChange, ariaLabel = 'Feed scope' 
             onClick={() => onChange(option.value)}
             className={`flex h-8 items-center justify-center gap-1.5 rounded-lg px-1 text-[11px] font-bold transition ${
               active
-                ? 'bg-[#FFBB02] text-[#191400] shadow-[0_4px_16px_rgba(255,187,2,0.16)]'
+                ? 'bg-[#f18f01] text-[#191400] shadow-[0_4px_16px_rgba(255,187,2,0.16)]'
                 : 'text-white/45 hover:bg-white/5 hover:text-white/75'
             }`}
           >
@@ -216,7 +216,7 @@ export function FeedStatTiles({ stats = [] }) {
       {stats.map((tile) => {
         const Icon = tile.icon;
         return (
-          <div key={tile.label} className="rounded-xl border border-white/5 bg-[#1C1D30]/40 px-2 py-1.5">
+          <div key={tile.label} className="rounded-xl border border-white/10 bg-white/[0.06] px-2 py-1.5">
             <div className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-[0.12em] text-white/40">
               {Icon ? (
                 <Icon className="h-2.5 w-2.5 shrink-0" style={{ color: tile.color }} aria-hidden="true" />
@@ -248,7 +248,7 @@ export function FeedPills({ options, value, onChange, ariaLabel = 'Filter' }) {
           aria-pressed={value === option.value}
           className={`h-7 rounded-full border px-2.5 text-[9px] font-bold transition ${
             value === option.value
-              ? 'border-[#FFBB02]/40 bg-[#FFBB02]/15 text-[#FFBB02]'
+              ? 'border-[#f18f01]/40 bg-[#f18f01]/15 text-[#f18f01]'
               : 'border-white/10 bg-transparent text-white/45 hover:border-white/20 hover:text-white/70'
           }`}
         >

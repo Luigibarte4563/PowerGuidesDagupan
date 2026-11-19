@@ -142,20 +142,6 @@ Sign-in lands each role on its own home: `admin` → `/admin`, staff → `/compa
 - Browser geolocation to fill it in, plus a map to adjust it by hand
 - Address-first form (barangay optional) with a map pin to confirm the point
 
-### Battery tracking
-
-- Register your own devices (`phone`, `laptop`, `powerbank`, `ups`, `tablet`, `other`)
-- Current charge level per device, set manually or logged through usage
-- Usage history per device with a chart
-- Update or delete devices
-
-### Safety timers
-
-- Create a timer for an appliance or battery, either by type or by hours
-- Warning threshold before expiry
-- Live countdown on the page, server-computed status
-  (`running` / `warning` / `expired` / `stopped`), plus stop and delete
-
 ### Profile
 
 - Account information from `me.php`: name, email, picture, provider, role

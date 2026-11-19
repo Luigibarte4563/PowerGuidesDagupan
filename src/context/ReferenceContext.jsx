@@ -12,10 +12,10 @@ const ReferenceContext = createContext(null);
  *   roles -> role_name, barangays -> barangay_name, outage_categories -> category_name,
  *   severity_levels -> severity_name, hazard_types -> hazard_name,
  *   outage_statuses -> status_name, power_station_types -> type_name,
- *   safety_timer_types -> timer_name, notification_types -> type_name.
+ *   notification_types -> type_name.
  *
- * The API looks these up by NAME (`category`, `severity`, `hazard_type`,
- * `timer_type_name`, ...), so the option value is the name, not the row id.
+ * The API looks these up by NAME (`category`, `severity`, `hazard_type`, ...),
+ * so the option value is the name, not the row id.
  */
 const LABEL_KEYS = [
   'name',
@@ -25,7 +25,6 @@ const LABEL_KEYS = [
   'hazard_name',
   'status_name',
   'role_name',
-  'timer_name',
   'type_name',
   'label',
   'value',
@@ -106,7 +105,6 @@ export function ReferenceProvider({ children }) {
       hazardTypes: normaliseOptions(pick('hazardTypes')),
       statuses: normaliseOptions(pick('statuses')),
       powerStationTypes: normaliseOptions(pick('powerStationTypes')),
-      safetyTimerTypes: normaliseOptions(pick('safetyTimerTypes')),
       notificationTypes: normaliseOptions(pick('notificationTypes')),
     };
   }, [query.data, query.isLoading, query.isFetching, query.error, query.refetch]);

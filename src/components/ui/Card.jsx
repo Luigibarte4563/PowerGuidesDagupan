@@ -6,7 +6,7 @@ export function Card({ children, className, as: Tag = 'div', ...rest }) {
   return (
     <Tag
       className={clsx(
-        'rounded-card border border-navy-100 bg-white shadow-card dark:border-navy-700 dark:bg-navy-800 dark:shadow-card-dark',
+        'rounded-card border border-navy-100 bg-white shadow-card dark:border-white/10 dark:bg-navy-700 dark:shadow-card-dark',
         className
       )}
       {...rest}
@@ -61,7 +61,7 @@ export function StatCard({ label, value, icon: Icon, tone = 'primary', hint, to,
     <Wrapper
       to={to}
       className={clsx(
-        'flex items-start justify-between gap-3 rounded-card border border-navy-100 bg-white p-5 shadow-card dark:border-navy-700 dark:bg-navy-800 dark:shadow-card-dark',
+        'flex items-start justify-between gap-3 rounded-card border border-navy-100 bg-white p-5 shadow-card dark:border-white/10 dark:bg-navy-700 dark:shadow-card-dark',
         to && 'transition hover:border-primary-300 hover:shadow-card-hover dark:hover:border-primary-600 dark:hover:shadow-card-hover-dark'
       )}
     >

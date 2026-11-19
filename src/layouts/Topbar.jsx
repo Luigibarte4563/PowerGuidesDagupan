@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, CheckCheck, ChevronDown, LogOut, Menu, Settings, User } from 'lucide-react';
+import { Bell, CheckCheck, ChevronDown, LogOut, Settings, User } from 'lucide-react';
+import logoIcon from '@/assets/logo.svg';
 import clsx from 'clsx';
 import { useAuth } from '@/context/AuthContext';
 import { useMarkAllAsRead, useMarkAsRead, useNotifications } from '@/hooks/useNotifications';
@@ -116,7 +117,7 @@ export default function Topbar({
   };
 
   return (
-    <header className="sticky top-0 z-[600] flex h-16 items-center gap-3 border-b border-navy-100 bg-white/95 px-4 backdrop-blur dark:border-navy-700 dark:bg-navy-900/95 sm:px-6">
+    <header className="sticky top-0 z-[600] flex h-16 items-center gap-3 border-b border-white/10 bg-[#153243] px-4 sm:px-6">
       <button
         type="button"
         onClick={onOpenSidebar}
@@ -124,7 +125,14 @@ export default function Topbar({
         aria-label="Open navigation"
         aria-controls="sidebar-panel"
       >
-        <Menu className="h-5 w-5" aria-hidden="true" />
+        <img
+          src={logoIcon}
+          alt=""
+          width="44"
+          height="26"
+          className="shrink-0"
+          aria-hidden="true"
+        />
       </button>
 
       <div className="min-w-0 flex-1">

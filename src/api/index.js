@@ -20,8 +20,6 @@ export { maintenanceApi, MAINTAINABLE_STATUSES, UPCOMING_STATUSES } from './main
 export { powerStationsApi } from './powerStations';
 export { notificationsApi } from './notifications';
 export { locationApi } from './location';
-export { batteryApi, BATTERY_DEVICE_TYPES } from './battery';
-export { safetyTimersApi } from './safetyTimers';
 export { floodsApi, FLOOD_LEVELS } from './floods';
 export { hazardsApi, HAZARD_SEVERITIES, HAZARD_STATUSES } from './hazards';
 export { getNearbyRisks } from './risk';

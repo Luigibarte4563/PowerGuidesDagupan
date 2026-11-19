@@ -15,9 +15,7 @@ import {
 import PageHeader from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
 import { Card, CardBody, CardHeader, StatCard } from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
 import { ErrorState, SkeletonList } from '@/components/ui/States';
-import AppMap, { MapPin as MapPinMarker } from '@/components/Map';
 import RecordCard from '@/components/RecordCard';
 import { useAuth } from '@/context/AuthContext';
 import { useSavedLocation } from '@/hooks/useSavedLocation';
@@ -147,7 +145,7 @@ export default function Overview() {
   return (
     <div
       data-theme="dark"
-      className="min-h-full space-y-6 bg-[#03041A] px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
+      className="min-h-full space-y-6 bg-[#153243] dashboard-grid px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
     >
       <PageHeader
         title={`${greeting}, ${user?.name?.split(' ')[0] || 'neighbour'}`}
@@ -442,58 +440,13 @@ export default function Overview() {
         </div>
       </div>
 
-      {/* Mini map */}
-      <Card>
-        <CardHeader
-          description={
-            hasLocation
-              ? 'Your saved location and nearby reported incidents'
-              : 'Save your location to centre this map on you'
-          }
-          action={
-            <Button to="/dashboard/heatmap" variant="outline" size="sm">
-              Open heatmap
-            </Button>
-          }
-        >
-          Area map
-        </CardHeader>
-        <CardBody>
-          <div className="h-72 w-full overflow-hidden rounded-xl border border-white/10">
-            <AppMap center={coords || undefined} zoom={coords ? 14 : undefined} className="h-full w-full">
-              {riskItems.map(({ item, kind }) =>
-                Number.isFinite(item.lat) && Number.isFinite(item.lng) ? (
-                  <MapPinMarker
-                    key={`map-${kind}-${item.id}`}
-                    position={{ lat: item.lat, lng: item.lng }}
-                    tone={kind === 'flood' ? 'info' : 'danger'}
-                  >
-                    <p className="font-bold text-navy-900">
-                      {kind === 'flood' ? item.barangay || 'Flood report' : item.hazardType || 'Hazard'}
-                    </p>
-                    {item.description ? <p className="mt-1 text-navy-600">{item.description}</p> : null}
-                    <Badge
-                      className="mt-2"
-                      tone={item.severity ? severityTone(item.severity) : 'neutral'}
-                      size="sm"
-                    >
-                      {humanize(item.severity, 'Severity n/a')}
-                    </Badge>
-                  </MapPinMarker>
-                ) : null
-              )}
-            </AppMap>
-          </div>
-        </CardBody>
-      </Card>
-
       <p className="text-center text-xs text-white/35">
         Need the full picture? Visit{' '}
-        <Link to="/dashboard/risk-areas" className="font-semibold text-[#FFBB02] hover:text-[#FFD400]">
+        <Link to="/dashboard/risk-areas" className="font-semibold text-[#f18f01] hover:text-[#f6c200]">
           risk areas
         </Link>{' '}
         or{' '}
-        <Link to="/dashboard/power-stations" className="font-semibold text-[#FFBB02] hover:text-[#FFD400]">
+        <Link to="/dashboard/power-stations" className="font-semibold text-[#f18f01] hover:text-[#f6c200]">
           power stations
         </Link>
         .
@@ -533,14 +486,14 @@ function SummaryCard({ label, value, isLoading, icon, tone, to }) {
 }
 
 const QUICK_TONES = {
-  primary: 'hover:border-[#FFBB02]/40 hover:bg-[#FFBB02]/10',
+  primary: 'hover:border-[#f18f01]/40 hover:bg-[#f18f01]/10',
   info: 'hover:border-[#22D3EE]/40 hover:bg-[#22D3EE]/10',
   danger: 'hover:border-[#FF2E1F]/40 hover:bg-[#FF2E1F]/10',
   success: 'hover:border-[#34FB34]/40 hover:bg-[#34FB34]/10',
 };
 
 const QUICK_ICON_TONES = {
-  primary: 'border border-[#FFBB02]/25 bg-[#FFBB02]/15 text-[#FFBB02]',
+  primary: 'border border-[#f18f01]/25 bg-[#f18f01]/15 text-[#f18f01]',
   info: 'border border-[#22D3EE]/25 bg-[#22D3EE]/15 text-[#22D3EE]',
   danger: 'border border-[#FF2E1F]/25 bg-[#FF2E1F]/15 text-[#FF2E1F]',
   success: 'border border-[#34FB34]/25 bg-[#34FB34]/15 text-[#34FB34]',
@@ -551,7 +504,7 @@ function QuickAction({ icon: Icon, label, description, onClick, tone = 'primary'
     <button
       type="button"
       onClick={onClick}
-      className={`flex items-center gap-3 rounded-xl border border-white/5 bg-[#1C1D30]/35 p-4 text-left transition ${QUICK_TONES[tone]}`}
+      className={`flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.05] p-4 text-left transition ${QUICK_TONES[tone]}`}
     >
       <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-control ${QUICK_ICON_TONES[tone]}`}>
         <Icon className="h-5 w-5" aria-hidden="true" />

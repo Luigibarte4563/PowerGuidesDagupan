@@ -158,8 +158,6 @@ frontend/                     # project root (this folder)
     │   ├── powerStations.js
     │   ├── notifications.js
     │   ├── location.js
-    │   ├── battery.js
-    │   ├── safetyTimers.js
     │   ├── floods.js
     │   ├── hazards.js
     │   ├── risk.js
@@ -242,8 +240,6 @@ frontend/                     # project root (this folder)
 | `/dashboard/power-stations` | Protected | All / Available / Near me / My Posts + map |
 | `/dashboard/notifications` | Protected | Notifications with mark-as-read |
 | `/dashboard/location` | Protected | Saved location (geolocation + map adjustment) |
-| `/dashboard/battery` | Protected | Devices, charge level, usage history and chart |
-| `/dashboard/safety-timers` | Protected | Safety timers with live countdown |
 | `/dashboard/floods` | Protected | Flood reports: all + nearby + create |
 | `/dashboard/hazards` | Protected | Electrical hazards: all + nearby + create + owner status update |
 | `/dashboard/risk-areas` | Protected | Combined nearby risks with adjustable radius |
@@ -333,8 +329,6 @@ blank page or the wrong app, check that value first.
 | Power stations | `create`, `get`, `get_available`, `get_near_location`, `get_my_posts`, `update` (owner), `delete` (owner) |
 | Notifications | `get`, `mark_as_read`, `mark_all_as_read`, `create` (manager) |
 | User location | `user_location/get`, `user_location/location` |
-| Battery | `create`, `get`, `get_history`, `update`, `set_percentage`, `log_usage`, `delete` |
-| Safety timers | `create`, `get`, `stop`, `delete` |
 | Floods | `create`, `get`, `get_nearby` |
 | Hazards | `create`, `get`, `get_nearby`, `update_status` (owner) |
 | Risk areas | `risk/get_nearby` |
@@ -421,20 +415,18 @@ cookie so the rest of the app is unchanged.
 | `outage_report/delete.php` | `{ id }`, soft delete (`status = rejected`). |
 | `maintenance/get.php` | one row per schedule with `locations: [{ barangay_name, lat, lng }]` and `radius` in metres. |
 | `maintenance/get_upcoming.php` | **Count only** (`upcoming_count`), so the Upcoming tab filters `get.php` by `upcoming`/`ongoing`. |
-| `power_station/create.php` | `{ station_name*, location_name*, station_type, access_type, availability_status, barangay_name?, operating_hours?, charging_type?, description? }`. Coordinates geocoded from `location_name`; **one station per user**; returns no id. `operating_hours` is optional and must be a number between 0 and 24. `charging_type` is optional and defaults to `Type-2 AC`; choose `Other` to enter a custom connector type. |
+| `power_station/create.php` | `{ station_name*, location_name*, station_type, access_type, availability_status, barangay_name?, opening_time?, closing_time?, is_24_hours?, charging_type?, description? }`. Coordinates geocoded from `location_name`; **one station per user**; returns no id. `opening_time`/`closing_time` are optional time strings (HH:MM 24-hour format). `is_24_hours` boolean defaults to false. `charging_type` is optional and defaults to `Type-2 AC`; choose `Other` to enter a custom connector type. |
 | `power_station/delete.php` | `{ station_id }` (not `id`). |
 | `power_station/get_available.php` | **Count only** (`total_available`) - the Available tab filters the list client-side. |
 | `power_station/get_near_location.php` | takes **only `radius`**; the centre is the user's saved primary location. |
 | `user_location/location.php` | `{ address*, barangay_name? }` - the client **cannot** send coordinates, so the location form is address-first. |
 | `notification/get.php` | returns `unread_count` (total unread) - used for the bell. `mark_as_read.php` expects `{ notification_id }`. |
-| `battery/*` | `device_type` enum: `phone, laptop, powerbank, ups, tablet, other`; keys are `device_id`, `device_name`, `current_percentage`, and `log_usage` needs `battery_percentage_start` + `battery_percentage_end`. |
-| `safety_timer/create.php` | `timer_type_name` **or** `duration_hours` (hours, not minutes), plus `warning_hours_before`, `title`, `notes`. `get.php` returns the server-computed `status` (`running/warning/expired/stopped`) and `expected_expiration_at`. |
 | `flood_report/create.php` | `{ location_name*, flood_level?, latitude?, longitude?, description?, barangay_name?, flood_depth_cm? }`; `flood_level` enum `low, moderate, high, severe`. |
 | `electrical_hazard/create.php` | `{ location_name*, severity?, hazard_type?, latitude?, longitude?, description?, barangay_name? }`; `severity` enum `low, moderate, high, critical`; `update_status.php` expects `{ hazard_id, status }` with `reported/verified/resolved`. |
 | `risk/get_nearby.php` | `{ counts, data: { floods, hazards } }`; rows use `category` (`flood`/`hazard`), `risk_level` and `distance` (metres). |
 | `heatmap/get.php` | `?mode=by_barangay\|clusters&radius=&days=`; rows have `latitude`/`longitude`/`report_count`/`forecast_level` (intensity is derived from `report_count` for leaflet.heat). |
 | `cluster/get.php` | rows use `center_latitude` / `center_longitude` / `radius_meters` / `forecast_level`. |
-| `reference/get.php` | `data` keys: `roles`, `barangays`, `outage_categories`, `severity_levels`, `hazard_types`, `outage_statuses`, `power_station_types`, `safety_timer_types`, `notification_types`. Label columns are table specific (`barangay_name`, `category_name`, `severity_name`, `hazard_name`, `status_name`, `type_name`, `timer_name`) and **the API looks them up by name**, so the option value is the name. Requires a session (`401` otherwise). |
+| `reference/get.php` | `data` keys: `roles`, `barangays`, `outage_categories`, `severity_levels`, `hazard_types`, `outage_statuses`, `power_station_types`, `notification_types`. Label columns are table specific (`barangay_name`, `category_name`, `severity_name`, `hazard_name`, `status_name`, `type_name`) and **the API looks them up by name**, so the option value is the name. Requires a session (`401` otherwise). |
 | `reference/get.php` barangays | The normalised option is `{ id: <NAME>, name: <NAME>, rowId: <numeric db id> }`. **The numeric id is in `rowId`, not `id`** — anything that needs a real `barangay_id` (the assignment form, the lineman outage filter) must read `rowId`, since sending the name where an id is expected is a `400`. |
 
 ### Still unconfirmed / server-side issues to raise with the backend team

@@ -38,12 +38,13 @@ const LAYERS = [
  */
 export default function Heatmap() {
   const [enabled, setEnabled] = useState({ heatmap: true, clusters: true });
+  const [lookbackDays, setLookbackDays] = useState(7);
 
   const [heatmapQuery, clustersQuery] = useQueries({
     queries: [
       {
-        queryKey: QUERY_KEYS.heatmap,
-        queryFn: async ({ signal }) => (await heatmapApi.getHeatmap({}, { signal })).points,
+        queryKey: [...QUERY_KEYS.heatmap, lookbackDays],
+        queryFn: async ({ signal }) => (await heatmapApi.getHeatmap({ days: lookbackDays }, { signal })).points,
         staleTime: 5 * 60 * 1000,
         retry: 1,
       },
@@ -153,7 +154,10 @@ export default function Heatmap() {
 
       <MapLegend
         title="Legend"
-        items={[...HEAT_LEGEND, ...(enabled.clusters ? [{ label: 'Cluster', tone: 'danger' }] : [])]}
+        items={[
+          ...HEAT_LEGEND,
+          ...(enabled.clusters ? [{ label: 'Cluster', color: '#10B981' }] : []),
+        ]}
       />
     </AppMap>
   );
@@ -164,7 +168,7 @@ export default function Heatmap() {
   return (
     <div
       data-theme="dark"
-      className="min-h-full bg-[#03041A] px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
+      className="min-h-full bg-[#153243] dashboard-grid px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
     >
       <FeedActions
         actions={
@@ -184,7 +188,7 @@ export default function Heatmap() {
         stats={[
           { label: 'Heat points', value: points.length, icon: Flame, color: '#FF2E1F' },
           { label: 'Clusters', value: clusters.length, icon: MapPin, color: '#22D3EE' },
-          { label: 'Top cluster', value: topClusterCount, icon: Flame, color: '#FFBB02' },
+          { label: 'Top cluster', value: topClusterCount, icon: Flame, color: '#f18f01' },
         ]}
         pills={
           /* Layer switches are independent toggles, not a single choice, so they
@@ -198,7 +202,7 @@ export default function Heatmap() {
                 aria-pressed={enabled[layer.key]}
                 className={`h-7 rounded-full border px-2.5 text-[9px] font-bold transition ${
                   enabled[layer.key]
-                    ? 'border-[#FFBB02]/40 bg-[#FFBB02]/15 text-[#FFBB02]'
+                    ? 'border-[#f18f01]/40 bg-[#f18f01]/15 text-[#f18f01]'
                     : 'border-white/10 bg-transparent text-white/45 hover:border-white/20 hover:text-white/70'
                 }`}
               >
@@ -241,7 +245,7 @@ export default function Heatmap() {
                     return (
                       <li
                         key={point.label}
-                        className="rounded-xl border border-white/5 bg-[#1C1D30]/35 p-2.5 transition duration-200 hover:-translate-y-0.5"
+                        className="rounded-xl border border-white/10 bg-white/[0.05] p-2.5 transition duration-200 hover:-translate-y-0.5"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <p className="truncate text-[13px] font-bold text-white">{point.label}</p>
@@ -278,7 +282,7 @@ export default function Heatmap() {
                     .map((cluster) => (
                       <li
                         key={cluster.id ?? cluster.label}
-                        className="rounded-xl border border-white/5 bg-[#1C1D30]/35 p-2.5 transition duration-200 hover:-translate-y-0.5"
+                        className="rounded-xl border border-white/10 bg-white/[0.05] p-2.5 transition duration-200 hover:-translate-y-0.5"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <p className="truncate text-[13px] font-bold text-white">{cluster.label}</p>

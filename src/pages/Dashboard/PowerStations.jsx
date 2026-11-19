@@ -8,7 +8,7 @@ import { Select } from '@/components/ui/Select';
 import DataView from '@/components/DataView';
 import RecordCard from '@/components/RecordCard';
 import ConfirmDialog from '@/components/ConfirmDialog';
-import AppMap, { FitPoints, MapLegend, MapPoints, RadiusCircle } from '@/components/Map';
+import AppMap, { FitPoints, MapLegend, MapPoints, RadiusCircle, POWER_STATION_COLORS } from '@/components/Map';
 import MapWorkspace, { FeedActions, FeedPills, FeedToggle } from '@/components/MapWorkspace';
 import { useAuth } from '@/context/AuthContext';
 import { useReference } from '@/context/ReferenceContext';
@@ -148,9 +148,9 @@ export default function PowerStations() {
       <MapLegend
         title="Availability"
         items={[
-          { label: 'Available', tone: 'success' },
-          { label: 'Busy', tone: 'warning' },
-          { label: 'Offline / maintenance', tone: 'danger' },
+          { label: 'Available', color: POWER_STATION_COLORS.available },
+          { label: 'Busy', color: POWER_STATION_COLORS.busy },
+          { label: 'Offline / maintenance', color: POWER_STATION_COLORS.offline },
         ]}
       />
     </AppMap>
@@ -159,7 +159,7 @@ export default function PowerStations() {
   return (
     <div
       data-theme="dark"
-      className="min-h-full bg-[#03041A] px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
+      className="min-h-full bg-[#153243] dashboard-grid px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
     >
       <FeedActions
         actions={
@@ -213,7 +213,7 @@ export default function PowerStations() {
             icon: CheckCircle2,
             color: '#34FB34',
           },
-          { label: 'My post', value: myStation ? 1 : 0, icon: MapPin, color: '#FFBB02' },
+          { label: 'My post', value: myStation ? 1 : 0, icon: MapPin, color: '#f18f01' },
         ]}
         pills={
           <FeedPills
@@ -311,8 +311,10 @@ export default function PowerStations() {
                   Number.isFinite(item_distance(station))
                     ? { label: 'Distance', value: formatDistance(item_distance(station)) }
                     : null,
-                  station.operatingHours
-                    ? { label: 'Hours', value: station.operatingHours }
+                  station.openingTime && station.closingTime
+                    ? { label: 'Hours', value: `${station.openingTime} - ${station.closingTime}` }
+                    : station.is24Hours
+                    ? { label: 'Hours', value: '24 hours' }
                     : null,
                   station.chargingType ? { label: 'Charging', value: station.chargingType } : null,
                   station.createdAt

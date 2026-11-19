@@ -1,4 +1,4 @@
-import { AlertTriangle, BatteryCharging, Droplets, Timer } from 'lucide-react';
+import { AlertTriangle, Droplets } from 'lucide-react';
 
 const TIPS = [
   {
@@ -12,18 +12,6 @@ const TIPS = [
     title: 'Keep electricity away from water',
     description:
       'Never use appliances in a flooded room. Switch off the main breaker first if it is safe to reach.',
-  },
-  {
-    icon: BatteryCharging,
-    title: 'Charge before the outage',
-    description:
-      'Keep power banks and torches charged, and track your battery levels so essentials survive a long outage.',
-  },
-  {
-    icon: Timer,
-    title: 'Use safety timers',
-    description:
-      'Set a timer for appliances and generators so nothing runs unattended while you are away or asleep.',
   },
 ];
 

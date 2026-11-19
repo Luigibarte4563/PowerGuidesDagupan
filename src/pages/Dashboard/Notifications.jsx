@@ -95,7 +95,7 @@ export default function Notifications() {
   return (
     <div
       data-theme="dark"
-      className="min-h-full space-y-6 bg-[#03041A] px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
+      className="min-h-full space-y-6 bg-[#153243] dashboard-grid px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
     >
       <PageHeader
         title="Notifications"
@@ -152,7 +152,7 @@ export default function Notifications() {
       {unreadCount > 0 ? (
         <Card>
           <CardBody className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control border border-[#FFBB02]/25 bg-[#FFBB02]/15 text-[#FFBB02]">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control border border-[#f18f01]/25 bg-[#f18f01]/15 text-[#f18f01]">
               <Bell className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>

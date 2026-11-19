@@ -20,7 +20,7 @@ const FIELD_ORDER = ['locationName', 'severity', 'hazardType', 'description', 'b
 const FIELD_LABEL =
   '!text-[10px] !font-bold !uppercase !tracking-[0.16em] !text-white/45';
 const FIELD_CONTROL =
-  'h-11 !rounded-xl !border-white/10 !bg-white/[0.04] !text-sm !text-white [color-scheme:dark] placeholder:text-white/30 focus:!border-[#FFBB02] focus:!ring-[#FFBB02]/30 dark:!border-white/10 dark:!bg-white/[0.04] dark:!text-white dark:placeholder:text-white/30 dark:focus:!border-[#FFBB02] dark:focus:!ring-[#FFBB02]/30';
+  'h-11 !rounded-xl !border-white/10 !bg-white/[0.04] !text-sm !text-white [color-scheme:dark] placeholder:text-white/30 focus:!border-[#f18f01] focus:!ring-[#f18f01]/30 dark:!border-white/10 dark:!bg-white/[0.04] dark:!text-white dark:placeholder:text-white/30 dark:focus:!border-[#f18f01] dark:focus:!ring-[#f18f01]/30';
 
 const DEFAULT_POINT = { lat: 16.0433, lng: 120.3329 };
 
@@ -257,12 +257,12 @@ export default function HazardFormModal({ open, onClose, hazard = null, onResult
             center={viewCenter}
             zoom={hasStoredPin ? 16 : 14}
             zoomControl={false}
-            className="pg-dark-map h-full w-full"
+            className="h-full w-full"
           >
             <LocationClickHandler onPick={selectPoint} disabled={submitting} />
             <Marker
               position={[markerPoint.lat, markerPoint.lng]}
-              icon={pinIcon('#FFBB02')}
+              icon={pinIcon('#f18f01')}
               draggable={!submitting}
               eventHandlers={{
                 dragend: (event) => {
@@ -273,11 +273,11 @@ export default function HazardFormModal({ open, onClose, hazard = null, onResult
             />
           </AppMap>
 
-          <div className="pointer-events-none absolute inset-x-3 bottom-3 z-[500] rounded-2xl border border-white/10 bg-[#0B0D20]/80 p-3.5 shadow-2xl backdrop-blur-md sm:inset-x-4 sm:bottom-4">
-            <p className="flex items-center gap-2 text-[9px] font-extrabold uppercase tracking-[0.18em] text-[#FFBB02]">
+          <div className="pointer-events-none absolute inset-x-3 bottom-3 z-[500] rounded-2xl border border-white/10 bg-[#153243]/80 p-3.5 shadow-2xl backdrop-blur-md sm:inset-x-4 sm:bottom-4">
+            <p className="flex items-center gap-2 text-[9px] font-extrabold uppercase tracking-[0.18em] text-[#f18f01]">
               <span className="relative flex h-2 w-2" aria-hidden="true">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#FFBB02] opacity-70" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#FFBB02]" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f18f01] opacity-70" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#f18f01]" />
               </span>
               Geographic Pinpoint
             </p>
@@ -292,7 +292,7 @@ export default function HazardFormModal({ open, onClose, hazard = null, onResult
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="absolute right-4 top-4 z-20 rounded-full border border-white/10 bg-[#0B0D20]/80 p-2 text-white/55 backdrop-blur-md transition hover:bg-white/10 hover:text-white disabled:opacity-40"
+            className="absolute right-4 top-4 z-20 rounded-full border border-white/10 bg-[#153243]/80 p-2 text-white/55 backdrop-blur-md transition hover:bg-white/10 hover:text-white disabled:opacity-40"
             aria-label="Close dialog"
           >
             <X className="h-4 w-4" aria-hidden="true" />
@@ -315,7 +315,7 @@ export default function HazardFormModal({ open, onClose, hazard = null, onResult
                 type="button"
                 onClick={() => geo.locate()}
                 disabled={submitting || geo.isLocating}
-                className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#FFBB02]/30 bg-[#FFBB02]/10 text-sm font-bold text-[#FFBB02] transition duration-200 hover:scale-[1.01] hover:bg-[#FFBB02]/15 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+                className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#f18f01]/30 bg-[#f18f01]/10 text-sm font-bold text-[#f18f01] transition duration-200 hover:scale-[1.01] hover:bg-[#f18f01]/15 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {geo.isLocating ? (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
@@ -325,7 +325,7 @@ export default function HazardFormModal({ open, onClose, hazard = null, onResult
                 Use My Current Location
               </button>
               {geo.error ? (
-                <p className="mt-2 text-xs font-medium text-[#FFD400]" role="status">
+                <p className="mt-2 text-xs font-medium text-[#f6c200]" role="status">
                   {geo.error}
                 </p>
               ) : null}
@@ -433,7 +433,7 @@ export default function HazardFormModal({ open, onClose, hazard = null, onResult
               <button
                 type="submit"
                 disabled={submitting}
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#FFBB02] to-[#FFD400] text-sm font-extrabold text-[#191400] shadow-[0_12px_30px_rgba(255,187,2,0.16)] transition duration-200 hover:-translate-y-0.5 hover:scale-[1.01] hover:shadow-[0_16px_36px_rgba(255,187,2,0.24)] active:translate-y-0 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#f18f01] to-[#f6c200] text-sm font-extrabold text-[#191400] shadow-[0_12px_30px_rgba(255,187,2,0.16)] transition duration-200 hover:-translate-y-0.5 hover:scale-[1.01] hover:shadow-[0_16px_36px_rgba(255,187,2,0.24)] active:translate-y-0 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
                 {isEdit ? 'Save Changes' : 'Submit Community Report'}

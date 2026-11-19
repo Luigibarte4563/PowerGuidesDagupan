@@ -1161,7 +1161,7 @@ API Response (near variant adds):
 ```
 { "success": true, "count": 6, "has_location": true, "radius": 5000,
   "data": [ { id, created_by, station_name, location_name, latitude, longitude,
-              station_type, access_type, availability_status, operating_hours,
+              station_type, access_type, availability_status, opening_time, closing_time, is_24_hours,
               charging_type, description, image, created_at, updated_at,
               barangay_name, distance: 812.5 }, ... ] }
 ```
@@ -1171,7 +1171,7 @@ show "Set your location to sort by distance" prompt (link to 11).
 
 ↓
 UI Update: Cards showing name, type badge (power/solar/charging/generator),
-availability status color, access (free/paid), operating hours, charging type,
+availability status color, access (free/paid), opening/closing times (or 24h), charging type,
 distance if present. "Available only" is guaranteed server-side for near-list.
 
 ### 7.2 Available count (dashboard)
@@ -1210,7 +1210,9 @@ location_name      (text, required -> geocoded)
 station_type       (select: power_station|solar_station|charging_station|generator_station, default power_station)
 access_type        (select: free|paid, default free)
 availability_status(select: available|busy|offline|maintenance, default available)
-operating_hours    (text, optional)
+opening_time       (time, optional, 24-hour format HH:MM)
+closing_time       (time, optional, 24-hour format HH:MM)
+is_24_hours        (boolean, default false)
 charging_type      (text, optional)
 description        (textarea, optional)
 image              (text url, optional)

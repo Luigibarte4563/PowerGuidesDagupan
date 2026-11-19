@@ -36,4 +36,14 @@ export const floodsApi = {
     });
     return { items: pickList(payload), count: payload?.count ?? null, radius: payload?.radius ?? radius, raw: payload };
   },
+
+  /** Owner-only. */
+  async update(data, { signal } = {}) {
+    return apiRequest('/api/flood_report/update.php', { method: 'POST', body: data, signal });
+  },
+
+  /** Owner-only. */
+  async remove(id, { signal } = {}) {
+    return apiRequest('/api/flood_report/delete.php', { method: 'POST', body: { id }, signal });
+  },
 };

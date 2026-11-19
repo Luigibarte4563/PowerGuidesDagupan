@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { ZoomControl } from 'react-leaflet';
-import { AlertTriangle, CalendarClock, MapPin, Plus, Waves } from 'lucide-react';
+import { AlertTriangle, CalendarClock, MapPin, Plus, Trash2, Pencil, Waves } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
@@ -14,6 +14,8 @@ import AppMap, {
   MapPin as MapPinMarker,
   MapPoints,
   RadiusCircle,
+  FLOOD_COLORS,
+  RISK_COLORS,
 } from '@/components/Map';
 import MapWorkspace, { FeedActions, FeedPills, FeedToggle } from '@/components/MapWorkspace';
 import { useReference } from '@/context/ReferenceContext';
@@ -21,7 +23,7 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useSavedLocation } from '@/hooks/useSavedLocation';
 import { floodsApi } from '@/api';
 import { QUERY_KEYS } from '@/utils/constants';
-import { readFlood, withDistance } from '@/utils/records';
+import { readFlood, withDistance, isOwnedBy } from '@/utils/records';
 import { DEFAULT_RADIUS_METERS, RADIUS_OPTIONS, severityTone, statusTone } from '@/utils/constants';
 import { formatDateTime, formatDistance, formatTime, humanize } from '@/utils/formatters';
 import { toUserMessage } from '@/utils/errorMessage';
@@ -37,22 +39,24 @@ import FloodFormModal, { FLOOD_LEVEL_OPTIONS } from './components/FloodFormModal
  * client-side with `withDistance`.
  */
 const LEVEL_LEGEND = [
-  { label: 'Low', tone: 'success' },
-  { label: 'Moderate', tone: 'warning' },
-  { label: 'High / severe', tone: 'danger' },
+  { label: 'Low', color: FLOOD_COLORS.low },
+  { label: 'Moderate', color: FLOOD_COLORS.moderate },
+  { label: 'High / severe', color: FLOOD_COLORS.high },
 ];
 
 export default function Floods() {
   const { barangays } = useReference();
   const { coords, hasLocation } = useSavedLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState('all');
   const [search, setSearch] = useState('');
   const [barangayFilter, setBarangayFilter] = useState('');
   const [severityFilter, setSeverityFilter] = useState('');
   const [radius, setRadius] = useState(DEFAULT_RADIUS_METERS);
   const [formOpen, setFormOpen] = useState(false);
+  const [editor, setEditor] = useState(null); // { flood, mode: 'edit' }
+  const [confirming, setConfirming] = useState(null); // flood id to delete
   const debouncedSearch = useDebouncedValue(search);
   const isNearby = tab === 'nearby';
 
@@ -63,6 +67,31 @@ export default function Floods() {
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);
+
+  // Mutations for edit/delete
+  const updateMutation = useMutation({
+    mutationFn: (payload) => floodsApi.update(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['floods'] });
+      queryClient.invalidateQueries({ queryKey: ['risks'] });
+      setEditor(null);
+    },
+    onError: (error) => {
+      // Error handled in modal
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => floodsApi.remove(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['floods'] });
+      queryClient.invalidateQueries({ queryKey: ['risks'] });
+      setConfirming(null);
+    },
+    onError: (error) => {
+      // Error handled in modal
+    },
+  });
 
   // The barangay/level filters are applied client-side below, so they are kept out
   // of this key - otherwise every keystroke would refetch the same unfiltered set.
@@ -136,7 +165,7 @@ export default function Floods() {
       <ZoomControl position="bottomright" />
       {isNearby ? null : <FitPoints items={framedPoints} />}
       {isNearby && hasLocation ? <RadiusCircle center={coords} radius={radius} /> : null}
-      <MapPoints items={plotted} toneFor={(item) => (item.severity ? severityTone(item.severity) : 'neutral')}>
+      <MapPoints items={plotted} toneFor={(item) => (item.severity ? FLOOD_COLORS[item.severity.toLowerCase()] : 'neutral')}>
         {(item) => (
           <div className="min-w-[12rem]">
             <p className="font-bold text-navy-900">
@@ -175,7 +204,7 @@ export default function Floods() {
         title="Flood level"
         items={[
           ...LEVEL_LEGEND,
-          ...(hasLocation ? [{ label: 'Your location', tone: 'success' }] : []),
+          ...(hasLocation ? [{ label: 'Your location', color: RISK_COLORS.location }] : []),
         ]}
       />
     </AppMap>
@@ -185,7 +214,7 @@ export default function Floods() {
   return (
     <div
       data-theme="dark"
-      className="min-h-full bg-[#03041A] px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
+      className="min-h-full bg-[#153243] dashboard-grid px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
     >
       <FeedActions
         actions={
@@ -229,7 +258,7 @@ export default function Floods() {
         stats={[
           { label: 'Reports', value: items.length, icon: Waves, color: '#22D3EE' },
           { label: 'High / severe', value: highCount, icon: AlertTriangle, color: '#FF2E1F' },
-          { label: 'Barangays', value: barangayCount, icon: MapPin, color: '#FFBB02' },
+          { label: 'Barangays', value: barangayCount, icon: MapPin, color: '#f18f01' },
         ]}
         pills={
           <FeedPills
@@ -291,31 +320,98 @@ export default function Floods() {
               </Button>
             ),
         }}
-        renderCard={(flood) => (
-          <RecordCard
-            variant="feed"
-            icon={Waves}
-            iconTone="info"
-            title={flood.locationName || flood.barangay || 'Flood report'}
-            subtitle={`Reported ${formatDateTime(flood.createdAt)}`}
-            badges={[
-              flood.severity ? { label: humanize(flood.severity), tone: severityTone(flood.severity) } : null,
-              flood.status ? { label: humanize(flood.status), tone: statusTone(flood.status) } : null,
-              Number.isFinite(flood.distance)
-                ? { label: formatDistance(flood.distance), tone: 'neutral' }
-                : null,
-            ].filter(Boolean)}
-            description={flood.description}
-            meta={[
-              Number.isFinite(flood.depthCm) ? { label: 'Depth', value: `${flood.depthCm} cm` } : null,
-              flood.createdAt ? { label: 'Reported', value: formatDateTime(flood.createdAt), icon: CalendarClock } : null,
-            ].filter(Boolean)}
-          />
-        )}
+        renderCard={(flood) => {
+          const owned = isOwnedBy(flood.raw);
+          return (
+            <RecordCard
+              variant="feed"
+              icon={Waves}
+              iconTone="info"
+              title={flood.locationName || flood.barangay || 'Flood report'}
+              subtitle={`Reported ${formatDateTime(flood.createdAt)}`}
+              badges={[
+                flood.severity ? { label: humanize(flood.severity), tone: severityTone(flood.severity) } : null,
+                flood.status ? { label: humanize(flood.status), tone: statusTone(flood.status) } : null,
+                Number.isFinite(flood.distance)
+                  ? { label: formatDistance(flood.distance), tone: 'neutral' }
+                  : null,
+              ].filter(Boolean)}
+              description={flood.description}
+              meta={[
+                Number.isFinite(flood.depthCm) ? { label: 'Depth', value: `${flood.depthCm} cm` } : null,
+                flood.createdAt ? { label: 'Reported', value: formatDateTime(flood.createdAt), icon: CalendarClock } : null,
+              ].filter(Boolean)}
+              actions={owned ? (
+                <>
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    icon={Pencil}
+                    onClick={() => setEditor({ flood, mode: 'edit' })}
+                    aria-label="Edit this flood report"
+                  />
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    icon={Trash2}
+                    className="text-danger-600"
+                    onClick={() => setConfirming(flood.id)}
+                    aria-label="Delete this flood report"
+                  />
+                </>
+              ) : null}
+            />
+          );
+        }}
       />
       </MapWorkspace>
 
-      <FloodFormModal open={formOpen} onClose={() => setFormOpen(false)} defaultLocation={coords} />
+      <FloodFormModal
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        defaultLocation={coords}
+      />
+      <FloodFormModal
+        open={Boolean(editor)}
+        onClose={() => setEditor(null)}
+        defaultLocation={coords}
+        initialData={editor?.flood
+          ? {
+              id: editor.flood.id,
+              locationName: editor.flood.locationName,
+              floodLevel: editor.flood.severity,
+              description: editor.flood.description,
+              barangayName: editor.flood.barangay,
+              depth: editor.flood.depthCm,
+              location: Number.isFinite(editor.flood.lat) && Number.isFinite(editor.flood.lng)
+                ? { lat: editor.flood.lat, lng: editor.flood.lng }
+                : null,
+            }
+          : null}
+      />
+      {confirming && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#1C1D30] p-6 shadow-pop-dark">
+            <h3 className="text-lg font-bold text-white">Delete this flood report?</h3>
+            <p className="mt-2 text-sm text-white/60">
+              This will mark the report as cancelled. This action cannot be undone.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setConfirming(null)}>
+                Keep it
+              </Button>
+              <Button
+                variant="primary"
+                className="bg-danger-600 hover:bg-danger-700"
+                onClick={() => deleteMutation.mutate(confirming)}
+                loading={deleteMutation.isPending}
+              >
+                Delete report
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

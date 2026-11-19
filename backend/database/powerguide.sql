@@ -400,77 +400,7 @@ ON power_stations(availability_status);
 
 
 -- =========================================================
--- 10. BATTERY DEVICES
--- =========================================================
-
-CREATE TABLE battery_devices (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-
-    user_id INT NOT NULL,
-
-    device_name VARCHAR(150) NOT NULL,
-
-    device_type ENUM(
-        'phone',
-        'laptop',
-        'powerbank',
-        'ups',
-        'tablet',
-        'other'
-    ) NOT NULL,
-
-    capacity_mah INT NULL,
-
-    current_percentage DECIMAL(5,2) DEFAULT 100.00,
-
-    is_primary BOOLEAN DEFAULT FALSE,
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        ON UPDATE CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (user_id)
-        REFERENCES users(id)
-        ON DELETE CASCADE
-);
-
-CREATE INDEX idx_battery_user
-ON battery_devices(user_id);
-
-
--- =========================================================
--- 11. BATTERY USAGE LOGS
--- =========================================================
-
-CREATE TABLE battery_usage_logs (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-
-    battery_device_id INT NOT NULL,
-
-    battery_percentage_start DECIMAL(5,2) NOT NULL,
-
-    battery_percentage_end DECIMAL(5,2) NOT NULL,
-
-    usage_minutes INT NULL,
-
-    estimated_watts DECIMAL(8,2) NULL,
-
-    activity VARCHAR(150) NULL,
-
-    logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (battery_device_id)
-        REFERENCES battery_devices(id)
-        ON DELETE CASCADE
-);
-
-CREATE INDEX idx_battery_usage_device
-ON battery_usage_logs(battery_device_id);
-
-
--- =========================================================
--- 12. FLOOD REPORTS
+-- 10. FLOOD REPORTS
 -- =========================================================
 
 CREATE TABLE flood_reports (
@@ -600,55 +530,7 @@ ON electrical_hazards(barangay_id);
 
 
 -- =========================================================
--- 14. SAFETY TIMERS
--- =========================================================
-
-CREATE TABLE safety_timers (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-
-    user_id INT NOT NULL,
-
-    timer_type ENUM('sealed_refrigerator','deep_freezer_24h','deep_freezer_48h','medication') NOT NULL,
-
-    title VARCHAR(150) NOT NULL,
-
-    started_at DATETIME NOT NULL,
-
-    expected_expiration_at DATETIME NOT NULL,
-
-    warning_at DATETIME NULL,
-
-    warning_sent_at DATETIME NULL,
-
-    expired_sent_at DATETIME NULL,
-
-    completed_at DATETIME NULL,
-
-    status ENUM(
-        'running',
-        'warning',
-        'expired',
-        'stopped'
-    ) DEFAULT 'running',
-
-    notes TEXT NULL,
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (user_id)
-        REFERENCES users(id)
-        ON DELETE CASCADE
-);
-
-CREATE INDEX idx_safety_timer_user
-ON safety_timers(user_id);
-
-CREATE INDEX idx_safety_timer_expiration
-ON safety_timers(expected_expiration_at);
-
-
--- =========================================================
--- 15. NOTIFICATIONS
+-- 11. NOTIFICATIONS
 -- =========================================================
 
 CREATE TABLE notifications (
@@ -656,7 +538,7 @@ CREATE TABLE notifications (
 
     user_id INT NOT NULL,
 
-    notification_type ENUM('maintenance','outage','emergency','flood','electrical_hazard','battery','safety_timer','system') NOT NULL,
+    notification_type ENUM('maintenance','outage','emergency','flood','electrical_hazard','system') NOT NULL,
 
     title VARCHAR(255) NOT NULL,
 
@@ -671,8 +553,6 @@ CREATE TABLE notifications (
     flood_report_id INT NULL,
 
     electrical_hazard_id INT NULL,
-
-    safety_timer_id INT NULL,
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
@@ -694,10 +574,6 @@ CREATE TABLE notifications (
 
     FOREIGN KEY (electrical_hazard_id)
         REFERENCES electrical_hazards(id)
-        ON DELETE CASCADE,
-
-    FOREIGN KEY (safety_timer_id)
-        REFERENCES safety_timers(id)
         ON DELETE CASCADE
 );
 

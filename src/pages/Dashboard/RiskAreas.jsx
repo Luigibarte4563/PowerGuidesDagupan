@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ZoomControl } from 'react-leaflet';
-import { AlertTriangle, ShieldAlert, Waves } from 'lucide-react';
+import { AlertTriangle, MapPin, ShieldAlert, Waves } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
-import AppMap, { FitPoints, MapLegend, MapPoints, RadiusCircle } from '@/components/Map';
-import MapWorkspace, { FeedPills, FeedStatTiles } from '@/components/MapWorkspace';
+import AppMap, { FitPoints, MapLegend, MapPoints, RadiusCircle, RISK_COLORS, FLOOD_COLORS, SEVERITY_COLORS } from '@/components/Map';
+import MapWorkspace, { FeedPills, FeedStatTiles, FeedToggle } from '@/components/MapWorkspace';
 import { useSavedLocation } from '@/hooks/useSavedLocation';
 import { floodsApi, hazardsApi } from '@/api';
 import { QUERY_KEYS } from '@/utils/constants';
@@ -39,9 +39,11 @@ import { toUserMessage } from '@/utils/errorMessage';
  */
 export default function RiskAreas() {
   const { coords, hasLocation } = useSavedLocation();
+  const [scope, setScope] = useState('all'); // 'all' | 'nearby'
   const [radius, setRadius] = useState(DEFAULT_RADIUS_METERS);
 
   const locationLooksWrong = isOutsideServiceArea(coords);
+  const isNearby = scope === 'nearby';
 
   const floodQuery = useQuery({
     queryKey: QUERY_KEYS.floods({ scope: 'risk-areas' }),
@@ -80,17 +82,17 @@ export default function RiskAreas() {
   // Inlined rather than passed as a helper so the memos stay dependency-complete.
   const floods = useMemo(
     () =>
-      hasLocation
+      isNearby && hasLocation
         ? allFloods.filter((item) => !Number.isFinite(item.distance) || item.distance <= Number(radius))
         : allFloods,
-    [allFloods, hasLocation, radius]
+    [allFloods, isNearby, hasLocation, radius]
   );
   const hazards = useMemo(
     () =>
-      hasLocation
+      isNearby && hasLocation
         ? allHazards.filter((item) => !Number.isFinite(item.distance) || item.distance <= Number(radius))
         : allHazards,
-    [allHazards, hasLocation, radius]
+    [allHazards, isNearby, hasLocation, radius]
   );
   const total = floods.length + hazards.length;
   const totalCitywide = allFloods.length + allHazards.length;
@@ -107,10 +109,14 @@ export default function RiskAreas() {
   ];
 
   const toneFor = (item) =>
-    item.kind === 'flood' ? 'info' : item.severity ? severityTone(item.severity) : 'danger';
+    item.kind === 'flood'
+      ? (item.severity ? FLOOD_COLORS[item.severity.toLowerCase()] : RISK_COLORS.flood)
+      : item.severity
+      ? SEVERITY_COLORS[item.severity.toLowerCase()]
+      : RISK_COLORS.hazard;
 
   const mapSummary = `${plotted.length} risk${plotted.length === 1 ? '' : 's'} plotted${
-    hasLocation && !locationLooksWrong ? ` within ${formatDistance(radius)} of you` : ' across Dagupan'
+    isNearby && hasLocation && !locationLooksWrong ? ` within ${formatDistance(radius)} of you` : ' across Dagupan'
   }.`;
 
   const riskMap = (
@@ -119,7 +125,7 @@ export default function RiskAreas() {
       {/* FitPoints frames the risks; the radius circle is a reference for the
           distance filter, not a fetch bound. */}
       <FitPoints items={plotted} />
-      {hasLocation && !locationLooksWrong ? <RadiusCircle center={coords} radius={radius} /> : null}
+      {isNearby && hasLocation && !locationLooksWrong ? <RadiusCircle center={coords} radius={radius} /> : null}
       <MapPoints items={plotted} toneFor={toneFor}>
         {(item) => (
           <div className="min-w-[13rem]">
@@ -153,11 +159,13 @@ export default function RiskAreas() {
         )}
       </MapPoints>
       <MapLegend
-        title="Risk type"
+        title="Flood level"
         items={[
-          { label: 'Open flood', tone: 'info' },
-          { label: 'Electrical hazard', tone: 'danger' },
-          ...(hasLocation && !locationLooksWrong ? [{ label: 'Your location', tone: 'success' }] : []),
+          { label: 'Low', color: FLOOD_COLORS.low },
+          { label: 'Moderate', color: FLOOD_COLORS.moderate },
+          { label: 'High / Severe', color: FLOOD_COLORS.high },
+          { label: 'Electrical hazard', color: RISK_COLORS.hazard },
+          ...(hasLocation && !locationLooksWrong ? [{ label: 'Your location', color: RISK_COLORS.location }] : []),
         ]}
       />
     </AppMap>
@@ -167,11 +175,11 @@ export default function RiskAreas() {
   return (
     <div
       data-theme="dark"
-      className="min-h-full bg-[#03041A] px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
+      className="min-h-full bg-[#153243] dashboard-grid px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
     >
       {locationLooksWrong ? (
-        <div className="rounded-2xl border border-[#FFBB02]/25 bg-[#FFBB02]/10 p-6 text-center">
-          <ShieldAlert className="mx-auto h-6 w-6 text-[#FFBB02]" aria-hidden="true" />
+        <div className="rounded-2xl border border-[#f18f01]/25 bg-[#f18f01]/10 p-6 text-center">
+          <ShieldAlert className="mx-auto h-6 w-6 text-[#f18f01]" aria-hidden="true" />
           <p className="mt-2 text-base font-bold text-white">Your saved location is outside Dagupan</p>
           <p className="mx-auto mt-1 max-w-md text-sm text-white/60">
             Your saved point is far outside the city, so the distance filter and map would be measuring
@@ -191,12 +199,23 @@ export default function RiskAreas() {
             floodQuery.dataUpdatedAt ? ` · updated ${formatTime(floodQuery.dataUpdatedAt)}` : ''
           }`}
           stats={[
-            { label: 'Open risks', value: total, icon: ShieldAlert, color: '#FFBB02' },
+            { label: 'Open risks', value: total, icon: ShieldAlert, color: '#f18f01' },
             { label: 'Open floods', value: floods.length, icon: Waves, color: '#22D3EE' },
             { label: 'Hazards', value: hazards.length, icon: AlertTriangle, color: '#FF2E1F' },
           ]}
+          toggle={
+            <FeedToggle
+              ariaLabel="Risk feed scope"
+              value={scope}
+              onChange={setScope}
+              options={[
+                { value: 'all', label: 'All risks', count: totalCitywide },
+                { value: 'nearby', label: 'Nearby', count: hasLocation ? undefined : null },
+              ]}
+            />
+          }
           pills={
-            hasLocation && !locationLooksWrong ? (
+            isNearby && hasLocation && !locationLooksWrong ? (
               <FeedPills
                 ariaLabel="Distance from you"
                 value={String(radius)}
@@ -223,15 +242,15 @@ export default function RiskAreas() {
             totalCitywide > 0 && hasLocation ? (
               <EmptyState
                 icon={ShieldAlert}
-                title={`Nothing open within ${formatDistance(radius)}`}
-                description={`There ${totalCitywide === 1 ? 'is' : 'are'} ${totalCitywide} open risk${
-                  totalCitywide === 1 ? '' : 's'
-                } in Dagupan, just further away. Widen the distance to see ${totalCitywide === 1 ? 'it' : 'them'}.`}
-                action={
-                  <Button variant="primary" onClick={() => setRadius(10000)}>
+                title={isNearby ? `Nothing open within ${formatDistance(radius)}` : 'All clear across Dagupan'}
+                description={isNearby
+                  ? `There ${totalCitywide === 1 ? 'is' : 'are'} ${totalCitywide} open risk${totalCitywide === 1 ? '' : 's'} in Dagupan, just further away. Widen the distance to see ${totalCitywide === 1 ? 'it' : 'them'}.`
+                  : 'No open flood reports or unresolved electrical hazards anywhere in the city. Keep checking back after heavy rain.'}
+                action={isNearby ? (
+                  <Button variant="primary" onClick={() => setScope('all')}>
                     Show all {totalCitywide}
                   </Button>
-                }
+                ) : null}
               />
             ) : (
               <EmptyState
@@ -245,7 +264,7 @@ export default function RiskAreas() {
               {risks.map((item) => (
                 <li
                   key={`${item.kind}-${item.id}`}
-                  className="rounded-xl border border-white/5 bg-[#1C1D30]/35 p-2.5 transition duration-200 hover:-translate-y-0.5"
+                  className="rounded-xl border border-white/10 bg-white/[0.05] p-2.5 transition duration-200 hover:-translate-y-0.5"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex min-w-0 flex-wrap items-center gap-1.5">

@@ -18,6 +18,7 @@ import AppMap, {
   MapPin as MapPinMarker,
   MapPoints,
   MapView,
+  SEVERITY_COLORS,
 } from '@/components/Map';
 import MapPicker from '@/components/MapPicker';
 import MapWorkspace, { FeedActions, FeedPills, FeedToggle } from '@/components/MapWorkspace';
@@ -256,9 +257,9 @@ export default function Hazards() {
         <MapLegend
           title="Severity"
           items={[
-            { label: 'Critical / high', tone: 'danger' },
-            { label: 'Moderate', tone: 'warning' },
-            { label: 'Low', tone: 'success' },
+            { label: 'Critical / high', color: SEVERITY_COLORS.critical },
+            { label: 'Moderate', color: SEVERITY_COLORS.moderate },
+            { label: 'Low', color: SEVERITY_COLORS.low },
           ]}
         />
       </AppMap>
@@ -277,7 +278,7 @@ export default function Hazards() {
   return (
     <div
       data-theme="dark"
-      className="min-h-full bg-[#03041A] px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
+      className="min-h-full bg-[#153243] px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
     >
       <FeedActions
         search={search}

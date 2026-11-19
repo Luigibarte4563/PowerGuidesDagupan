@@ -44,8 +44,8 @@ export default function RecordCard({
       className={clsx(
         'block',
         feed
-          ? 'rounded-xl border border-white/5 bg-[#1C1D30]/35 p-2.5 transition duration-200 hover:-translate-y-0.5 hover:border-white/15'
-          : 'rounded-card border border-navy-100 bg-white p-4 shadow-card dark:border-navy-700 dark:bg-navy-800 dark:shadow-card-dark',
+          ? 'rounded-xl border border-white/10 bg-white/[0.05] p-2.5 transition duration-200 hover:-translate-y-0.5 hover:border-white/15'
+          : 'rounded-card border border-navy-100 bg-white p-4 shadow-card dark:border-white/10 dark:bg-navy-700 dark:shadow-card-dark',
         to &&
           !feed &&
           'transition hover:border-primary-200 hover:shadow-card-hover dark:hover:border-primary-500/40',
@@ -104,7 +104,7 @@ export default function RecordCard({
                   {meta.map((item) => (
                     <span key={item.label} className="flex min-w-0 items-center gap-1">
                       {item.icon ? (
-                        <item.icon className="h-2.5 w-2.5 shrink-0 text-[#FFBB02]/60" aria-hidden="true" />
+                        <item.icon className="h-2.5 w-2.5 shrink-0 text-[#f18f01]/60" aria-hidden="true" />
                       ) : null}
                       <dt className="sr-only">{item.label}</dt>
                       <dd className="truncate">{item.value}</dd>

@@ -624,8 +624,8 @@ Filters: `?status=`, `?date=`.
 ### `POST /api/power_station/create.php`
 Body: `station_name`, `location_name`, `station_type?` (`power_station` |
 `solar_station` | `charging_station` | `generator_station`), `access_type?`
-(`free`/`paid`), `availability_status?`, `operating_hours?`, `charging_type?`,
-`description?`, `image?`, `latitude?`/`longitude?`, `barangay_name?`.
+(`free`/`paid`), `availability_status?`, `opening_time?`, `closing_time?`, `is_24_hours?`,
+`charging_type?`, `description?`, `image?`, `latitude?`/`longitude?`, `barangay_name?`.
 
 ### `GET /api/power_station/get.php`
 List stations (paginated). Query: `?page=`, `?limit=`.

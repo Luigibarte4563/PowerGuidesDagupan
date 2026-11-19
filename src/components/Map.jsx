@@ -5,27 +5,20 @@ import clsx from 'clsx';
 import { DEFAULT_CENTER } from '@/utils/formatters';
 
 // leaflet.heat registers against the bare global L, which bundler-ESM leaflet
-// does not set — bridge it once at module scope, before any dynamic import runs.
-window.L = window.L?.heatLayer ? window.L : L;
+// does not set — bind the npm leaflet instance to the global L once at module
+// scope so leaflet-heat.js (a deferred global script) patches the exact object
+// HeatLayer imports. Unconditional: keep a single source of truth for `L`.
+window.L = L;
 /**
- * Basemap providers, tried in order. Both need no API key.
+ * Basemap provider - OpenStreetMap light tiles.
  *
- * The OSM Foundation's volunteer servers (`tile.openstreetmap.org`) are
- * deliberately NOT in this list: they answer with an "Access blocked" tile and an
- * `x-blocked: Access denied` header because their tile usage policy forbids this
- * kind of use. It answers 200, so the failure is invisible to `tileerror` and
- * simply shows a grey map - hence the switch rather than relying on failover.
+ * Uses the standard OSM tile server directly with a soft, desaturated filter
+ * applied via CSS on .leaflet-tile-pane only.
  */
 const TILE_PROVIDERS = [
   {
-    name: 'Esri World Street Map',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
-    attribution:
-      'Tiles &copy; <a href="https://www.esri.com/">Esri</a> &mdash; Esri, HERE, Garmin, INCREMENT P, USGS, EPA, NPS',
-  },
-  {
-    name: 'OpenStreetMap.de',
-    url: 'https://tile.openstreetmap.de/{z}/{x}/{y}.png',
+    name: 'OpenStreetMap',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   },
 ];
@@ -63,12 +56,52 @@ function BaseLayer() {
 }
 
 const PIN_COLORS = {
-  primary: '#FFBB02',
+  primary: '#f18f01',
   danger: '#FF2E1F',
-  warning: '#F59E0B',
+  warning: '#FFBB02',
   success: '#34FB34',
-  info: '#22D3EE',
+  info: '#00E5FF',
   neutral: '#9CA3AF',
+  // Semantic aliases for the four pulsing pin colors
+  green: '#34FB34',
+  yellow: '#FFBB02',
+  red: '#FF2E1F',
+  cyan: '#00E5FF',
+};
+
+/** Specific colours for every map-legend category, so no two categories share a swatch by accident. */
+export const SEVERITY_COLORS = {
+  low: '#34FB34',
+  moderate: '#F59E0B',
+  high: '#FF7B25',
+  critical: '#FF2E1F',
+};
+
+export const FLOOD_COLORS = {
+  low: '#34FB34',
+  moderate: '#F59E0B',
+  high: '#FF2E1F',
+};
+
+export const RISK_COLORS = {
+  flood: '#22D3EE',
+  hazard: '#FF2E1F',
+  // "Your location" must differ from flood (#22D3EE) and hazard (#FF2E1F) in the
+  // Risk areas legend, and from low (#34FB34)/moderate (#F59E0B)/high (#FF2E1F)
+  // in the Flood level legend.
+  location: '#A855F7',
+};
+
+export const MAINTENANCE_STATUS_COLORS = {
+  upcoming: '#22D3EE',
+  ongoing: '#F59E0B',
+  completed: '#34FB34',
+};
+
+export const POWER_STATION_COLORS = {
+  available: '#34FB34',
+  busy: '#F59E0B',
+  offline: '#FF2E1F',
 };
 
 /**
@@ -126,13 +159,13 @@ export function pinSvg(tone = 'primary', glyph = '') {
  * what `index.css` hooks onto for the drop shadow.
  */
 export function pinIcon(tone = 'primary', glyph = '', options = {}) {
-  const { size = PIN_WIDTH, className = '' } = options;
+  const { size = PIN_WIDTH, className = '', pulse = false } = options;
   const width = Math.max(14, Math.round(Number(size) || PIN_WIDTH));
   const height = Math.round((width * PIN_BOX.height) / PIN_BOX.width);
   const tipOffset = Math.round((height * PIN_TIP_Y) / PIN_BOX.height);
 
   return L.divIcon({
-    className: clsx('pg-pin', className),
+    className: clsx('pg-pin', pulse ? 'pulse-marker' : '', className),
     html: pinSvg(tone, glyph),
     iconSize: [width, height],
     iconAnchor: [width / 2, tipOffset],
@@ -146,13 +179,17 @@ export function pinIcon(tone = 'primary', glyph = '', options = {}) {
  * optional glyph letter renders centred in white for the staff maps.
  * `size` is the circle DIAMETER in pixels.
  */
-export function circlePinSvg(tone = 'primary', glyph = '', size = PIN_DOT_WIDTH) {
+export function circlePinSvg(tone = 'primary', glyph = '', size = PIN_DOT_WIDTH, pulse = true) {
   const color = PIN_COLORS[tone] || tone || PIN_COLORS.primary;
   const centre = glyph
     ? `<text x="9" y="9" text-anchor="middle" dominant-baseline="central" font-size="${Math.max(9, Math.round(size * 0.42))}" font-weight="700" fill="#ffffff">${escapeHtml(glyph)}</text>`
     : '';
+  const pulseRing = pulse
+    ? `<circle class="pulse-ring" cx="9" cy="9" r="7.5" fill="none" stroke="${color}" stroke-width="2" />`
+    : '';
   return (
     `<svg viewBox="0 0 18 18" width="100%" height="100%" aria-hidden="true" focusable="false">` +
+    pulseRing +
     `<circle cx="9" cy="9" r="7.5" fill="${color}" fill-opacity="0.88" stroke="#ffffff" stroke-width="2" />` +
     centre +
     `</svg>`
@@ -160,12 +197,12 @@ export function circlePinSvg(tone = 'primary', glyph = '', size = PIN_DOT_WIDTH)
 }
 
 export function circlePinIcon(tone = 'primary', glyph = '', options = {}) {
-  const { size = PIN_DOT_WIDTH, className = '' } = options;
+  const { size = PIN_DOT_WIDTH, className = '', pulse = true } = options;
   const width = Math.max(12, Math.round(Number(size) || PIN_DOT_WIDTH));
 
   return L.divIcon({
-    className: clsx('pg-pin', className),
-    html: circlePinSvg(tone, glyph, width),
+    className: clsx('pg-pin', pulse ? 'pulse-marker' : '', className),
+    html: circlePinSvg(tone, glyph, width, pulse),
     iconSize: [width, width],
     iconAnchor: [width / 2, width / 2],
     popupAnchor: [0, -width / 2 + 4],
@@ -228,8 +265,7 @@ export default function AppMap({
       center={initialView.center}
       zoom={initialView.zoom}
       scrollWheelZoom={scrollWheelZoom}
-      // The app is permanently dark; pg-dark-map skins Leaflet controls and
-      // popups to match. clsx merges it with the caller's size classes.
+      // Dark map theme; pg-dark-map skins Leaflet controls and popups.
       className={clsx('pg-dark-map', className)}
       {...rest}
     >
@@ -447,7 +483,7 @@ export function MapCircle({ center, radius, color = '#F59E0B', fillColor, fillOp
  * by the pixel alpha, so a pale stop renders as a pale wash.
  */
 export const HEAT_GRADIENT = {
-  0.2: '#FFBB02',
+  0.2: '#f18f01',
   0.4: '#FF8A00',
   0.6: '#FF5510',
   0.8: '#FF2E1F',
@@ -471,9 +507,9 @@ export const HEAT_LEGEND = [
  * and then recolours the canvas by alpha, so a low value washes the whole layer
  * out. 0.6 keeps colours close to solid while intensity still separates the stops.
  *
- * `leaflet.heat` is a UMD plugin that expects a global `L`, so it is imported
- * lazily - a static import would execute before the global bridge below and throw.
- * The bridge itself is set once at module scope.
+ * `leaflet.heat` is a UMD plugin that mutates the global `L` (bridged to the npm
+ * leaflet instance at module scope above). It is loaded as a deferred global script
+ * (`/leaflet-heat.js` in index.html) so `L.heatLayer` exists before this layer mounts.
  */
 export function HeatLayer({
   points = [],
@@ -494,21 +530,16 @@ export function HeatLayer({
 
   useEffect(() => {
     if (!validPoints.length) return undefined;
+    if (typeof L.heatLayer !== 'function') {
+      console.error('Heat layer: leaflet.heat is not loaded - load leaflet-heat.js globally before the app');
+      return undefined;
+    }
 
     let layer = null;
     let cancelled = false;
 
-    import('leaflet.heat')
-      .then(() => {
-        if (cancelled) return;
-        if (typeof L.heatLayer !== 'function') {
-          console.error('Heat layer: leaflet.heat loaded but did not register on L');
-          return;
-        }
-        layer = L.heatLayer(validPoints, { radius, blur, minOpacity, maxZoom, gradient });
-        layer.addTo(map);
-      })
-      .catch((error) => console.error('Heat layer: failed to load leaflet.heat', error));
+    layer = L.heatLayer(validPoints, { radius, blur, minOpacity, maxZoom, gradient });
+    layer.addTo(map);
 
     return () => {
       cancelled = true;
@@ -520,8 +551,8 @@ export function HeatLayer({
 }
 
 /**
- * Small legend rendered over the map (bottom-left by default), styled as the
- * Outages glass overlay so every map carries the same legend treatment.
+ * Small legend rendered over the map (bottom-left by default), styled for the
+ * dark map theme.
  */
 export function MapLegend({ items = [], title, className, position = 'bottom' }) {
   if (!items.length) return null;
@@ -529,17 +560,17 @@ export function MapLegend({ items = [], title, className, position = 'bottom' })
   return (
     <div
       className={clsx(
-        'absolute z-[400] rounded-2xl border border-white/10 bg-[#0B0D20]/80 p-3 shadow-2xl backdrop-blur-md',
-        position === 'top' ? 'left-3 top-3' : 'bottom-3 left-3',
+        'map-legend-panel z-[1000]',
+        position === 'top' ? 'top-3 left-3' : 'bottom-3 left-3',
         className
       )}
     >
       {title ? (
-        <p className="mb-2 text-[8px] font-extrabold uppercase tracking-[0.2em] text-white/35">{title}</p>
+        <p className="mb-2 text-[8px] font-extrabold uppercase tracking-[0.2em] text-white/40">{title}</p>
       ) : null}
       <ul className="space-y-1.5">
         {items.map((item) => (
-          <li key={item.label} className="flex items-center gap-2 text-[9px] font-medium text-white/55">
+          <li key={item.label} className="flex items-center gap-2 text-[9px] font-medium text-white/80">
             <PinSwatch
               className="h-3.5 w-3.5 shrink-0"
               color={item.color || PIN_COLORS[item.tone] || PIN_COLORS.primary}
@@ -558,7 +589,7 @@ function PinSwatch({ color, className }) {
     <span
       className={clsx('block shrink-0', className)}
       aria-hidden="true"
-      dangerouslySetInnerHTML={{ __html: circlePinSvg(color) }}
+      dangerouslySetInnerHTML={{ __html: circlePinSvg(color, '', 18, true) }}
     />
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import FormModal from '@/components/FormModal';
 import MapPicker from '@/components/MapPicker';
@@ -12,9 +12,9 @@ import { toFieldErrors, toUserMessage } from '@/utils/errorMessage';
 import { clearFieldError, collectErrors, hasErrors, validateRequired } from '@/utils/validators';
 
 /**
- * Confirmed contract (`flood_report/create.php`):
+ * Confirmed contract (`flood_report/create.php` and `flood_report/update.php`):
  *   { location_name*, flood_level?, latitude?, longitude?, description?, barangay_name?,
- *     flood_depth_cm? }
+ *     flood_depth_cm?, image_proof? }
  *   `flood_level` must be one of low | moderate | high | severe.
  *   When latitude AND longitude are both numeric they are used verbatim; otherwise the
  *   server geocodes `location_name`. The map pin therefore takes precedence.
@@ -24,7 +24,12 @@ export const FLOOD_LEVEL_OPTIONS = FLOOD_LEVELS.map((level) => ({ id: level, nam
 
 const FIELD_ORDER = ['locationName', 'floodLevel', 'description', 'barangayName', 'depth'];
 
-export default function FloodFormModal({ open, onClose, defaultLocation = null }) {
+export default function FloodFormModal({
+  open,
+  onClose,
+  defaultLocation = null,
+  initialData = null, // { id, locationName, floodLevel, description, barangayName, depth, location }
+}) {
   const { barangays } = useReference();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -41,10 +46,42 @@ export default function FloodFormModal({ open, onClose, defaultLocation = null }
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
 
-  const create = useMutation({
-    mutationFn: (payload) => floodsApi.create(payload),
+  // Reset form when initialData changes (e.g., opening for a different report)
+  useEffect(() => {
+    if (initialData) {
+      setValues({
+        locationName: initialData.locationName || '',
+        floodLevel: initialData.floodLevel || 'moderate',
+        description: initialData.description || '',
+        barangayName: initialData.barangayName || '',
+        depth: initialData.depth ?? '',
+        location: initialData.location || defaultLocation,
+      });
+      setErrors({});
+      setFormError('');
+    } else {
+      setValues({
+        locationName: '',
+        floodLevel: 'moderate',
+        description: '',
+        barangayName: '',
+        depth: '',
+        location: defaultLocation,
+      });
+      setErrors({});
+      setFormError('');
+    }
+  }, [initialData, defaultLocation]);
+
+  const isEditing = Boolean(initialData?.id);
+
+  const mutation = useMutation({
+    mutationFn: (payload) => isEditing ? floodsApi.update(payload) : floodsApi.create(payload),
     onSuccess: () => {
-      toast.success('Flood report submitted. Thank you for reporting.', { title: 'Report received' });
+      const message = isEditing
+        ? 'Flood report updated successfully.'
+        : 'Flood report submitted. Thank you for reporting.';
+      toast.success(message, { title: isEditing ? 'Report updated' : 'Report received' });
       setValues({
         locationName: '',
         floodLevel: 'moderate',
@@ -60,7 +97,7 @@ export default function FloodFormModal({ open, onClose, defaultLocation = null }
     },
     onError: (error) => {
       setErrors(toFieldErrors(error, FIELD_ORDER));
-      setFormError(toUserMessage(error, 'We could not submit your flood report.'));
+      setFormError(toUserMessage(error, isEditing ? 'We could not update your flood report.' : 'We could not submit your flood report.'));
     },
   });
 
@@ -98,7 +135,7 @@ export default function FloodFormModal({ open, onClose, defaultLocation = null }
       return;
     }
 
-    create.mutate({
+    const payload = {
       location_name: values.locationName.trim(),
       flood_level: values.floodLevel,
       description: String(values.description).trim(),
@@ -108,18 +145,26 @@ export default function FloodFormModal({ open, onClose, defaultLocation = null }
       ...(values.location
         ? { latitude: values.location.lat, longitude: values.location.lng }
         : {}),
-    });
+    };
+
+    if (isEditing) {
+      payload.id = initialData.id;
+    }
+
+    mutation.mutate(payload);
   };
 
   return (
     <FormModal
       open={open}
       onClose={onClose}
-      title="Report flooding"
-      description="Help your neighbours know which roads and barangays are already affected."
+      title={isEditing ? 'Edit flood report' : 'Report flooding'}
+      description={isEditing
+        ? 'Update the details of your flood report.'
+        : 'Help your neighbours know which roads and barangays are already affected.'}
       onSubmit={handleSubmit}
-      submitLabel="Submit report"
-      submitting={create.isPending}
+      submitLabel={isEditing ? 'Save changes' : 'Submit report'}
+      submitting={mutation.isPending}
       error={formError}
       size="xl"
     >
@@ -177,7 +222,7 @@ export default function FloodFormModal({ open, onClose, defaultLocation = null }
           label="Exact location (optional)"
           value={values.location}
           onChange={handleLocation}
-          disabled={create.isPending}
+          disabled={mutation.isPending}
         />
         <p className="mt-2 text-xs text-navy-500">
           {PIN_HINT}

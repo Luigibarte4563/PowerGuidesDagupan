@@ -37,7 +37,7 @@ export default function DashboardLayout() {
     <div
       data-theme="dark"
       data-surface="dark"
-      className="flex h-screen overflow-hidden bg-[#03041A] font-montserrat text-white"
+      className="flex h-screen overflow-hidden bg-[#153243] font-montserrat text-white"
     >
       <a href="#dashboard-content" className="skip-link">
         Skip to main content
@@ -53,7 +53,7 @@ export default function DashboardLayout() {
         <Topbar onOpenSidebar={() => setSidebarOpen(true)} />
         <main
           id="dashboard-content"
-          className="min-w-0 flex-1 overflow-y-auto overscroll-contain bg-[#03041A]"
+          className="min-w-0 flex-1 overflow-y-auto overscroll-contain dashboard-grid"
         >
           {isWorkspace ? (
             <Outlet context={{ openSidebar: () => setSidebarOpen(true) }} />

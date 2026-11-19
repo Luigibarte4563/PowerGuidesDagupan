@@ -5,8 +5,8 @@ import { apiRequest, pickList } from './client';
  *
  * Confirmed contract (`api/power_station/*`):
  *   create.php   POST { station_name*, location_name*, station_type, access_type,
- *                       availability_status, barangay_name, operating_hours,
- *                       charging_type, description }
+ *                       availability_status, barangay_name, opening_time, closing_time,
+ *                       is_24_hours, charging_type, description }
  *                 -> { success, message }  (no id - one station per user, so creating a
  *                    second one returns 403 "You already have a power station...")
  *                 Coordinates are GEOCODED from `location_name`.
@@ -20,8 +20,8 @@ import { apiRequest, pickList } from './client';
  *                          and the response has `has_location`.
  *   get_my_posts.php       -> the caller's own stations
  *   update.php             POST { id*, station_name, location_name, station_type, access_type,
- *                          availability_status, operating_hours, charging_type, description,
- *                          barangay_name, latitude, longitude } (owner-only)
+ *                          availability_status, opening_time, closing_time, is_24_hours,
+ *                          charging_type, description, barangay_name, latitude, longitude } (owner-only)
  *   delete.php             POST { station_id* } (owner-only)
  */
 export const powerStationsApi = {

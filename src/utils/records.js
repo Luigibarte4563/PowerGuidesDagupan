@@ -12,7 +12,7 @@ import { clampMaintenanceRadius, MAINTENANCE_RADIUS_METERS } from './constants';
 export function readId(record) {
   return readField(
     record,
-    ['id', 'outage_report_id', 'flood_report_id', 'hazard_id', 'device_id', 'timer_id', 'station_id'],
+    ['id', 'outage_report_id', 'flood_report_id', 'hazard_id', 'station_id'],
     null
   );
 }
@@ -224,7 +224,9 @@ export const readStation = (record) => ({
   type: readField(record, ['station_type'], ''),
   accessType: readField(record, ['access_type'], ''),
   availability: readField(record, ['availability_status'], ''),
-  operatingHours: readField(record, ['operating_hours'], ''),
+  openingTime: readField(record, ['opening_time'], ''),
+  closingTime: readField(record, ['closing_time'], ''),
+  is24Hours: readField(record, ['is_24_hours'], false),
   chargingType: readField(record, ['charging_type'], ''),
   description: readField(record, ['description'], ''),
   image: readField(record, ['image'], ''),
@@ -248,7 +250,6 @@ export const readNotification = (record) => ({
   maintenanceId: readField(record, ['maintenance_id'], null),
   floodReportId: readField(record, ['flood_report_id'], null),
   hazardId: readField(record, ['electrical_hazard_id'], null),
-  timerId: readField(record, ['safety_timer_id'], null),
   createdAt: readField(record, ['created_at', 'sent_at'], ''),
 });
 
@@ -282,57 +283,6 @@ export function coordinatesOf(location) {
   const lng = toNumber(location.lng, null);
   return hasCoordinates(lat, lng) ? { lat, lng } : null;
 }
-
-// ----------------------------------------------------------------- battery --
-export const readBatteryDevice = (record) => ({
-  raw: record,
-  id: readId(record),
-  name: readField(record, ['device_name', 'name'], 'Device'),
-  deviceType: readField(record, ['device_type'], ''),
-  percentage: toNumber(readField(record, ['current_percentage', 'percentage'], null), null),
-  capacity: readField(record, ['capacity_mah', 'capacity'], ''),
-  isPrimary: toNumber(readField(record, ['is_primary'], 0), 0) === 1,
-  estimatedHours: toNumber(readField(record, ['estimated_hours_remaining'], null), null),
-  usageRate: toNumber(readField(record, ['estimated_usage_rate_per_hour'], null), null),
-  recentLogs: Array.isArray(record?.recent_logs) ? record.recent_logs : [],
-  createdAt: readField(record, ['created_at'], ''),
-  updatedAt: readField(record, ['updated_at'], ''),
-});
-
-export const readBatteryLog = (record) => ({
-  raw: record,
-  id: readId(record),
-  deviceId: toNumber(readField(record, ['battery_device_id', 'device_id'], null), null),
-  startPercentage: toNumber(readField(record, ['battery_percentage_start'], null), null),
-  endPercentage: toNumber(readField(record, ['battery_percentage_end'], null), null),
-  usageMinutes: toNumber(readField(record, ['usage_minutes'], null), null),
-  estimatedWatts: toNumber(readField(record, ['estimated_watts'], null), null),
-  activity: readField(record, ['activity'], ''),
-  loggedAt: readField(record, ['logged_at', 'created_at'], ''),
-});
-
-// ---------------------------------------------------------- safety timers --
-/**
- * `safety_timer/get.php` recomputes `status` server-side and returns
- * `expected_expiration_at` (not `ends_at`) plus `remaining_seconds`.
- */
-export const readSafetyTimer = (record) => ({
-  raw: record,
-  id: readField(record, ['timer_id', 'id'], null),
-  title: readField(record, ['title'], 'Safety timer'),
-  type: readField(record, ['timer_name', 'type'], ''),
-  description: readField(record, ['type_description'], ''),
-  notes: readField(record, ['notes', 'note'], ''),
-  durationHours: toNumber(readField(record, ['default_duration_hours'], null), null),
-  warningHoursBefore: toNumber(readField(record, ['warning_hours_before'], null), null),
-  warningAt: readField(record, ['warning_at'], ''),
-  startedAt: readField(record, ['started_at'], ''),
-  endsAt: readField(record, ['expected_expiration_at', 'ends_at'], ''),
-  completedAt: readField(record, ['completed_at'], ''),
-  status: readField(record, ['status'], ''),
-  remainingSeconds: toNumber(readField(record, ['remaining_seconds'], null), null),
-  ownerId: toNumber(readField(record, ['user_id'], null), null),
-});
 
 // ------------------------------------------------------------------ flood --
 export const readFlood = (record) => ({

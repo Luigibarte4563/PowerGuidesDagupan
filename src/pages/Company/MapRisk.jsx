@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Flame, Layers, Save, Search, Waves } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
@@ -14,6 +14,8 @@ import AppMap, {
   MapLegend,
   MapPoints,
   MapView,
+  FLOOD_COLORS,
+  SEVERITY_COLORS,
 } from '@/components/Map';
 import MapWorkspace from '@/components/MapWorkspace';
 import MapPicker from '@/components/MapPicker';
@@ -198,17 +200,17 @@ export default function MapRisk() {
           ))
         : null}
 
-      <MapPoints items={enabled.floods ? floods : []} toneFor={() => 'info'} glyphFor={() => 'F'}>
+      <MapPoints
+        items={enabled.floods ? floods : []}
+        toneFor={(flood) => flood.severity ? FLOOD_COLORS[flood.severity.toLowerCase()] : 'info'}
+        glyphFor={() => 'F'}
+      >
         {(flood) => <RiskPopup item={readRisk(flood.raw, 'flood')} />}
       </MapPoints>
 
       <MapPoints
         items={enabled.hazards ? hazards : []}
-        toneFor={(hazard) =>
-          ['critical', 'high'].includes(String(hazard.severity).toLowerCase())
-            ? 'danger'
-            : 'warning'
-        }
+        toneFor={(hazard) => hazard.severity ? SEVERITY_COLORS[hazard.severity.toLowerCase()] : 'danger'}
         glyphFor={() => 'H'}
       >
         {(hazard) => <RiskPopup item={readRisk(hazard.raw, 'hazard')} />}
@@ -245,7 +247,7 @@ export default function MapRisk() {
   return (
     <div
       data-theme="dark"
-      className="min-h-full bg-[#03041A] px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
+      className="min-h-full bg-[#153243] px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
     >
       <MapWorkspace
         map={riskMap}
@@ -257,7 +259,7 @@ export default function MapRisk() {
         stats={[
           { label: 'Floods', value: floods.length, icon: Waves, color: '#22D3EE' },
           { label: 'Hazards', value: hazards.length, icon: AlertTriangle, color: '#FF2E1F' },
-          { label: 'Clusters', value: clusters.length, icon: Layers, color: '#FFBB02' },
+          { label: 'Clusters', value: clusters.length, icon: Layers, color: '#f18f01' },
         ]}
         pills={
           /* Layer switches are independent toggles, not a single choice, so they
@@ -271,7 +273,7 @@ export default function MapRisk() {
                 aria-pressed={enabled[layer.key]}
                 className={`h-7 rounded-full border px-2.5 text-[9px] font-bold transition ${
                   enabled[layer.key]
-                    ? 'border-[#FFBB02]/40 bg-[#FFBB02]/15 text-[#FFBB02]'
+                    ? 'border-[#f18f01]/40 bg-[#f18f01]/15 text-[#f18f01]'
                     : 'border-white/10 bg-transparent text-white/45 hover:border-white/20 hover:text-white/70'
                 }`}
               >
@@ -289,7 +291,7 @@ export default function MapRisk() {
               onChange={(event) => setLookbackDays(Number(event.target.value))}
               className="h-9 py-0 text-xs"
             />
-            <label className="flex h-9 cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-[#1C1D30]/60 px-2.5 text-[10px] font-bold text-white/60">
+            <label className="flex h-9 cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/[0.08] px-2.5 text-[10px] font-bold text-white/60">
               <input
                 type="checkbox"
                 checked={openOnly}
@@ -307,10 +309,10 @@ export default function MapRisk() {
         mapEmptyLabel="Nothing plotted yet"
       >
         <div className="space-y-2">
-          <section className="rounded-xl border border-white/5 bg-[#1C1D30]/35 p-2.5">
+          <section className="rounded-xl border border-white/10 bg-white/[0.05] p-2.5">
             <div className="flex items-center justify-between gap-2">
               <p className="flex items-center gap-1.5 text-[13px] font-bold text-white">
-                <Search className="h-3.5 w-3.5 text-[#FFBB02]" aria-hidden="true" />
+                <Search className="h-3.5 w-3.5 text-[#f18f01]" aria-hidden="true" />
                 Risk lookup
               </p>
               <span className="shrink-0 text-[9px] font-medium text-white/35">around a point</span>
@@ -335,7 +337,7 @@ export default function MapRisk() {
                   aria-pressed={probeRadius === option.value}
                   className={`h-7 rounded-full border px-2.5 text-[9px] font-bold transition ${
                     probeRadius === option.value
-                      ? 'border-[#FFBB02]/40 bg-[#FFBB02]/15 text-[#FFBB02]'
+                      ? 'border-[#f18f01]/40 bg-[#f18f01]/15 text-[#f18f01]'
                       : 'border-white/10 bg-transparent text-white/45 hover:border-white/20 hover:text-white/70'
                   }`}
                 >
@@ -377,7 +379,7 @@ export default function MapRisk() {
                       return (
                         <li
                           key={`${item.kind}-${item.id}`}
-                          className="rounded-xl border border-white/5 bg-[#03041A]/40 p-2"
+                          className="rounded-xl border border-white/10 bg-white/[0.06] p-2"
                         >
                           <p className="truncate text-[13px] font-bold leading-tight text-white">{item.label}</p>
                           <p className="mt-0.5 truncate text-[9px] font-semibold uppercase tracking-[0.08em] text-white/40">
@@ -394,7 +396,7 @@ export default function MapRisk() {
             )}
           </section>
 
-          <section className="rounded-xl border border-white/5 bg-[#1C1D30]/35 p-2.5">
+          <section className="rounded-xl border border-white/10 bg-white/[0.05] p-2.5">
             <p className="text-[13px] font-bold text-white">Save a cluster</p>
             <p className="mt-0.5 text-[9px] font-medium text-white/35">Persisted centred on the probed point</p>
             <div className="mt-2 space-y-2">
@@ -454,7 +456,7 @@ export default function MapRisk() {
             </div>
           </section>
 
-          <section className="rounded-xl border border-white/5 bg-[#1C1D30]/35 p-2.5">
+          <section className="rounded-xl border border-white/10 bg-white/[0.05] p-2.5">
             <p className="text-[13px] font-bold text-white">Stored clusters ({clusters.length})</p>
             {clusterQuery.isLoading ? (
               <LoadingState label="Loading clusters…" />
@@ -467,7 +469,7 @@ export default function MapRisk() {
                 {clusters.slice(0, 10).map((cluster) => (
                   <li
                     key={cluster.id}
-                    className="flex items-start justify-between gap-2 rounded-xl border border-white/5 bg-[#03041A]/40 p-2"
+                    className="flex items-start justify-between gap-2 rounded-xl border border-white/5 bg-white/[0.06] p-2"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-[13px] font-bold leading-tight text-white">{cluster.label}</p>

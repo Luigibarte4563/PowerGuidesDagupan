@@ -87,6 +87,7 @@ const AUTH_ENTRY_PATHS = [
   '/api/auth/login.php',
   '/api/auth/register.php',
   '/api/auth/logout.php',
+  '/api/auth/me.php',
   '/api/auth/google.php',
   '/api/auth/google_callback.php',
 ];

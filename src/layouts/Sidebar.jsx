@@ -37,7 +37,7 @@ export default function Sidebar({
     <>
       {open ? (
         <div
-          className="fixed inset-0 z-[700] animate-fade-in bg-[#03041A]/80 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-[700] animate-fade-in bg-[#153243]/80 backdrop-blur-sm lg:hidden"
           onClick={onClose}
           aria-hidden="true"
         />
@@ -46,7 +46,7 @@ export default function Sidebar({
       <aside
         id="sidebar-panel"
         className={clsx(
-          'fixed inset-y-0 left-0 z-[750] flex w-[21.25rem] max-w-[85vw] flex-col border-r-2 border-white/10 bg-[#03041A] font-montserrat text-white transition-transform duration-200 lg:static lg:z-auto lg:h-screen lg:max-w-none lg:shrink-0 lg:translate-x-0',
+          'fixed inset-y-0 left-0 z-[750] flex w-[21.25rem] max-w-[85vw] flex-col border-r-2 border-white/10 bg-[#153243] font-montserrat text-white transition-transform duration-200 lg:static lg:z-auto lg:h-screen lg:max-w-none lg:shrink-0 lg:translate-x-0',
           open ? 'translate-x-0' : '-translate-x-full'
         )}
         aria-label={ariaLabel}
@@ -83,8 +83,8 @@ export default function Sidebar({
                           clsx(
                             'group flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition',
                             isActive
-                              ? 'bg-[#FEBB02] text-[#03041A]'
-                              : 'text-white/65 hover:bg-[#FEBB02] hover:text-[#03041A]'
+                              ? 'bg-[#f18f01] text-[#153243]'
+                              : 'text-white/65 hover:bg-[#f18f01] hover:text-[#153243]'
                           )
                         }
                       >
@@ -94,8 +94,8 @@ export default function Sidebar({
                               className={clsx(
                                 'h-[18px] w-[18px] shrink-0 transition',
                                 isActive
-                                  ? 'text-[#03041A]'
-                                  : 'text-white/45 group-hover:text-[#03041A]'
+                                  ? 'text-[#153243]'
+                                  : 'text-white/45 group-hover:text-[#153243]'
                               )}
                               aria-hidden="true"
                             />
@@ -105,8 +105,8 @@ export default function Sidebar({
                                 className={clsx(
                                   'rounded-full px-1.5 py-0.5 text-[10px] font-extrabold',
                                   isActive
-                                    ? 'bg-[#03041A] text-[#FEBB02]'
-                                    : 'bg-[#FEBB02] text-[#03041A] group-hover:bg-[#03041A] group-hover:text-[#FEBB02]'
+                                    ? 'bg-[#153243] text-[#f18f01]'
+                                    : 'bg-[#f18f01] text-[#153243] group-hover:bg-[#153243] group-hover:text-[#f18f01]'
                                 )}
                               >
                                 {badge > 99 ? '99+' : badge}

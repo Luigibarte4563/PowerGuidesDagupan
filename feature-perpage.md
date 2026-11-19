@@ -39,8 +39,7 @@ information.
 
 - Summary Cards – Display the available power stations, upcoming maintenance, open hazards,
   and risks near the saved location.
-- Quick Actions – Provide shortcuts for reporting outages, floods, and hazards, and for
-  starting a safety timer.
+- Quick Actions – Provide shortcuts for reporting outages, floods, and hazards.
 - Nearby Risks Panel – Lists active floods and unresolved hazards within two kilometres of
   the saved location, with a prompt to set a location when none is saved.
 - Latest Reports Feed – Merges outages, floods, and hazards from across the city, newest
@@ -164,31 +163,6 @@ This module allows residents to save their primary location for nearby searches.
   coordinates.
 - Map Preview – Displays the resolved point on a map with its coordinates, matched
   barangay, and last-saved time.
-
-## Battery Tracking Module
-
-This module allows residents to monitor their personal devices and battery levels.
-
-- Device Registration – Allows users to register phones, laptops, power banks, UPS units,
-  tablets, and other devices with capacity and notes.
-- Battery Monitoring – Displays each device's charge level as a colour-coded bar with
-  summary cards for tracked devices, average charge, and devices needing charging.
-- Usage History – Records usage entries and displays the battery history of a device
-  through a chart or a list.
-- Device Management – Allows users to set the current percentage, log usage, and update or
-  delete registered devices.
-
-## Safety Timer Module
-
-This module allows residents to monitor appliance and battery timers.
-
-- Create Timer – Allows users to set timers by appliance type or duration in hours, with
-  quick duration presets, a title, and notes.
-- Warning Threshold – Warns the user during a chosen window before the timer expires.
-- Countdown – Displays the remaining time with a progress bar and a server-computed running,
-  warning, expired, or stopped status.
-- Timer Management – Allows users to stop or delete timers, grouped into active and
-  finished sections.
 
 ## User Profile Module
 
@@ -337,8 +311,7 @@ The primary users of the system are:
 **Residents (Regular Users)**
 Residents of Dagupan City who use the system to report power outages, floods, and electrical
 hazards. They can track their reports, view scheduled maintenance, find nearby power
-stations, save a primary location, monitor their devices and safety timers, and receive
-notifications about possible risks in their area.
+stations, save a primary location, and receive notifications about possible risks in their area.
 
 **Linemen**
 Field personnel responsible for responding to reported power outages within the barangays

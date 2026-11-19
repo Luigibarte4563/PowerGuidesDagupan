@@ -28,7 +28,7 @@ export default function AdminLayout() {
     <div
       data-theme="dark"
       data-surface="dark"
-      className="flex h-screen overflow-hidden bg-[#03041A] font-montserrat text-white"
+      className="flex h-screen overflow-hidden bg-[#153243] font-montserrat text-white"
     >
       <a href="#admin-content" className="skip-link">
         Skip to main content
@@ -56,7 +56,7 @@ export default function AdminLayout() {
         />
         <main
           id="admin-content"
-          className="min-w-0 flex-1 overflow-y-auto overscroll-contain bg-[#03041A]"
+          className="min-w-0 flex-1 overflow-y-auto overscroll-contain bg-[#153243]"
         >
           {/* FR-AUTH-4b - offers a re-login when the API refuses a call this role
               used to be allowed to make. */}

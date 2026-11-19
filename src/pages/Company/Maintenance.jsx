@@ -8,7 +8,7 @@ import { Select } from '@/components/ui/Select';
 import DataView from '@/components/DataView';
 import RecordCard from '@/components/RecordCard';
 import ConfirmDialog from '@/components/ConfirmDialog';
-import AppMap, { FitPoints, MapCircle, MapLegend, MapPoints, PIN_COLORS } from '@/components/Map';
+import AppMap, { FitPoints, MapCircle, MapLegend, MapPoints, PIN_COLORS, MAINTENANCE_STATUS_COLORS } from '@/components/Map';
 import MapWorkspace, { FeedActions, FeedToggle } from '@/components/MapWorkspace';
 import { useAuth } from '@/context/AuthContext';
 import { useReference } from '@/context/ReferenceContext';
@@ -198,7 +198,7 @@ export default function Maintenance() {
             key={`circle-${point.id}`}
             center={point}
             radius={Number(point.radius)}
-            color={PIN_COLORS[point.status === 'ongoing' ? 'warning' : 'primary']}
+            color={MAINTENANCE_STATUS_COLORS[point.status] || MAINTENANCE_STATUS_COLORS.upcoming}
             fillOpacity={0.12}
           >
             {renderMapPopup(point)}
@@ -209,7 +209,7 @@ export default function Maintenance() {
         {pinPoints.length ? (
           <MapPoints
             items={pinPoints}
-            toneFor={(point) => (point.status === 'ongoing' ? 'warning' : 'primary')}
+            toneFor={(point) => MAINTENANCE_STATUS_COLORS[point.status] || 'primary'}
             glyphFor={() => 'M'}
           >
             {renderMapPopup}
@@ -219,8 +219,9 @@ export default function Maintenance() {
         <MapLegend
           title="Status"
           items={[
-            { label: 'Upcoming', tone: 'primary' },
-            { label: 'Ongoing', tone: 'warning' },
+            { label: 'Upcoming', color: MAINTENANCE_STATUS_COLORS.upcoming },
+            { label: 'Ongoing', color: MAINTENANCE_STATUS_COLORS.ongoing },
+            { label: 'Completed', color: MAINTENANCE_STATUS_COLORS.completed },
           ]}
         />
       </AppMap>
@@ -253,7 +254,7 @@ export default function Maintenance() {
   return (
     <div
       data-theme="dark"
-      className="min-h-full bg-[#03041A] px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
+      className="min-h-full bg-[#153243] px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
     >
       <FeedActions
         actions={
@@ -294,7 +295,7 @@ export default function Maintenance() {
         }
         stats={[
           { label: 'Upcoming', value: counts.upcoming, icon: CalendarClock, color: '#22D3EE' },
-          { label: 'Ongoing', value: counts.ongoing, icon: Wrench, color: '#FFBB02' },
+          { label: 'Ongoing', value: counts.ongoing, icon: Wrench, color: '#f18f01' },
           { label: 'Completed', value: counts.completed, icon: CheckCircle2, color: '#34FB34' },
         ]}
         filters={

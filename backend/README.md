@@ -2,9 +2,8 @@
 
 Crowdsourced power-outage tracking and blackout-survival platform for **Dagupan
 City**. Residents report power outages, floods, and electrical hazards; DECORP
-(electric company) and field linemen verify and manage them; and safety tools
-(battery tracking, food-safety timers, heatmaps, resource/power-station maps)
-help residents get through outages.
+(electric company) and field linemen verify and manage them; heatmaps and
+resource/power-station maps help residents get through outages.
 
 This repository contains the **REST JSON API** (backend only).
 
@@ -45,13 +44,8 @@ This repository contains the **REST JSON API** (backend only).
   auto-notifies users whose saved location falls within the maintenance radius.
 - **Power station map** — residents register available charging/solar/generator
   stations; nearby stations are listed sorted by distance.
-- **Notifications** — per-user in-app notifications (maintenance, safety-timer
-  reminders, hazard verification, etc.), read/unread tracking.
-- **Battery tracking** — multiple devices, current percentage, usage logging,
-  and simple remaining-hours budgeting.
-- **Safety timers** — food/medication safety countdowns (sealed refrigerator,
-  deep freezer 24h/48h, medication) with automatic `warning`/`expired` status
-  and one-time alerts.
+- **Notifications** — per-user in-app notifications (maintenance, hazard
+  verification, etc.), read/unread tracking.
 - **Flood & electrical hazards** — crowdsourced reports used to render
   **electrocution-risk areas** (floods + hazards near a location).
 - **Heatmap & clustering** — rule-based clustering of outages by barangay or
@@ -90,8 +84,6 @@ CrowdsourcedAPI/
 │   ├── power_station/          # charging/solar/generator stations
 │   ├── notification/           # notifications
 │   ├── user_location/          # saved user locations
-│   ├── battery/                # battery devices & history
-│   ├── safety_timer/           # food/medication safety timers
 │   ├── flood_report/           # flood reports
 │   ├── electrical_hazard/      # electrical hazards
 │   ├── risk/                   # combined electrocution-risk areas
@@ -166,15 +158,12 @@ The canonical schema is `database/powerguidedagupan.sql` — a **normalized** de
 (28 tables) with seeded lookup data:
 
 - **Lookup tables:** `roles`, `outage_categories`, `severity_levels`,
-  `hazard_types`, `outage_statuses`, `power_station_types`, `safety_timer_types`,
-  `notification_types`.
+  `hazard_types`, `outage_statuses`, `power_station_types`, `notification_types`.
 - **Reference:** `barangays` (36 Dagupan barangays seeded).
 - **Users/roles:** `users` (with embedded location columns).
 - **Outage tracking:** `outage_reports`, `outage_report_images`,
   `outage_report_updates`, `outage_report_verifications`; spatial aggregation in
   `outage_clusters` and `outage_cluster_reports`.
-- **Safety tools:** `battery_devices`, `battery_usage_logs`, `safety_timers`,
-  `safety_timer_alerts`.
 - **Disaster reports:** `flood_reports`, `electrical_hazards`.
 - **Company tools:** `maintenance_schedules`, `maintenance_locations`,
   `power_stations`, `notifications`.
@@ -367,8 +356,6 @@ A full, per-endpoint reference with methods, roles, and request bodies is in
 | Power stations | `power_station/{create,get,get_available,get_my_posts,get_near_location,update,delete}.php` |
 | Notifications | `notification/{get,mark_as_read,mark_all_as_read,create}.php` |
 | User location | `user_location/{get,location}.php` |
-| Battery | `battery/{create,get,update,set_percentage,log_usage,get_history,delete}.php` |
-| Safety timers | `safety_timer/{create,get,stop,delete}.php` |
 | Flood reports | `flood_report/{create,get,get_nearby}.php` |
 | Electrical hazards | `electrical_hazard/{create,get,get_nearby,update_status}.php` |
 | Risk (electrocution) | `risk/get_nearby.php` |
@@ -473,8 +460,8 @@ curl -i -H "Origin: http://192.168.1.20:5174" \
 - **Google identity** is verified against Google's published JWKS and the
   audience (`GOOGLE_CLIENT_ID`) is checked before trusting the email.
 - **Ownership checks** — mutate operations scope queries to `user_id` /
-  `created_by` so users can only change their own data (battery, timers,
-  stations, reports, locations).
+  `created_by` so users can only change their own data (stations, reports,
+  locations).
 - **Assignment checks** — a `lineman`'s outage access is scoped to their
   actively assigned barangays, enforced in SQL by `auth/lineman_access.php`
   (list endpoints exclude unauthorized rows; single-record actions answer `403`

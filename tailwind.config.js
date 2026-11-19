@@ -7,15 +7,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Electric amber - primary brand colour (Section 3.5).
-        // Tuned to the Outages workspace palette: #FFBB02 base, #FFD400 hover.
+        // Brand orange - matches the landing page accent (#f18f01).
         primary: {
           50: '#FFFBEB',
           100: '#FEF3C7',
           200: '#FDE68A',
           300: '#FCD34D',
-          400: '#FFD400',
-          500: '#FFBB02',
+          400: '#f6c200',
+          500: '#f18f01',
           600: '#E0A802',
           700: '#B45309',
           800: '#92400E',
@@ -77,9 +76,10 @@ export default {
         surface: '#FFFFFF',
       },
       fontFamily: {
-        // Montserrat is the app face (the Outages workspace standard).
-        sans: ['Montserrat', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
-        montserrat: ['Montserrat', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        // Match the landing page: 'Montserrat Alternates' is what index.html
+        // actually loads (the old 'Montserrat' fell back to system-ui).
+        sans: ['Montserrat Alternates', 'ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+        montserrat: ['Montserrat Alternates', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       // Match the Outages workspace geometry: cards are rounded-2xl (16px),
       // controls are rounded-xl (12px). Used by every shared UI component.

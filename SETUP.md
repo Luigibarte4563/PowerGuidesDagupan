@@ -88,7 +88,7 @@ The script creates the `powerguide` database itself (it starts with
 
 It seeds everything needed, including the 36 Dagupan barangays and the `roles`,
 `outage_categories`, `severity_levels`, `hazard_types`, `outage_statuses`,
-`power_station_types`, `safety_timer_types` and `notification_types` lookup tables.
+`power_station_types` and `notification_types` lookup tables.
 
 Already have a database from an older schema? Apply the additive migration instead:
 

@@ -1,16 +1,12 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { AlertTriangle, ShieldCheck, Sparkles, Zap } from 'lucide-react';
-import AuthShell, { AuthAlert, AuthDivider, AuthSuccess, GoogleButton } from './AuthShell';
-import { GOOGLE_ERRORS } from './googleErrors';
-import { Button } from '@/components/ui/Button';
-import { Input, PasswordInput } from '@/components/ui/Input';
+import { AlertTriangle, Eye, EyeOff, ShieldCheck, Sparkles, Zap } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { GOOGLE_ERRORS } from './googleErrors';
 import { landingPathFor, normaliseRole, ROLE_LABELS } from '@/utils/roles';
-import { toFieldErrors, toUserMessage } from '@/utils/errorMessage';
-import { clearFieldError, collectErrors, hasErrors, validateEmail, validateRequired } from '@/utils/validators';
-
-const FIELD_ORDER = ['email', 'password'];
+import { toUserMessage } from '@/utils/errorMessage';
+import { collectErrors, hasErrors, clearFieldError, validateEmail, validateRequired } from '@/utils/validators';
+import './auth.css';
 
 /** Phase 2 - login page (`POST /api/auth/login.php`). */
 export default function Login() {
@@ -24,28 +20,23 @@ export default function Login() {
     ? 'Your account was created. Log in to start reporting.'
     : '';
 
-  // Set by SessionExpiryGuard when the API rejected a request because the JWT is
-  // gone. Distinct from `registered` so the user is told WHY they are back here.
   const expiredMessage = location.state?.expired
     ? 'Your session expired after a period of inactivity. Please sign in again.'
     : '';
 
-  // Set by RoleChangeGuard when the API refused a call the current JWT role used to be
-  // allowed to make (FR-AUTH-4b). The role lives in the token until it expires, so the
-  // only way to pick up the new one is a fresh sign-in.
   const staleRoleMessage = location.state?.staleRole
     ? `Your access was changed while you were signed in. Sign in again to continue as ${
         ROLE_LABELS[normaliseRole(location.state.staleRole)] || 'your updated role'
       }.`
     : '';
 
-  // google_callback.php redirects failures here as /login?error=<code>.
   const googleError = googleErrorCode ? GOOGLE_ERRORS[googleErrorCode] || GOOGLE_ERRORS.default : '';
 
   const [values, setValues] = useState({ email: '', password: '' });
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const update = (field) => (event) => {
     const { value } = event.target;
@@ -75,7 +66,6 @@ export default function Login() {
       const user = await login({ email: values.email.trim(), password: values.password });
       navigate(landingPathFor(user?.role, from), { replace: true });
     } catch (error) {
-      setErrors(toFieldErrors(error, FIELD_ORDER));
       setFormError(toUserMessage(error, 'Invalid email or password.'));
     } finally {
       setSubmitting(false);
@@ -83,130 +73,101 @@ export default function Login() {
   };
 
   return (
-    <AuthShell
-      title="Welcome back"
-      subtitle="Sign in to report and track outages, floods and hazards in Dagupan."
-      footer={
-        <>
-          New to PowerGuide?{' '}
-          <Link
-            to="/register"
-            className="rounded font-semibold text-primary-600 transition hover:text-primary-700"
-          >
-            Create an account
-          </Link>
-        </>
-      }
-      aside={<LoginAside />}
-    >
-      {formError ? (
-        <div className="mb-4">
-          <AuthAlert>{formError}</AuthAlert>
-        </div>
-      ) : null}
-      {googleError ? (
-        <div className="mb-4">
-          <AuthAlert>{googleError}</AuthAlert>
-        </div>
-      ) : null}
-      {successMessage ? <div className="mb-4"><AuthSuccess>{successMessage}</AuthSuccess></div> : null}
-      {expiredMessage ? <div className="mb-4"><AuthSuccess>{expiredMessage}</AuthSuccess></div> : null}
-      {staleRoleMessage ? (
-        <div className="mb-4">
-          <AuthSuccess>{staleRoleMessage}</AuthSuccess>
-        </div>
-      ) : null}
+    <>
+      <header>
+        <Link className="auth-back" to="/">
+          <svg width="14" height="12" viewBox="0 0 14 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M13 6H1M6 1 1 6l5 5" />
+          </svg>
+          Back
+        </Link>
+        <h1 className="auth-h1">Get Started Now</h1>
+        <p className="auth-lead">Please log in to your account to continue</p>
+      </header>
 
-      <form onSubmit={handleSubmit} noValidate className="space-y-4">
-        <Input
-          label="Email"
-          type="email"
-          name="email"
-          autoComplete="email"
-          inputMode="email"
-          placeholder="you@example.com"
-          required
-          value={values.email}
-          onChange={update('email')}
-          error={errors.email}
-        />
+      {formError ? <div className="auth-banner">{formError}</div> : null}
+      {googleError ? <div className="auth-banner">{googleError}</div> : null}
+      {successMessage ? <div className="auth-banner">{successMessage}</div> : null}
+      {expiredMessage ? <div className="auth-banner">{expiredMessage}</div> : null}
+      {staleRoleMessage ? <div className="auth-banner">{staleRoleMessage}</div> : null}
 
-        <PasswordInput
-          label="Password"
-          name="password"
-          autoComplete="current-password"
-          placeholder="Your password"
-          required
-          value={values.password}
-          onChange={update('password')}
-          error={errors.password}
-        />
+      <form className="auth-form" onSubmit={handleSubmit} noValidate>
+        <div className="auth-fields">
+          <div className="auth-field">
+            <label>Email
+              <input
+                name="email"
+                type="email"
+                placeholder="example@gmail.com"
+                autoComplete="email"
+                required
+                value={values.email}
+                onChange={update('email')}
+              />
+              {errors.email && <span className="auth-field-error">{errors.email}</span>}
+            </label>
+          </div>
+          <div className="auth-field">
+            <label>Password
+              <div className="auth-field-input">
+                <input
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••••••••"
+                  autoComplete="current-password"
+                  required
+                  value={values.password}
+                  onChange={update('password')}
+                />
+                <button
+                  type="button"
+                  className="auth-toggle-password"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff /> : <Eye />}
+                </button>
+              </div>
+              {errors.password && <span className="auth-field-error">{errors.password}</span>}
+            </label>
+          </div>
+        </div>
 
-        <Button type="submit" size="lg" fullWidth loading={submitting}>
-          {submitting ? 'Signing in…' : 'Login'}
-        </Button>
+        <a className="auth-forgot" href="#" onClick={(e) => e.preventDefault()}>
+          Forgot Password?
+        </a>
+
+        <p className="auth-msg" role="status" aria-live="polite"></p>
+
+        <div className="auth-actions">
+          <button className="auth-btn" type="submit" disabled={submitting}>
+            {submitting ? 'Signing in…' : 'Log In'}
+          </button>
+          <p className="auth-alt">
+            Don’t have an account?{' '}
+            <Link to="/register">Sign up</Link>
+          </p>
+          <div className="auth-or">Or</div>
+          <button className="auth-btn btn--w" type="button" onClick={() => {
+            const base = `${import.meta.env.VITE_API_BASE_URL || '/backend'}/api/auth/google.php`;
+            window.location.href = base;
+          }}>
+            <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
+              <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.9 2.4 30.4 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z" />
+              <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.2 5.4-4.7 7.1l7.6 5.9c4.4-4.1 6.9-10.1 6.9-17.5z" />
+              <path fill="#FBBC05" d="M10.5 28.7a14.5 14.5 0 0 1 0-9.4l-7.9-6.1a24 24 0 0 0 0 21.6z" />
+              <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.3 0-11.6-4.1-13.5-9.9l-7.9 6.1C6.5 42.6 14.6 48 24 48z" />
+            </svg>
+            Continue with Google
+          </button>
+        </div>
       </form>
-
-      <AuthDivider />
-
-      <GoogleButton redirectTo={from} />
 
       <p className="mt-6 text-center text-xs text-navy-400">
         <Link to="/" className="rounded font-semibold text-navy-600 transition hover:text-navy-900">
           Back to the home page
         </Link>
       </p>
-    </AuthShell>
-  );
-}
-
-const ASIDE_POINTS = [
-  {
-    icon: Zap,
-    title: 'Report in seconds',
-    text: 'Pin the location, pick a severity and add a photo - your neighbours see it instantly.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Track to resolution',
-    text: 'Follow your own reports and get notified when the status changes.',
-  },
-  {
-    icon: Sparkles,
-    title: 'Know what is nearby',
-    text: 'Floods, hazards and available power stations around your saved location.',
-  },
-];
-
-function LoginAside() {
-  return (
-    <div className="rounded-card border border-navy-100 bg-canvas p-8">
-      <h2 className="text-2xl font-extrabold text-navy-900">
-        One community, one reliable picture of the grid
-      </h2>
-      <p className="mt-3 text-sm leading-relaxed text-navy-600">
-        PowerGuide Dagupan merges community reports with official maintenance schedules so you always
-        know whether the outage is on your street or citywide.
-      </p>
-
-      <ul className="mt-8 space-y-5">
-        {ASIDE_POINTS.map((point) => (
-          <li key={point.title} className="flex gap-3">
-            <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-primary-500/15 text-primary-400">
-              <point.icon className="h-5 w-5" aria-hidden="true" />
-            </span>
-            <div>
-              <p className="text-sm font-bold text-navy-900">{point.title}</p>
-              <p className="mt-0.5 text-sm text-navy-600">{point.text}</p>
-            </div>
-          </li>
-        ))}
-      </ul>
-
-      <p className="mt-8 flex items-start gap-2 rounded-card bg-white p-4 text-xs text-navy-500 shadow-card">
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning-500" aria-hidden="true" />
-        Never approach a fallen power line. Report it from a safe distance instead.
-      </p>
-    </div>
+    </>
   );
 }

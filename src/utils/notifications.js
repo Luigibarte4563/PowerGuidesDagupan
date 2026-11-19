@@ -3,7 +3,7 @@
  *
  * `readNotification` (utils/records.js) already exposes the reference ids the API
  * returns - `outage_report_id`, `maintenance_id`, `flood_report_id`,
- * `electrical_hazard_id`, `safety_timer_id` - but nothing consumed them, so a
+ * `electrical_hazard_id` - but nothing consumed them, so a
  * notification could never open the record it points at. These helpers turn that
  * dangling data into a real destination, and group/filter the list for the history
  * timeline.
@@ -40,9 +40,6 @@ export const NOTIFICATION_TYPE_TONES = {
   hazard: 'danger',
   electrical_hazard: 'danger',
   flood: 'info',
-  battery: 'success',
-  timer: 'primary',
-  safety_timer: 'primary',
   system: 'navy',
   info: 'navy',
 };
@@ -56,10 +53,9 @@ function positiveId(value) {
 /**
  * Where a notification's linked record lives, or null when it has none.
  *
- * The notification table carries five nullable reference columns, but the app only
+ * The notification table carries four nullable reference columns, but the app only
  * has a detail route for outages. Rather than render a link that 404s, the rest fall
- * back to the list page that covers the subject - and `timerId` is dropped entirely
- * for staff, because `/company` has no safety-timers screen at all.
+ * back to the list page that covers the subject.
  *
  * @param {object} notification normalised record (see readNotification)
  * @param {{ company?: boolean }} [options] staff context for the route prefix
@@ -72,7 +68,6 @@ export function notificationTarget(notification, { company = false } = {}) {
   const maintenanceId = positiveId(notification.maintenanceId);
   const floodId = positiveId(notification.floodReportId);
   const hazardId = positiveId(notification.hazardId);
-  const timerId = positiveId(notification.timerId);
 
   if (outageId) {
     return {
@@ -96,9 +91,6 @@ export function notificationTarget(notification, { company = false } = {}) {
       to: company ? '/company/hazards' : '/dashboard/hazards',
       label: 'View hazard reports',
     };
-  }
-  if (timerId && !company) {
-    return { to: '/dashboard/safety-timers', label: 'View your safety timers' };
   }
   return null;
 }

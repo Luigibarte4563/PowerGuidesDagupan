@@ -41,7 +41,6 @@ try {
             n.maintenance_id,
             n.flood_report_id,
             n.electrical_hazard_id,
-            n.safety_timer_id,
             n.created_at
         FROM notifications n
         WHERE n.user_id = :user_id

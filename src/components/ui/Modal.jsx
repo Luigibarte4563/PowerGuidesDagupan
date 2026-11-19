@@ -83,7 +83,7 @@ export default function Modal({
   return createPortal(
     <div className="fixed inset-0 z-[900] flex items-end justify-center overflow-y-auto p-0 sm:items-center sm:p-6">
       <div
-        className={clsx('fixed inset-0 animate-fade-in', bare ? 'bg-[#03041A]/80 backdrop-blur-md' : 'bg-navy-950/50')}
+        className={clsx('fixed inset-0 animate-fade-in', bare ? 'bg-[#153243]/80 backdrop-blur-md' : 'bg-navy-950/50')}
         onClick={closeOnBackdrop ? onClose : undefined}
         aria-hidden="true"
       />

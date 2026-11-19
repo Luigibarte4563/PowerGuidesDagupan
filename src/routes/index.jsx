@@ -1,5 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 import PublicLayout from '@/layouts/PublicLayout';
+import AuthLayout from '@/pages/Auth/AuthLayout';
+import LandingLayout from '@/layouts/LandingLayout';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import CompanyLayout from '@/layouts/CompanyLayout';
 import ProtectedRoute from './ProtectedRoute';
@@ -20,8 +22,6 @@ import Maintenance from '@/pages/Dashboard/Maintenance';
 import PowerStations from '@/pages/Dashboard/PowerStations';
 import Notifications from '@/pages/Dashboard/Notifications';
 import Location from '@/pages/Dashboard/Location';
-import Battery from '@/pages/Dashboard/Battery';
-import SafetyTimers from '@/pages/Dashboard/SafetyTimers';
 import Floods from '@/pages/Dashboard/Floods';
 import Hazards from '@/pages/Dashboard/Hazards';
 import RiskAreas from '@/pages/Dashboard/RiskAreas';
@@ -56,8 +56,11 @@ import AdminUsers from '@/pages/Admin/Users';
 export default function AppRoutes() {
   return (
     <Routes>
-      <Route element={<PublicLayout />}>
+      <Route element={<LandingLayout />}>
         <Route path="/" element={<Landing />} />
+      </Route>
+
+      <Route element={<PublicLayout />}>
         {/*
           Redirect target of api/auth/google_callback.php on success:
           /auth/google-callback?token=<jwt>
@@ -66,7 +69,7 @@ export default function AppRoutes() {
       </Route>
 
       <Route element={<PublicOnlyRoute />}>
-        <Route element={<PublicLayout />}>
+        <Route element={<AuthLayout />}>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
         </Route>
@@ -82,8 +85,6 @@ export default function AppRoutes() {
           <Route path="power-stations" element={<PowerStations />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="location" element={<Location />} />
-          <Route path="battery" element={<Battery />} />
-          <Route path="safety-timers" element={<SafetyTimers />} />
           <Route path="floods" element={<Floods />} />
           <Route path="hazards" element={<Hazards />} />
           <Route path="risk-areas" element={<RiskAreas />} />

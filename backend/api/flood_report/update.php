@@ -1,0 +1,151 @@
+<?php
+
+header("Content-Type: application/json; charset=UTF-8");
+
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+
+require_once __DIR__ . '/../../config/db_connect.php';
+require_once __DIR__ . '/../../auth/jwt_auth.php';
+require_once __DIR__ . '/../services/lookup.php';
+
+try {
+    $conn = getConnection();
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    $user = getUserFromJWT();
+    if (!$user) {
+        http_response_code(401);
+        echo json_encode(["success" => false, "message" => "Unauthorized"]);
+        exit;
+    }
+    $user_id = $user['id'];
+
+    $data = json_decode(file_get_contents("php://input"), true);
+    if (!is_array($data)) {
+        http_response_code(400);
+        echo json_encode(["success" => false, "message" => "Invalid JSON input"]);
+        exit;
+    }
+
+    $id = (int)($data["id"] ?? 0);
+    if ($id <= 0) {
+        http_response_code(400);
+        echo json_encode(["success" => false, "message" => "Invalid report ID"]);
+        exit;
+    }
+
+    $stmt = $conn->prepare("
+        SELECT * FROM flood_reports
+        WHERE id = :id AND reported_by = :user_id
+        LIMIT 1
+    ");
+    $stmt->execute([":id" => $id, ":user_id" => $user_id]);
+    $report = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$report) {
+        http_response_code(404);
+        echo json_encode(["success" => false, "message" => "Report not found"]);
+        exit;
+    }
+
+    /* Safe input */
+    $location_name  = trim($data["location_name"] ?? $report["location_name"]);
+    $description    = trim($data["description"] ?? $report["description"]);
+    $severity       = $data["severity"] ?? $report["severity"];
+    $flood_depth_cm = isset($data["flood_depth_cm"]) ? (float)$data["flood_depth_cm"] : $report["flood_depth_cm"];
+    $image_proof    = $data["image_proof"] ?? $report["image_proof"];
+
+    $validLevels = ['low', 'moderate', 'high', 'severe'];
+    if (!in_array($severity, $validLevels, true)) {
+        http_response_code(400);
+        echo json_encode(["success" => false, "message" => "Invalid severity"]);
+        exit;
+    }
+
+    $latitude  = (float)$report["latitude"];
+    $longitude = (float)$report["longitude"];
+    $barangay_id = $report["barangay_id"];
+
+    /* Barangay + coordinates */
+    if (!empty($data["barangay_name"])) {
+        $requestedBarangay = trim($data["barangay_name"]);
+        $barangay = resolveBarangayCoords($conn, $requestedBarangay);
+
+        if (!$barangay) {
+            $existsStmt = $conn->prepare("SELECT id FROM barangays WHERE barangay_name = ? LIMIT 1");
+            $existsStmt->execute([$requestedBarangay]);
+            $exists = (bool)$existsStmt->fetchColumn();
+
+            http_response_code($exists ? 503 : 400);
+            echo json_encode([
+                "success" => false,
+                "message" => $exists
+                    ? "We do not have map coordinates for $requestedBarangay yet."
+                    : "Unknown barangay: $requestedBarangay",
+                "field" => "barangayName",
+                "barangays_without_coordinates" => barangaysMissingCoordinates($conn)
+            ]);
+            exit;
+        }
+
+        $barangay_id = $barangay["id"];
+        $latitude  = $barangay["latitude"];
+        $longitude = $barangay["longitude"];
+    }
+
+    if (
+        isset($data["latitude"], $data["longitude"])
+        && is_numeric($data["latitude"]) && is_numeric($data["longitude"])
+    ) {
+        $pin_lat = (float)$data["latitude"];
+        $pin_lng = (float)$data["longitude"];
+
+        if (!is_finite($pin_lat) || !is_finite($pin_lng)
+            || $pin_lat < -90 || $pin_lat > 90
+            || $pin_lng < -180 || $pin_lng > 180) {
+            http_response_code(400);
+            echo json_encode(["success" => false, "message" => "Invalid coordinates"]);
+            exit;
+        }
+
+        $latitude = $pin_lat;
+        $longitude = $pin_lng;
+    }
+
+    $stmt = $conn->prepare("
+        UPDATE flood_reports SET
+            barangay_id = :barangay_id,
+            severity = :severity,
+            location_name = :location_name,
+            latitude = :latitude,
+            longitude = :longitude,
+            flood_depth_cm = :flood_depth_cm,
+            description = :description,
+            image_proof = :image_proof,
+            updated_at = NOW()
+        WHERE id = :id
+        AND reported_by = :user_id
+    ");
+
+    $stmt->execute([
+        ":id" => $id,
+        ":user_id" => $user_id,
+        ":barangay_id" => $barangay_id,
+        ":severity" => $severity,
+        ":location_name" => $location_name,
+        ":latitude" => $latitude,
+        ":longitude" => $longitude,
+        ":flood_depth_cm" => $flood_depth_cm,
+        ":description" => $description !== "" ? $description : null,
+        ":image_proof" => $image_proof,
+    ]);
+
+    echo json_encode([
+        "success" => true,
+        "message" => "Report updated successfully"
+    ]);
+} catch (Throwable $e) {
+    http_response_code(500);
+    echo json_encode(["success" => false, "message" => "Server error"]);
+}

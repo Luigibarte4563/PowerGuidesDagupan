@@ -1,123 +1,75 @@
-import {
-  AlertTriangle,
-  BatteryCharging,
-  BellRing,
-  Flame,
-  MapPin,
-  Plug,
-  Timer,
-  Waves,
-  Wrench,
-  Zap,
-} from 'lucide-react';
+import { useState, useEffect } from 'react';
 
-const FEATURES = [
+const FEATURES_DATA = [
   {
-    icon: Zap,
-    title: 'Report and track power outages',
-    description:
-      'Post an outage with your barangay, category and severity. Follow it from reported to resolved in real time.',
-    tone: 'primary',
+    eb: 'Report outages • Stay updated',
+    ti: 'Stay informed about power interruptions in your community',
+    bo: 'Easily report power outages in your area, provide details about affected locations, and track the progress of submitted reports. Stay updated with community-reported information to better understand the situation around you.',
   },
   {
-    icon: Wrench,
-    title: 'Scheduled maintenance & outages',
-    description:
-      'See company maintenance schedules ahead of time so you can prepare before service interruptions begin.',
-    tone: 'info',
-  },
-  {
-    icon: Plug,
-    title: 'Find nearby power stations',
-    description:
-      'Browse available power stations around you, check availability status and see which ones are closest.',
-    tone: 'success',
-  },
-  {
-    icon: Waves,
-    title: 'Flood reporting',
-    description:
-      'Report flooding in your area and check flood reports near your location to plan your routes.',
-    tone: 'info',
-  },
-  {
-    icon: AlertTriangle,
-    title: 'Electrical hazard reporting',
-    description:
-      'Flag downed wires, exposed cables and other hazards. Owners can update the status as they are cleared.',
-    tone: 'danger',
-  },
-  {
-    icon: MapPin,
-    title: 'Risk-area alerts',
-    description:
-      'Combine active floods and unresolved hazards around you into a single risk view with an adjustable radius.',
-    tone: 'warning',
-  },
-  {
-    icon: Flame,
-    title: 'Heatmap of affected areas',
-    description:
-      'Visualise where problems concentrate with a heatmap layer and stored outage clusters on the map.',
-    tone: 'danger',
-  },
-  {
-    icon: BatteryCharging,
-    title: 'Battery tracking & safety timers',
-    description:
-      'Track your own devices and battery levels, keep usage history, and run safety timers for appliances.',
-    tone: 'success',
-  },
-  {
-    icon: BellRing,
-    title: 'Notifications',
-    description:
-      'Get notified about outages, hazards and maintenance near you, and never miss an unread update again.',
-    tone: 'navy',
+    eb: 'See hazards • Stay safe',
+    ti: "Know what's around you before you head out",
+    bo: 'See power outages and hazards near your location, and get alerts when conditions change in your area so you can plan ahead.',
   },
 ];
 
-const TONE_CLASSES = {
-  primary: 'bg-primary-500/15 text-primary-400',
-  info: 'bg-info-500/15 text-info-400',
-  success: 'bg-success-500/15 text-success-400',
-  warning: 'bg-warning-500/15 text-warning-400',
-  danger: 'bg-danger-500/15 text-danger-400',
-  navy: 'bg-white/10 text-white/70',
-};
+const TABS = [
+  { id: 't0', label: 'Outage Reporting' },
+  { id: 't1', label: 'Risks & Hazards Alert' },
+];
 
-/** Features section (Section 4.2). */
 export default function Features() {
-  return (
-    <section id="features" className="scroll-mt-20 bg-white py-16 lg:py-24">
-      <div className="container-app">
-        <div className="max-w-2xl">
-          <span className="text-xs font-bold uppercase tracking-[0.18em] text-primary-600">Features</span>
-          <h2 className="mt-3 text-3xl font-extrabold text-navy-900 sm:text-4xl">
-            Everything you need to stay informed and safe
-          </h2>
-          <p className="mt-4 text-base text-navy-600">
-            PowerGuide Dagupan brings reports, schedules, maps and alerts into one place - built for
-            residents reporting from their phones during an outage.
-          </p>
-        </div>
+  const [activeIndex, setActiveIndex] = useState(0);
 
-        <ul className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((feature) => (
-            <li
-              key={feature.title}
-              className="group rounded-card border border-navy-100 bg-white p-6 shadow-card transition hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-card-hover"
-            >
-              <span
-                className={`inline-flex h-12 w-12 items-center justify-center rounded-control ${TONE_CLASSES[feature.tone]}`}
-              >
-                <feature.icon className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <h3 className="mt-4 text-base font-bold text-navy-900">{feature.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-navy-600">{feature.description}</p>
-            </li>
-          ))}
-        </ul>
+  // Sync aria attributes
+  useEffect(() => {
+    const tabs = document.querySelectorAll('.tab');
+    const pane = document.getElementById('pane');
+    tabs.forEach((tab, i) => {
+      tab.setAttribute('aria-selected', i === activeIndex);
+    });
+    if (pane) {
+      pane.setAttribute('aria-labelledby', TABS[activeIndex].id);
+    }
+  }, [activeIndex]);
+
+  const handleTabClick = (index) => {
+    setActiveIndex(index);
+  };
+
+  return (
+    <section className="features wrap" id="features" aria-labelledby="features-heading">
+      <div className="tabs" role="tablist" aria-label="Feature categories">
+        {TABS.map((tab, i) => (
+          <button
+            key={tab.id}
+            id={tab.id}
+            className="tab"
+            role="tab"
+            aria-selected={i === activeIndex}
+            aria-controls="pane"
+            onClick={() => handleTabClick(i)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div
+        className="pane"
+        id="pane"
+        role="tabpanel"
+        aria-labelledby={TABS[activeIndex].id}
+      >
+        <div>
+          <p id="f-eb" className="caps">
+            {FEATURES_DATA[activeIndex].eb}
+          </p>
+          <h3 id="f-ti">{FEATURES_DATA[activeIndex].ti}</h3>
+          <p id="f-bo">{FEATURES_DATA[activeIndex].bo}</p>
+          <a className="btn" href="#contact">Get Started</a>
+        </div>
+        <div className="ph" aria-hidden="true">Placeholder image</div>
       </div>
     </section>
   );
