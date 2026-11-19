@@ -18,12 +18,13 @@ import {
   Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import ViewableImage from '@/components/ViewableImage';
 import AppMap, { MapLegend, MapPoints, SEVERITY_COLORS } from '@/components/Map';
 import { outagesApi } from '@/api';
 import { QUERY_KEYS } from '@/utils/constants';
 import { formatRelativeTime, formatTime, hasCoordinates } from '@/utils/formatters';
 import { toUserMessage } from '@/utils/errorMessage';
-import { isOwnedBy, readOutage, resolveImageUrl } from '@/utils/records';
+import { isOwnedBy, readOutage } from '@/utils/records';
 import {
   filterByStatus,
   formatCategory,
@@ -559,19 +560,12 @@ export default function Outages() {
                         </p>
 
                         {outage.images[0] ? (
-                          <a
-                            href={resolveImageUrl(outage.images[0])}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="mt-2 block"
-                          >
-                            <img
-                              src={resolveImageUrl(outage.images[0])}
-                              alt="Outage evidence"
-                              loading="lazy"
-                              className="h-24 w-full rounded-lg border border-white/10 bg-white/5 object-cover"
-                            />
-                          </a>
+                          <ViewableImage
+                            src={outage.images[0]}
+                            alt="Outage evidence"
+                            className="h-24 w-full bg-white/5 object-cover"
+                            frameClassName="mt-2 block w-full"
+                          />
                         ) : null}
 
                         <div className="mt-1.5 flex items-center justify-between gap-2">

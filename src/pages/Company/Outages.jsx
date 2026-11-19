@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import DataView from '@/components/DataView';
 import RecordCard from '@/components/RecordCard';
+import ViewableImage from '@/components/ViewableImage';
 import AppMap, {
   FitPoints,
   MapLegend,
@@ -37,7 +38,7 @@ import {
   severityTone,
   statusTone,
 } from '@/utils/constants';
-import { readCompanyOutage, resolveImageUrl } from '@/utils/records';
+import { readCompanyOutage } from '@/utils/records';
 import {
   formatDateTime,
   formatRelativeTime,
@@ -333,21 +334,7 @@ export default function Outages() {
                   </>
                 }
               >
-                {outage.images[0] ? (
-                  <a
-                    href={resolveImageUrl(outage.images[0])}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-3 block"
-                  >
-                    <img
-                      src={resolveImageUrl(outage.images[0])}
-                      alt="Outage evidence"
-                      loading="lazy"
-                      className="h-32 w-full rounded-control border border-navy-100 object-cover"
-                    />
-                  </a>
-                ) : null}
+                {outage.images[0] ? <ViewableImage src={outage.images[0]} alt="Outage evidence" /> : null}
               </RecordCard>
             )}
           />

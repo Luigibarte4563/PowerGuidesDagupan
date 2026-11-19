@@ -9,11 +9,12 @@ import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import AppMap, { MapPin as MapPinMarker } from '@/components/Map';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import ViewableImage from '@/components/ViewableImage';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { outagesApi } from '@/api';
 import { QUERY_KEYS } from '@/utils/constants';
-import { isOwnedBy, readOutage, resolveImageUrl } from '@/utils/records';
+import { isOwnedBy, readOutage } from '@/utils/records';
 import { severityTone, statusTone } from '@/utils/constants';
 import { formatDateTime, humanize } from '@/utils/formatters';
 import { toUserMessage } from '@/utils/errorMessage';
@@ -218,20 +219,13 @@ export default function OutageDetail() {
               <CardHeader>Photos</CardHeader>
               <CardBody className="grid gap-3 sm:grid-cols-2">
                 {outage.images.map((image) => (
-                  <a
+                  <ViewableImage
                     key={image}
-                    href={resolveImageUrl(image)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block overflow-hidden rounded-card border border-navy-200 transition hover:border-primary-300"
-                  >
-                    <img
-                      src={resolveImageUrl(image)}
-                      alt={`Photo attached to outage report ${outage.reportKey || outage.id}`}
-                      className="h-48 w-full bg-navy-100 object-cover"
-                      loading="lazy"
-                    />
-                  </a>
+                    src={image}
+                    alt={`Photo attached to outage report ${outage.reportKey || outage.id}`}
+                    className="h-48 w-full bg-navy-100 object-cover"
+                    frameClassName="block w-full"
+                  />
                 ))}
               </CardBody>
             </Card>

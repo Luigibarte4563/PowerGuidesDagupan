@@ -22,6 +22,7 @@ import { Textarea } from '@/components/ui/Input';
 import { InfoNote } from '@/components/ui/Alert';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import AppMap, { FitPoints, MapLegend, MapPin as MapPinMarker } from '@/components/Map';
+import ViewableImage from '@/components/ViewableImage';
 import { useToast } from '@/context/ToastContext';
 import {
   companyOutagesApi,
@@ -29,7 +30,7 @@ import {
   VERIFICATION_STATUSES,
 } from '@/api';
 import { COMPANY_QUERY_KEYS, severityTone, statusTone } from '@/utils/constants';
-import { readCompanyOutage, readOutageUpdate, readVerification, resolveImageUrl } from '@/utils/records';
+import { readCompanyOutage, readOutageUpdate, readVerification } from '@/utils/records';
 import { formatDateTime, formatRelativeTime, humanize } from '@/utils/formatters';
 import { toUserMessage } from '@/utils/errorMessage';
 import { clearFieldError, collectErrors, hasErrors, validateRequired } from '@/utils/validators';
@@ -200,19 +201,12 @@ export default function OutageDetail() {
                 <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {images.map((url, index) => (
                     <li key={url}>
-                      <a
-                        href={resolveImageUrl(url)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block overflow-hidden rounded-control border border-navy-100"
-                      >
-                        <img
-                          src={resolveImageUrl(url)}
-                          alt={`Outage evidence ${index + 1}`}
-                          loading="lazy"
-                          className="h-28 w-full bg-navy-50 object-cover"
-                        />
-                      </a>
+                      <ViewableImage
+                        src={url}
+                        alt={`Outage evidence ${index + 1}`}
+                        className="h-28 w-full bg-navy-50 object-cover"
+                        frameClassName="block w-full"
+                      />
                     </li>
                   ))}
                 </ul>
