@@ -81,10 +81,10 @@ export default function Sidebar({
                         onClick={onClose}
                         className={({ isActive }) =>
                           clsx(
-                            'group flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition',
+                            'group flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition duration-200',
                             isActive
                               ? 'bg-[#f18f01] text-[#153243]'
-                              : 'text-white/65 hover:bg-[#f18f01] hover:text-[#153243]'
+                              : 'text-[var(--white-80)] hover:bg-[var(--white-10)] hover:text-[var(--white-100)]'
                           )
                         }
                       >
@@ -92,10 +92,10 @@ export default function Sidebar({
                           <>
                             <item.icon
                               className={clsx(
-                                'h-[18px] w-[18px] shrink-0 transition',
+                                'h-[18px] w-[18px] shrink-0 transition duration-200',
                                 isActive
                                   ? 'text-[#153243]'
-                                  : 'text-white/45 group-hover:text-[#153243]'
+                                  : 'text-[var(--white-60)] group-hover:text-[var(--white-100)]'
                               )}
                               aria-hidden="true"
                             />

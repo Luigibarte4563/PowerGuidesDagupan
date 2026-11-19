@@ -1,14 +1,12 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
   CalendarClock,
   MapPin,
   Plug,
-  Plus,
   ShieldAlert,
-  Timer,
   Waves,
   Zap,
 } from 'lucide-react';
@@ -56,7 +54,6 @@ const reportedAt = (value) => {
 
 export default function Overview() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const { coords, hasLocation } = useSavedLocation();
 
   const myReports = useQuery({
@@ -150,24 +147,6 @@ export default function Overview() {
       <PageHeader
         title={`${greeting}, ${user?.name?.split(' ')[0] || 'neighbour'}`}
         description="Here is what is happening around you right now."
-        actions={
-          <>
-            <Button
-              variant="primary"
-              icon={Plus}
-              onClick={() => navigate('/dashboard/outages?new=1')}
-            >
-              Report Outage
-            </Button>
-            <Button
-              variant="outline"
-              icon={Waves}
-              onClick={() => navigate('/dashboard/floods?new=1')}
-            >
-              Report Flood
-            </Button>
-          </>
-        }
       />
 
       {/*
@@ -215,40 +194,6 @@ export default function Overview() {
         />
       </section>
 
-      {/* Quick actions */}
-      <section aria-label="Quick actions">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <QuickAction
-            icon={Zap}
-            label="Report Outage"
-            description="Lights out on your street"
-            onClick={() => navigate('/dashboard/outages?new=1')}
-            tone="primary"
-          />
-          <QuickAction
-            icon={Waves}
-            label="Report Flood"
-            description="Water rising near you"
-            onClick={() => navigate('/dashboard/floods?new=1')}
-            tone="info"
-          />
-          <QuickAction
-            icon={AlertTriangle}
-            label="Report Hazard"
-            description="Downed wire or exposed cable"
-            onClick={() => navigate('/dashboard/hazards?new=1')}
-            tone="danger"
-          />
-          <QuickAction
-            icon={Timer}
-            label="Start Safety Timer"
-            description="Time an appliance safely"
-            onClick={() => navigate('/dashboard/safety-timers?new=1')}
-            tone="success"
-          />
-        </div>
-      </section>
-
       <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
         {/* Nearby risks */}
         <Card>
@@ -260,7 +205,7 @@ export default function Overview() {
             }
             action={
               hasLocation ? (
-                <Button to="/dashboard/risk-areas" variant="outline" size="sm">
+                <Button to="/dashboard/risk-areas" variant="outline" size="sm" className="text-[var(--white-100)] border-[var(--white-20)] hover:bg-[var(--white-10)]">
                   View all
                 </Button>
               ) : (
@@ -277,7 +222,7 @@ export default function Overview() {
               <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.03] p-6 text-center">
                 <MapPin className="mx-auto h-6 w-6 text-white/35" aria-hidden="true" />
                 <p className="mt-2 text-sm font-semibold text-white">No location saved yet</p>
-                <p className="mx-auto mt-1 max-w-sm text-xs text-white/40">
+                <p className="mx-auto mt-1 max-w-sm text-xs text-[var(--white-60)]">
                   Save your location so PowerGuide can show floods, hazards and power stations around you.
                 </p>
                 <Button to="/dashboard/location" variant="primary" size="sm" className="mt-4">
@@ -329,7 +274,7 @@ export default function Overview() {
             <CardHeader
               description="Outages, floods and hazards from across Dagupan"
               action={
-                <Button to="/dashboard/risk-areas" variant="outline" size="sm">
+                <Button to="/dashboard/risk-areas" variant="outline" size="sm" className="text-[var(--white-100)] border-[var(--white-20)] hover:bg-[var(--white-10)]">
                   View all
                 </Button>
               }
@@ -352,7 +297,7 @@ export default function Overview() {
                   }}
                 />
               ) : latestReports.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-center text-sm text-white/40">
+                <p className="rounded-xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-center text-sm text-[var(--white-60)]">
                   No reports yet. Be the first to report an outage, flood or hazard.
                 </p>
               ) : (
@@ -392,7 +337,7 @@ export default function Overview() {
           <Card>
             <CardHeader
               action={
-                <Button to="/dashboard/maintenance" variant="outline" size="sm">
+                <Button to="/dashboard/maintenance" variant="outline" size="sm" className="text-[var(--white-100)] border-[var(--white-20)] hover:bg-[var(--white-10)]">
                   View all
                 </Button>
               }
@@ -409,7 +354,7 @@ export default function Overview() {
                   onRetry={() => upcomingMaintenance.refetch()}
                 />
               ) : (upcomingMaintenance.data || []).length === 0 ? (
-                <p className="rounded-xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-center text-sm text-white/40">
+                <p className="rounded-xl border border-dashed border-white/10 bg-white/[0.03] p-5 text-center text-sm text-[var(--white-60)]">
                   No scheduled maintenance announced yet.
                 </p>
               ) : (
@@ -440,7 +385,7 @@ export default function Overview() {
         </div>
       </div>
 
-      <p className="text-center text-xs text-white/35">
+      <p className="text-center text-xs text-[var(--white-60)]">
         Need the full picture? Visit{' '}
         <Link to="/dashboard/risk-areas" className="font-semibold text-[#f18f01] hover:text-[#f6c200]">
           risk areas
@@ -485,34 +430,4 @@ function SummaryCard({ label, value, isLoading, icon, tone, to }) {
   );
 }
 
-const QUICK_TONES = {
-  primary: 'hover:border-[#f18f01]/40 hover:bg-[#f18f01]/10',
-  info: 'hover:border-[#22D3EE]/40 hover:bg-[#22D3EE]/10',
-  danger: 'hover:border-[#FF2E1F]/40 hover:bg-[#FF2E1F]/10',
-  success: 'hover:border-[#34FB34]/40 hover:bg-[#34FB34]/10',
-};
 
-const QUICK_ICON_TONES = {
-  primary: 'border border-[#f18f01]/25 bg-[#f18f01]/15 text-[#f18f01]',
-  info: 'border border-[#22D3EE]/25 bg-[#22D3EE]/15 text-[#22D3EE]',
-  danger: 'border border-[#FF2E1F]/25 bg-[#FF2E1F]/15 text-[#FF2E1F]',
-  success: 'border border-[#34FB34]/25 bg-[#34FB34]/15 text-[#34FB34]',
-};
-
-function QuickAction({ icon: Icon, label, description, onClick, tone = 'primary' }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.05] p-4 text-left transition ${QUICK_TONES[tone]}`}
-    >
-      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-control ${QUICK_ICON_TONES[tone]}`}>
-        <Icon className="h-5 w-5" aria-hidden="true" />
-      </span>
-      <span className="min-w-0">
-        <span className="block text-sm font-bold text-white">{label}</span>
-        <span className="block truncate text-xs text-white/40">{description}</span>
-      </span>
-    </button>
-  );
-}

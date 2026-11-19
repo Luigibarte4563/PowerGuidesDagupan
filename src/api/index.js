@@ -20,7 +20,7 @@ export { maintenanceApi, MAINTAINABLE_STATUSES, UPCOMING_STATUSES } from './main
 export { powerStationsApi } from './powerStations';
 export { notificationsApi } from './notifications';
 export { locationApi } from './location';
-export { floodsApi, FLOOD_LEVELS } from './floods';
+export { floodsApi, FLOOD_LEVELS, FLOOD_STATUSES } from './floods';
 export { hazardsApi, HAZARD_SEVERITIES, HAZARD_STATUSES } from './hazards';
 export { getNearbyRisks } from './risk';
 export { heatmapApi, CLUSTER_FORECAST_LEVELS } from './heatmap';

@@ -258,6 +258,26 @@ This module allows staff to review and manage electrical hazard reports.
 - Nearby Probe – Lets staff search hazards around a chosen point and radius, ordered by
   distance.
 
+## Staff Flood Review Module
+
+This module allows staff to review and manage flood reports.
+
+- Flood Reports – Displays all flood reports with status, severity, and barangay filters,
+  search, and pagination.
+- Flood Map – Shows flood reports on a map with severity-colored pins matching the
+  outage/hazard review style.
+- Status Updates – Allows staff to move any flood report through reported → verified → cleared.
+
+## Staff Outage Heatmap Module
+
+This module provides staff with a live outage heatmap for operational awareness.
+
+- Heatmap – Displays real-time outage intensity by barangay with a selectable lookback
+  window (1/7/14/30 days) and an intensity legend.
+- Feed – Ranks hotspot areas by report count, severity score, and confidence, with
+  forecast level badges.
+- Forecast Filter – Tabs to view all, high-risk, or low-risk areas.
+
 ## Admin Dashboard Module
 
 This module provides administrators with an overview of platform activities.

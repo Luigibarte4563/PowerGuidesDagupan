@@ -39,7 +39,7 @@ const PAGE_SIZE = 3;
  * Module J - electrical hazards across Dagupan: list, map, create and an
  * owner-only status update.
  *
- * Deliberately NOT radius-scoped. `get_nearby.php` needs a saved location, and a
+ * Deliberately NOT radius-scoped. A radius lookup needs a saved location, and a
  * location that geocoded to the wrong country returns an empty list that reads as
  * "no hazards in your area". This page instead always loads the whole city feed
  * from `get.php` (no default filter, no LIMIT) and frames the map on the hazards

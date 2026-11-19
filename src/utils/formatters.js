@@ -2,6 +2,22 @@
 
 export const DEFAULT_CENTER = { lat: 16.0433, lng: 120.3329, zoom: 13 }; // Dagupan City
 
+/** Dagupan City bounds: approx lat 15.9-16.2, lng 120.2-120.5. */
+export const DAGUPAN_BOUNDS = { latMin: 15.9, latMax: 16.2, lngMin: 120.2, lngMax: 120.5 };
+
+/** True when a finite coordinate falls inside Dagupan City bounds. */
+export function isInDagupanBounds(lat, lng) {
+  if (!hasCoordinates(lat, lng)) return false;
+  const a = Number(lat);
+  const b = Number(lng);
+  return (
+    a >= DAGUPAN_BOUNDS.latMin &&
+    a <= DAGUPAN_BOUNDS.latMax &&
+    b >= DAGUPAN_BOUNDS.lngMin &&
+    b <= DAGUPAN_BOUNDS.lngMax
+  );
+}
+
 /**
  * NFR-8 - every displayed timestamp is Philippine time.
  *

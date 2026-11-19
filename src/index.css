@@ -32,7 +32,7 @@
 }
 [data-theme='dark'] [data-surface='dark'] .bg-white,
 [data-theme='dark'] [data-surface='dark'] .bg-navy-50 {
-  background-color: #1c1d30;
+  background-color: #153243;
 }
 [data-theme='dark'] [data-surface='dark'] .bg-canvas {
   background-color: #153243;
@@ -46,7 +46,7 @@
 /* Borders follow the Outages workspace: faint white hairlines instead of solid
    navy tints, so cards read as glass panels on the dark canvas. */
 [data-theme='dark'] [data-surface='dark'] .border-navy-100 {
-  border-color: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.22);
 }
 [data-theme='dark'] [data-surface='dark'] .border-navy-200 {
   border-color: rgba(255, 255, 255, 0.1);
@@ -63,8 +63,8 @@
    on the dark navy canvas. Applied to <main> and every dashboard page root. */
 [data-theme='dark'] [data-surface='dark'] .dashboard-grid {
   background:
-    linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px) 0 0 / 115px 115px,
-    linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px) 0 0 / 115px 115px,
+    linear-gradient(rgba(255, 255, 255, 0.14) 1px, transparent 1px) 0 0 / 115px 115px,
+    linear-gradient(90deg, rgba(255, 255, 255, 0.14) 1px, transparent 1px) 0 0 / 115px 115px,
     #153243;
 }
 
@@ -186,6 +186,13 @@
     --or: #f18f01;
     --ink: #fefeff;
     --bg: #0f1a2a;
+    /* Dashboard white / off-white accent tokens (dark surface). */
+    --white-100: #FFFFFF;
+    --white-80: rgba(255, 255, 255, 0.80);
+    --white-60: rgba(255, 255, 255, 0.60);
+    --white-20: rgba(255, 255, 255, 0.20);
+    --white-10: rgba(255, 255, 255, 0.10);
+    --navy-text-on-white: #0F2A3A;
   }
 
   html {

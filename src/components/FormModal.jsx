@@ -20,6 +20,7 @@ export default function FormModal({
   size = 'lg',
   children,
   footerExtra,
+  className,
 }) {
   const formId = useId();
   const [touched, setTouched] = useState(false);
@@ -38,6 +39,7 @@ export default function FormModal({
       title={title}
       description={description}
       size={size}
+      className={className}
       footer={
         <>
           {footerExtra}

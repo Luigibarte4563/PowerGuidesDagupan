@@ -25,12 +25,14 @@ try {
         SELECT
             orp.*,
             b.barangay_name,
+            CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name) AS reporter_name,
             orp.category,
             orp.severity,
             orp.hazard_type,
             orp.status AS status
         FROM outage_reports orp
         LEFT JOIN barangays b    ON b.id = orp.barangay_id
+        LEFT JOIN users u        ON u.id = orp.user_id
         WHERE orp.id = ?
         LIMIT 1
     ");

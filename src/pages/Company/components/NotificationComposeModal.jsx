@@ -135,6 +135,10 @@ export default function NotificationComposeModal({ open, onClose, defaultRecipie
       submitting={mutation.isPending}
       error={mutation.isError ? toUserMessage(mutation.error) : ''}
       onSubmit={submit}
+      // Match the dashboard card surface (#153243) so the modal reads as part of
+      // the dark canvas instead of a white panel on dark. `!important` beats the
+      // shared Modal's `dark:bg-navy-800`.
+      className="bg-[#153243]!"
       footerExtra={
         <span className="mr-auto inline-flex items-center gap-1.5 text-xs text-navy-400">
           <Send className="h-3.5 w-3.5" aria-hidden="true" />

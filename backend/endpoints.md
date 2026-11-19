@@ -237,10 +237,10 @@ Legend:
 | `POST /api/flood_report/create.php` | `auth` | 🔒 | ✅ | ✅ | ✅ | ✅ |
 | `GET /api/flood_report/get.php` | `auth` | 🔒 | ✅ | ✅ | ✅ | ✅ |
 | `GET /api/flood_report/get_nearby.php` | `auth` | 🔒 | ✅ | ✅ | ✅ | ✅ |
+| `POST /api/flood_report/update_status.php` | `role` | 🔒 | 🔒 | ✅ | ✅ | ✅ |
 | **Electrical hazards** |||||||
 | `POST /api/electrical_hazard/create.php` | `auth` | 🔒 | ✅ | ✅ | ✅ | ✅ |
 | `GET /api/electrical_hazard/get.php` | `auth` | 🔒 | ✅ | ✅ | ✅ | ✅ |
-| `GET /api/electrical_hazard/get_nearby.php` | `auth` | 🔒 | ✅ | ✅ | ✅ | ✅ |
 | `POST /api/electrical_hazard/update_status.php` | `auth` + `owner-or-staff` | 🔒 | 👤 | ✅ | ✅ | ✅ |
 | **Risk / heatmap / clusters** |||||||
 | `GET /api/risk/get_nearby.php` | `auth` | 🔒 | ✅ | ✅ | ✅ | ✅ |
@@ -768,6 +768,11 @@ List flood reports. Filters: `?status=`, `?flood_level=`, `?barangay=`.
 List active (non-cleared) floods within `radius` meters, sorted by distance.
 Used for electrocution-risk display.
 
+### `POST /api/flood_report/update_status.php` (staff: electric_company / admin / lineman)
+Change any flood report's status. Body: `flood_id`, `status` (`reported` | `verified` | `cleared`).
+Stamps `updated_by` and `updated_at`. When moving to `verified` or `cleared`, creates a
+`flood` notification for the original reporter.
+
 ---
 
 ## Electrical Hazards
@@ -783,9 +788,6 @@ Body: `location_name`, `hazard_type` (see `hazard_types` lookup, e.g.
 
 ### `GET /api/electrical_hazard/get.php`
 List hazards. Filters: `?status=`, `?severity=`, `?barangay=`.
-
-### `GET /api/electrical_hazard/get_nearby.php?lat=&lng=&radius=`
-List unresolved hazards within `radius` meters, sorted by distance.
 
 ### `POST /api/electrical_hazard/update_status.php`
 Body: `hazard_id`, `status` (`reported`/`verified`/`resolved`). Owners may act

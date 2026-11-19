@@ -6,13 +6,13 @@ import { MANAGEABLE_STATUSES } from '@/api';
 import { humanize } from '@/utils/formatters';
 
 /**
- * Change one outage report's status, restricted to the whitelisted values.
+ * Change one report's status, restricted to the values its endpoint accepts.
  *
  * Shared by the company outage list and the "My Assigned Barangays" dialog so both offer
  * exactly the same statuses, the same confirmation step and the same wording. The list is
  * `MANAGEABLE_STATUSES` rather than whatever `reference/get.php` publishes, because it is
  * `update_single.php`'s own server-side whitelist - offering anything else would produce a
- * 400 rather than a status change.
+ * 400 rather than a status change. Callers with a different enum pass `statuses`.
  *
  * The props are deliberately shape-agnostic (`reportLabel` / `currentStatus`) instead of
  * taking a report object: the company page works on normalised camelCase rows while
@@ -29,6 +29,8 @@ export default function StatusChangeDialog({
   onSubmit,
   onClose,
   loading = false,
+  statuses = MANAGEABLE_STATUSES,
+  hint = 'Marking a report resolved also clears its active flag on the server.',
 }) {
   const [nextStatus, setNextStatus] = useState('');
 
@@ -67,12 +69,12 @@ export default function StatusChangeDialog({
       <Select
         label="New status"
         required
-        options={MANAGEABLE_STATUSES.map((value) => ({ value, label: humanize(value) }))}
+        options={statuses.map((value) => ({ value, label: humanize(value) }))}
         placeholder="Select a status"
         value={nextStatus}
         onChange={(event) => setNextStatus(event.target.value)}
         disabled={loading}
-        hint="Marking a report resolved also clears its active flag on the server."
+        hint={hint}
       />
     </Modal>
   );

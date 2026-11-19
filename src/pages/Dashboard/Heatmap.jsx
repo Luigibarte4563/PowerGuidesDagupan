@@ -17,13 +17,13 @@ import MapWorkspace, { FeedActions, FeedStatTiles } from '@/components/MapWorksp
 import { heatmapApi } from '@/api';
 import { QUERY_KEYS } from '@/utils/constants';
 import { readCluster } from '@/utils/records';
-import { formatNumber, formatTime, humanize } from '@/utils/formatters';
+import { formatNumber, formatTime, humanize, isInDagupanBounds } from '@/utils/formatters';
 import { toUserMessage } from '@/utils/errorMessage';
 import { severityTone } from '@/utils/constants';
 
 const LAYERS = [
   { key: 'heatmap', label: 'Outage heatmap', description: 'Intensity of reported outages' },
-  { key: 'clusters', label: 'Clusters', description: 'Grouped hotspots stored by the API' },
+  { key: 'clusters', label: 'Clusters', description: 'Grouped hotspots from recent reports' },
 ];
 
 /**
@@ -38,7 +38,7 @@ const LAYERS = [
  */
 export default function Heatmap() {
   const [enabled, setEnabled] = useState({ heatmap: true, clusters: true });
-  const [lookbackDays, setLookbackDays] = useState(7);
+  const [lookbackDays] = useState(7);
 
   const [heatmapQuery, clustersQuery] = useQueries({
     queries: [
@@ -49,8 +49,13 @@ export default function Heatmap() {
         retry: 1,
       },
       {
-        queryKey: QUERY_KEYS.clusters,
-        queryFn: async ({ signal }) => (await heatmapApi.getClusters({}, { signal })).items.map(readCluster),
+        queryKey: [...QUERY_KEYS.clusters, lookbackDays],
+        // Live clusters from the same active reports as the heat layer; stored
+        // `outage_clusters` centres can be stale and drift off the heat blobs.
+        queryFn: async ({ signal }) =>
+          (await heatmapApi.getHeatmap({ mode: 'clusters', days: lookbackDays }, { signal })).items.map(
+            (item, index) => ({ ...readCluster(item), id: index + 1, label: `Cluster ${index + 1}` })
+          ),
         staleTime: 5 * 60 * 1000,
         retry: 1,
       },
@@ -59,9 +64,15 @@ export default function Heatmap() {
 
   // Memoised so `framedPoints` below does not get a new array identity on every
   // render, which would make FitPoints refit the map each time.
-  const points = useMemo(() => heatmapQuery.data || [], [heatmapQuery.data]);
-  const clusters = useMemo(() => clustersQuery.data || [], [clustersQuery.data]);
-  const plottedClusters = clusters.filter((item) => Number.isFinite(item.lat) && Number.isFinite(item.lng));
+  const points = useMemo(
+    () => (heatmapQuery.data || []).filter((point) => isInDagupanBounds(point.lat, point.lng)),
+    [heatmapQuery.data]
+  );
+  const clusters = useMemo(
+    () => (clustersQuery.data || []).filter((item) => isInDagupanBounds(item.lat, item.lng)),
+    [clustersQuery.data]
+  );
+  const plottedClusters = clusters;
   const isLoading = heatmapQuery.isLoading || clustersQuery.isLoading;
   const error = heatmapQuery.error || clustersQuery.error;
   const refetch = () => {
@@ -134,8 +145,9 @@ export default function Heatmap() {
 
       {enabled.clusters && plottedClusters.length ? (
         <MapPoints
+          soft
           items={plottedClusters}
-          size={Math.max(24, Math.min(52, 20 + (plottedClusters[0]?.count || 1) * 2))}
+          size={Math.max(32, Math.min(64, 24 + (plottedClusters[0]?.count || 1) * 2))}
           toneFor={(item) => (item.forecastLevel ? severityTone(item.forecastLevel) : 'danger')}
         >
           {(item) => (
@@ -222,7 +234,7 @@ export default function Heatmap() {
         ) : points.length || clusters.length ? (
           <div className="space-y-3">
             {/* Heat points exist whenever recent reports exist, so they are the
-                primary records; stored clusters only appear once staff save some. */}
+                primary records; clusters group those same reports into hotspots. */}
             {points.length ? (
               <ul className="space-y-2">
                 {[...points]
@@ -272,7 +284,7 @@ export default function Heatmap() {
               <div>
                 {points.length ? (
                   <p className="mb-2 text-[8px] font-extrabold uppercase tracking-[0.2em] text-white/35">
-                    Stored clusters
+                    Hotspot clusters
                   </p>
                 ) : null}
                 <ul className="space-y-2">

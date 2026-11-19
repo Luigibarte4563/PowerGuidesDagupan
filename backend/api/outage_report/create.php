@@ -183,6 +183,39 @@ try {
 
     $outage_report_id = (int)$conn->lastInsertId();
 
+    /* Notify the electric company that a resident filed a new outage report.
+       Server-side only: the notification endpoint is manager-gated, so we insert
+       directly here rather than asking the resident (who would get 403). A failure
+       to notify must never roll back the report itself. */
+    try {
+        $recipients = $conn->prepare("
+            SELECT id FROM users
+            WHERE role IN ('electric_company', 'admin')
+        ");
+        $recipients->execute();
+        $recipientIds = $recipients->fetchAll(PDO::FETCH_COLUMN);
+
+        if ($recipientIds) {
+            $notify = $conn->prepare("
+                INSERT INTO notifications (user_id, notification_type, title, message)
+                VALUES (:user_id, 'outage', :title, :message)
+            ");
+            $title = "New outage report";
+            $message = "A new outage report was submitted in " .
+                htmlspecialchars($barangay["name"], ENT_QUOTES) .
+                ". Review it on the company dashboard.";
+            foreach ($recipientIds as $recipientId) {
+                $notify->execute([
+                    ":user_id" => (int)$recipientId,
+                    ":title" => $title,
+                    ":message" => $message,
+                ]);
+            }
+        }
+    } catch (Throwable $e) {
+        error_log("Outage report notification failed: " . $e->getMessage());
+    }
+
     /* Optional evidence image -> outage_report_images */
     if (!empty($image_url)) {
         $imgStmt = $conn->prepare("

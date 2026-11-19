@@ -259,9 +259,11 @@ lands on the access-denied page rather than inside a dashboard they cannot use. 
 | `/company/outages/:id` | Staff | Report detail: status, verification, field updates |
 | `/company/assignments` | Manager | Lineman ↔ barangay assignments (managers only) |
 | `/company/maintenance` | Staff | Schedules; create/edit/delete is manager-only |
+| `/company/heatmap` | Staff | Outage heatmap with live intensity + feed |
 | `/company/map` | Staff | Heatmap, clusters, floods, hazards, risk |
 | `/company/power-stations` | Staff | Station directory |
 | `/company/notifications` | Staff | Inbox; composing is manager-only |
+| `/company/floods` | Staff | Flood review with status updates |
 | `/company/hazards` | Staff | Hazard review and status updates |
 | `/company/profile` | Staff | Account info + role capabilities |
 
@@ -329,8 +331,8 @@ blank page or the wrong app, check that value first.
 | Power stations | `create`, `get`, `get_available`, `get_near_location`, `get_my_posts`, `update` (owner), `delete` (owner) |
 | Notifications | `get`, `mark_as_read`, `mark_all_as_read`, `create` (manager) |
 | User location | `user_location/get`, `user_location/location` |
-| Floods | `create`, `get`, `get_nearby` |
-| Hazards | `create`, `get`, `get_nearby`, `update_status` (owner) |
+| Floods | `create`, `get`, `get_nearby`, `update_status` (staff) |
+| Hazards | `create`, `get`, `update_status` (owner) |
 | Risk areas | `risk/get_nearby` |
 | Heatmap / clusters | `heatmap/get`, `cluster/get`, `cluster/store` (staff) |
 
@@ -422,6 +424,7 @@ cookie so the rest of the app is unchanged.
 | `user_location/location.php` | `{ address*, barangay_name? }` - the client **cannot** send coordinates, so the location form is address-first. |
 | `notification/get.php` | returns `unread_count` (total unread) - used for the bell. `mark_as_read.php` expects `{ notification_id }`. |
 | `flood_report/create.php` | `{ location_name*, flood_level?, latitude?, longitude?, description?, barangay_name?, flood_depth_cm? }`; `flood_level` enum `low, moderate, high, severe`. |
+| `flood_report/update_status.php` | Staff-only. `{ flood_id*, status }` with `reported/verified/cleared`; stamps `updated_by`/`updated_at`, notifies reporter on `verified`/`cleared`. |
 | `electrical_hazard/create.php` | `{ location_name*, severity?, hazard_type?, latitude?, longitude?, description?, barangay_name? }`; `severity` enum `low, moderate, high, critical`; `update_status.php` expects `{ hazard_id, status }` with `reported/verified/resolved`. |
 | `risk/get_nearby.php` | `{ counts, data: { floods, hazards } }`; rows use `category` (`flood`/`hazard`), `risk_level` and `distance` (metres). |
 | `heatmap/get.php` | `?mode=by_barangay\|clusters&radius=&days=`; rows have `latitude`/`longitude`/`report_count`/`forecast_level` (intensity is derived from `report_count` for leaflet.heat). |

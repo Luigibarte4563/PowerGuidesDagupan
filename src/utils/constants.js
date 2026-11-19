@@ -228,6 +228,8 @@ export const COMPANY_QUERY_KEYS = {
   powerStations: (params) => ['company-power-stations', params],
   myStations: ['company-power-stations', 'mine'],
   hazards: (params) => ['company-hazards', params],
+  floods: (params) => ['company-floods', params],
+  heatmap: (params) => ['company-heatmap', params],
   clusters: (params) => ['company-clusters', params],
   /*
    * Every assignment query shares the `lineman-assignments` prefix so one invalidation

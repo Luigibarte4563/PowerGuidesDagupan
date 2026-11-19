@@ -19,6 +19,9 @@ import { apiRequest, pickList } from './client';
  */
 export const FLOOD_LEVELS = ['low', 'moderate', 'high', 'severe'];
 
+/** flood_reports.status enum. */
+export const FLOOD_STATUSES = ['reported', 'verified', 'cleared'];
+
 export const floodsApi = {
   async create(data, { signal } = {}) {
     return apiRequest('/api/flood_report/create.php', { method: 'POST', body: data, signal });
@@ -35,6 +38,11 @@ export const floodsApi = {
       signal,
     });
     return { items: pickList(payload), count: payload?.count ?? null, radius: payload?.radius ?? radius, raw: payload };
+  },
+
+  /** Staff-only: change any flood report's status. */
+  async updateStatus(data, { signal } = {}) {
+    return apiRequest('/api/flood_report/update_status.php', { method: 'POST', body: data, signal });
   },
 
   /** Owner-only. */

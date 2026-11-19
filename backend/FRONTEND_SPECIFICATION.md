@@ -1987,22 +1987,6 @@ error 404 / 403 handling per global contract
 UI Update: Status chip updates; if resolved, `resolved_at` shown and marker
 leaves active/risk layers; staff toast "Reporter notified".
 
-### 13.4 Nearby hazards (risk overlay data)
-
-Backend Feature: `GET /api/electrical_hazard/get_nearby.php?lat=&lng=&radius=`
-↓
-Frontend Page: **Map → risk layer (hazard component)**
-↓
-API Response:
-
-```
-{ "success": true, "count": k, "radius": 3000,
-  "data": [ { id, location_name, ... , hazard_type, distance }, ... ] }
-```
-
-(only unresolved hazards)
-
----
 
 ## 14. Electrocution-Risk Areas (combined)
 
@@ -2245,7 +2229,7 @@ COMPANY  : + Company (control center, notify), Manage Maintenance, Clusters
 | Battery device | battery/create | battery/get / get_history | battery/update / set_percentage / log_usage | battery/delete |
 | Safety timer | safety_timer/create | safety_timer/get | safety_timer/stop | safety_timer/delete |
 | Flood report | flood_report/create | flood_report/get / get_nearby | — | — |
-| Electrical hazard | electrical_hazard/create | electrical_hazard/get / get_nearby | electrical_hazard/update_status | — |
+| Electrical hazard | electrical_hazard/create | electrical_hazard/get | electrical_hazard/update_status | — |
 | Risk near | — | risk/get_nearby | — | — |
 | Heatmap | — | heatmap/get | — | — |
 | Cluster | cluster/store (staff) | cluster/get | — | — |
@@ -2396,7 +2380,6 @@ All under `API_BASE + "/api"`. `C` = company/admin. `S` = staff
 | `flood_report/get_nearby.php` | 12.3 | all |
 | `electrical_hazard/create.php` | 13.2 | user |
 | `electrical_hazard/get.php` | 13.1 | all |
-| `electrical_hazard/get_nearby.php` | 13.4 | all |
 | `electrical_hazard/update_status.php` | 13.3 | owner/staff |
 | `risk/get_nearby.php` | 14 | all |
 | `heatmap/get.php` | 15.1 | all |

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Building2, LayoutDashboard, Loader2, ShieldCheck, TriangleAlert } from 'lucide-react';
+import { Loader2, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardBody } from '@/components/ui/Card';
 import { authApi, setStoredToken } from '@/api';
 import { useAuth } from '@/context/AuthContext';
-import { appRootsFor, canChooseApp, landingPathFor, roleLabel } from '@/utils/roles';
+import { landingPathFor } from '@/utils/roles';
 import { takeOauthReturnTo } from '@/utils/oauthHandoff';
 import { GOOGLE_ERRORS } from './googleErrors';
 
@@ -20,12 +20,6 @@ const lp = {
 };
 
 const rgba = (rgb, alpha) => `rgba(${rgb}, ${alpha})`;
-
-const APP_CHOICES = [
-  { root: '/admin', label: 'Admin dashboard', icon: ShieldCheck, hint: 'Users, roles and platform analytics' },
-  { root: '/company', label: 'Company dashboard', icon: Building2, hint: 'Outage reports, maintenance and broadcasts' },
-  { root: '/dashboard', label: 'Resident app', icon: LayoutDashboard, hint: 'Report and track incidents near you' },
-];
 
 const cardStyle = {
   backgroundColor: lp.bg,
@@ -75,7 +69,6 @@ export default function GoogleCallback() {
   const { refresh } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState('');
-  const [pendingRole, setPendingRole] = useState('');
   const started = useRef(false);
 
   useEffect(() => {
@@ -110,61 +103,14 @@ export default function GoogleCallback() {
       // The role comes from me.php, never from the token string in the URL.
       const wanted = takeOauthReturnTo();
 
-      // Staff can reach BOTH apps, so a signed-in electric_company account is not
-      // locked into /company: if no specific destination was requested, offer the
-      // choice instead of silently choosing for them. Residents have one app and go
-      // straight there.
-      if (wanted || !canChooseApp(user.role)) {
-        navigate(landingPathFor(user.role, wanted), { replace: true });
-        return;
-      }
-
-      setPendingRole(user.role);
+      // Every signed-in account goes straight to its default app: admin → /admin,
+      // company staff → /company, residents → /dashboard. No app picker is shown.
+      navigate(landingPathFor(user.role, wanted), { replace: true });
+      return;
     };
 
     run();
   }, [searchParams, refresh, navigate]);
-
-  // The chooser: which app does this account want to work in?
-  if (pendingRole && !error) {
-    const options = APP_CHOICES.filter((choice) => appRootsFor(pendingRole).includes(choice.root));
-
-    return (
-      <div className="container-app flex min-h-[70vh] flex-col items-center justify-center gap-5 py-10 dashboard-bg">
-        <Card className="w-full max-w-md" style={cardStyle}>
-          <CardBody className="text-center" style={{ color: lp.navy }}>
-            <h1 className="text-xl font-bold" style={{ color: lp.navy }}>Where do you want to go?</h1>
-            <p className="mt-3 text-base leading-relaxed" style={{ color: rgba(lp.navyRgb, 0.6) }}>
-              You are signed in as{' '}
-              <span className="font-semibold" style={{ color: lp.navy }}>{roleLabel(pendingRole)}</span>. Your
-              account can use multiple apps - pick one to continue.
-            </p>
-
-            <div className="mt-6 grid gap-3">
-              {options.map((choice) => (
-                <Button
-                  key={choice.root}
-                  size="lg"
-                  fullWidth
-                  icon={choice.icon}
-                  onClick={() => navigate(choice.root, { replace: true })}
-                  style={primaryBtnStyle}
-                  onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.08)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.filter = 'none'; }}
-                >
-                  {choice.label}
-                </Button>
-              ))}
-            </div>
-
-            <p className="mt-4 text-sm" style={{ color: rgba(lp.navyRgb, 0.5) }}>
-              {options.map((choice) => choice.hint).join(' · ')}
-            </p>
-          </CardBody>
-        </Card>
-      </div>
-    );
-  }
 
   if (error) {
     return (

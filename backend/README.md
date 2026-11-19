@@ -84,7 +84,7 @@ CrowdsourcedAPI/
 │   ├── power_station/          # charging/solar/generator stations
 │   ├── notification/           # notifications
 │   ├── user_location/          # saved user locations
-│   ├── flood_report/           # flood reports
+│   ├── flood_report/           # flood reports (create, list, nearby, update_status)
 │   ├── electrical_hazard/      # electrical hazards
 │   ├── risk/                   # combined electrocution-risk areas
 │   ├── heatmap/                # outage heatmap & clustering
@@ -356,8 +356,8 @@ A full, per-endpoint reference with methods, roles, and request bodies is in
 | Power stations | `power_station/{create,get,get_available,get_my_posts,get_near_location,update,delete}.php` |
 | Notifications | `notification/{get,mark_as_read,mark_all_as_read,create}.php` |
 | User location | `user_location/{get,location}.php` |
-| Flood reports | `flood_report/{create,get,get_nearby}.php` |
-| Electrical hazards | `electrical_hazard/{create,get,get_nearby,update_status}.php` |
+| Flood reports | `flood_report/{create,get,get_nearby,update_status}.php` |
+| Electrical hazards | `electrical_hazard/{create,get,update_status}.php` |
 | Risk (electrocution) | `risk/get_nearby.php` |
 | Heatmap | `heatmap/get.php` |
 | Clusters | `cluster/{store,get}.php` |

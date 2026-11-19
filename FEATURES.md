@@ -206,6 +206,17 @@ inside a dashboard they cannot use.
 
 - Review reported hazards and update their status
 
+### Flood Review
+
+- Browse all flood reports with status, severity and barangay filters
+- Map view with severity-colored pins matching the outage/hazard review style
+- Update any flood report's status: `reported` → `verified` → `cleared`
+
+### Heatmap
+
+- Live outage heatmap by barangay with intensity-based color scale
+- Feed of hottest areas with report counts, severity score and confidence
+
 ### Profile
 
 - Account information plus the capabilities of your current role

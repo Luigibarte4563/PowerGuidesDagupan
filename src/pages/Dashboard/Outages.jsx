@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
-import { CircleMarker, Popup, ZoomControl } from 'react-leaflet';
+import { ZoomControl } from 'react-leaflet';
 import {
   Activity,
   AlertTriangle,
@@ -18,7 +18,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import AppMap, { MapLegend, SEVERITY_COLORS } from '@/components/Map';
+import AppMap, { MapLegend, MapPoints, SEVERITY_COLORS } from '@/components/Map';
 import { outagesApi } from '@/api';
 import { QUERY_KEYS } from '@/utils/constants';
 import { formatRelativeTime, formatTime, hasCoordinates } from '@/utils/formatters';
@@ -278,68 +278,55 @@ export default function Outages() {
             className="h-full w-full"
           >
             <ZoomControl position="bottomright" />
-            {mappableReports.map((outage) => {
-              const style = severityStyle(outage.severity);
-              return (
-                <CircleMarker
-                  key={outage.id}
-                  center={[Number(outage.lat), Number(outage.lng)]}
-                  radius={9}
-                  pathOptions={{
-                    color: '#ffffff',
-                    fillColor: style.color,
-                    fillOpacity: 0.88,
-                    opacity: 1,
-                    weight: 2,
-                  }}
-                >
-                  <Popup>
-                    <div className="font-montserrat">
-                      <div className="flex flex-wrap items-center gap-1.5">
+            <MapPoints items={mappableReports} toneFor={(outage) => severityStyle(outage.severity).color}>
+              {(outage) => {
+                const style = severityStyle(outage.severity);
+                return (
+                  <div className="font-montserrat">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span
+                        className="rounded-full border px-2 py-0.5 text-[8px] font-extrabold tracking-[0.14em]"
+                        style={{
+                          color: style.color,
+                          borderColor: `${style.color}45`,
+                          backgroundColor: `${style.color}18`,
+                        }}
+                      >
+                        {style.label}
+                      </span>
+                      {outage.status ? (
                         <span
-                          className="rounded-full border px-2 py-0.5 text-[8px] font-extrabold tracking-[0.14em]"
-                          style={{
-                            color: style.color,
-                            borderColor: `${style.color}45`,
-                            backgroundColor: `${style.color}18`,
-                          }}
+                          className={`rounded-full border px-2 py-0.5 text-[8px] font-extrabold tracking-[0.08em] ${statusClasses(outage.status)}`}
                         >
-                          {style.label}
+                          {formatLabel(outage.status)}
                         </span>
-                        {outage.status ? (
-                          <span
-                            className={`rounded-full border px-2 py-0.5 text-[8px] font-extrabold tracking-[0.08em] ${statusClasses(outage.status)}`}
-                          >
-                            {formatLabel(outage.status)}
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="mt-2 text-sm font-bold text-white">
-                        {outage.locationName || outage.barangay || 'Outage report'}
-                      </p>
-                      {outage.description ? (
-                        <p className="mt-1 max-w-[16rem] text-xs leading-relaxed text-white/55">
-                          {outage.description}
-                        </p>
-                      ) : null}
-                      <div className="mt-2.5 flex items-center justify-between gap-3 text-[9px] font-semibold uppercase tracking-wide text-white/35">
-                        <span className="truncate">{formatCategory(outage.category)}</span>
-                        <span className="shrink-0">{formatRelativeTime(outage.createdAt)}</span>
-                      </div>
-                      {isOwnedBy(outage, null, { myIds }) ? (
-                        <Link
-                          to={`/dashboard/outages/${outage.id}`}
-                          className="mt-3 inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide !text-[#f18f01] hover:!text-[#f6c200]"
-                        >
-                          View report details
-                          <ChevronRight className="h-3 w-3" aria-hidden="true" />
-                        </Link>
                       ) : null}
                     </div>
-                  </Popup>
-                </CircleMarker>
-              );
-            })}
+                    <p className="mt-2 text-sm font-bold text-white">
+                      {outage.locationName || outage.barangay || 'Outage report'}
+                    </p>
+                    {outage.description ? (
+                      <p className="mt-1 max-w-[16rem] text-xs leading-relaxed text-white/55">
+                        {outage.description}
+                      </p>
+                    ) : null}
+                    <div className="mt-2.5 flex items-center justify-between gap-3 text-[9px] font-semibold uppercase tracking-wide text-white/35">
+                      <span className="truncate">{formatCategory(outage.category)}</span>
+                      <span className="shrink-0">{formatRelativeTime(outage.createdAt)}</span>
+                    </div>
+                    {isOwnedBy(outage, null, { myIds }) ? (
+                      <Link
+                        to={`/dashboard/outages/${outage.id}`}
+                        className="mt-3 inline-flex items-center gap-1 text-[10px] font-extrabold uppercase tracking-wide !text-[#f18f01] hover:!text-[#f6c200]"
+                      >
+                        View report details
+                        <ChevronRight className="h-3 w-3" aria-hidden="true" />
+                      </Link>
+                    ) : null}
+                  </div>
+                );
+              }}
+            </MapPoints>
             </AppMap>
 
             <div className="pointer-events-none absolute left-3 top-3 z-[500] rounded-full border border-white/10 bg-[#153243]/80 px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[0.16em] text-white/60 shadow-xl backdrop-blur-md">

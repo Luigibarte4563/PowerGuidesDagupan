@@ -87,14 +87,14 @@ export default function RecordCard({
               ))}
             </div>
             {subtitle ? (
-              <span className="shrink-0 truncate text-[8.5px] font-medium text-white/35">{subtitle}</span>
+              <span className="shrink-0 truncate text-[8.5px] font-medium text-[var(--white-60)]">{subtitle}</span>
             ) : null}
           </div>
 
           <h3 className="mt-1 truncate text-[13px] font-bold leading-tight text-white">{title}</h3>
 
           {description ? (
-            <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-white/50">{description}</p>
+            <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-[var(--white-60)]">{description}</p>
           ) : null}
 
           {meta.length || actions ? (

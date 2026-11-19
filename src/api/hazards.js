@@ -17,8 +17,6 @@ import { apiRequest, pickList } from './client';
  *                         { id, reported_by, location_name, latitude, longitude, description,
  *                           severity, status, image_proof, reported_at, resolved_at,
  *                           barangay_name, hazard_type }
- *   get_nearby.php      ?lat=&lng=&radius= (metres, server default 3000) -> same rows minus
- *                         image_proof, plus `distance` (metres)
  *   update_status.php   POST { status*, hazard_id* } (owner-only)
  *                         `status` enum: reported | verified | resolved
  */
@@ -42,14 +40,6 @@ export const hazardsApi = {
   async list(params, { signal } = {}) {
     const payload = await apiRequest('/api/electrical_hazard/get.php', { params, signal });
     return { items: pickList(payload), count: payload?.count ?? null, raw: payload };
-  },
-
-  async getNearby({ lat, lng, radius, ...params } = {}, { signal } = {}) {
-    const payload = await apiRequest('/api/electrical_hazard/get_nearby.php', {
-      params: { lat, lng, radius, ...params },
-      signal,
-    });
-    return { items: pickList(payload), count: payload?.count ?? null, radius: payload?.radius ?? radius, raw: payload };
   },
 
   /** Owner-only. */

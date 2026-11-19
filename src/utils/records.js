@@ -97,9 +97,9 @@ export function readImages(record) {
  *
  * The only structural differences from `readOutage` are handled by the shared keys,
  * so this adds the staff-specific context instead of duplicating the row:
- *   - `reporter` is a LABEL, not a name. Neither endpoint joins `users`, so the best
- *     available handle is the resident's `user_id` - showing a real name would mean
- *     fetching every reporter's profile.
+ *   - `reporter` is the reporter's real name. All three source endpoints emit
+ *     `reporter_name` via a LEFT JOIN on `users`; an orphaned row falls back to a
+ *     plain label rather than exposing the numeric id.
  *   - `isActive` is the server's flag, kept separate from `status` because
  *     `update_single.php` clears `is_active` on `resolved` while the status column
  *     still carries the full history.
@@ -113,7 +113,7 @@ export const readCompanyOutage = (record) => {
   return {
     ...base,
     reporterId,
-    reporter: reporterId === null ? 'Unknown reporter' : `Resident #${reporterId}`,
+    reporter: readField(record, ['reporter_name', 'reported_by_name'], '') || 'Unknown reporter',
     /** `outage/get.php` returns `report_key`; the company-scoped list does not. */
     reportKey: readField(record, ['report_key'], ''),
     isVerified: (base.verifications || []).some(
@@ -299,7 +299,9 @@ export const readFlood = (record) => ({
   lng: toNumber(readField(record, ['longitude', 'lng'], null), null),
   distance: toNumber(readField(record, ['distance'], null), null),
   createdAt: readField(record, ['reported_at', 'created_at'], ''),
+  resolvedAt: readField(record, ['resolved_at'], ''),
   updatedAt: readField(record, ['updated_at'], ''),
+  updatedBy: toNumber(readField(record, ['updated_by', 'updated_by_id'], null), null),
   ownerId: toNumber(readField(record, ['reported_by', 'user_id'], null), null),
 });
 
@@ -320,6 +322,7 @@ export const readHazard = (record) => ({
   createdAt: readField(record, ['reported_at', 'created_at'], ''),
   resolvedAt: readField(record, ['resolved_at'], ''),
   updatedAt: readField(record, ['updated_at'], ''),
+  updatedBy: toNumber(readField(record, ['updated_by', 'updated_by_id'], null), null),
   ownerId: toNumber(readField(record, ['reported_by', 'user_id'], null), null),
 });
 

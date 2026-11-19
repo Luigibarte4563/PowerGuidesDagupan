@@ -83,7 +83,7 @@ export default function Modal({
   return createPortal(
     <div className="fixed inset-0 z-[900] flex items-end justify-center overflow-y-auto p-0 sm:items-center sm:p-6">
       <div
-        className={clsx('fixed inset-0 animate-fade-in', bare ? 'bg-[#153243]/80 backdrop-blur-md' : 'bg-navy-950/50')}
+        className={clsx('fixed inset-0 animate-fade-in', bare ? 'bg-[#153243]/80 backdrop-blur-md' : 'bg-[#153243]/80')}
         onClick={closeOnBackdrop ? onClose : undefined}
         aria-hidden="true"
       />
@@ -98,7 +98,7 @@ export default function Modal({
           'relative z-10 w-full focus:outline-none',
           bare
             ? 'animate-dialog-in'
-            : 'animate-slide-up rounded-t-2xl bg-white shadow-pop dark:bg-navy-800 dark:shadow-pop-dark sm:rounded-card',
+            : 'animate-slide-up rounded-t-2xl bg-[#153243] shadow-pop-dark sm:rounded-card',
           !bare && (SIZES[size] || SIZES.md),
           className
         )}
@@ -129,7 +129,7 @@ export default function Modal({
             <div className="max-h-[70vh] overflow-y-auto p-5">{children}</div>
 
             {footer ? (
-              <div className="flex flex-wrap items-center justify-end gap-2 border-t border-navy-100 bg-navy-50/60 p-4 dark:border-navy-700 dark:bg-navy-900/60 sm:rounded-b-card">
+              <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[#153243] bg-[#153243]/90 p-4 sm:rounded-b-card">
                 {footer}
               </div>
             ) : null}

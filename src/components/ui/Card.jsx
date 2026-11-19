@@ -22,7 +22,7 @@ export function CardHeader({ children, className, description, action }) {
     <div className={clsx('flex flex-wrap items-start justify-between gap-3 border-b border-navy-100 p-5 dark:border-navy-700', className)}>
       <div className="min-w-0">
         <h2 className="text-base font-bold text-navy-900 dark:text-white">{children}</h2>
-        {description ? <p className="mt-1 text-sm text-navy-500 dark:text-navy-400">{description}</p> : null}
+        {description ? <p className="mt-1 text-sm text-navy-500 dark:text-[var(--white-60)]">{description}</p> : null}
       </div>
       {action ? <div className="flex shrink-0 items-center gap-2">{action}</div> : null}
     </div>
@@ -67,7 +67,7 @@ export function StatCard({ label, value, icon: Icon, tone = 'primary', hint, to,
       )}
     >
       <div className="min-w-0">
-        <p className="text-sm font-medium text-navy-500 dark:text-navy-400">{label}</p>
+        <p className="text-sm font-medium text-navy-500 dark:text-[var(--white-60)]">{label}</p>
         <p className="mt-2 text-2xl font-extrabold text-navy-900 dark:text-white">{value}</p>
         {hint ? <p className="mt-1 text-xs text-navy-400 dark:text-navy-400">{hint}</p> : null}
         {action ? <div className="mt-3">{action}</div> : null}

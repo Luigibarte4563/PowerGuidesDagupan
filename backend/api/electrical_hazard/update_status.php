@@ -57,6 +57,13 @@ try {
     $sql = "UPDATE electrical_hazards SET status = :status";
     $params = [":status" => $status, ":id" => $hazard_id];
 
+    /* The lineman assigned to carry out this status change (optional). */
+    $updatedBy = (int)($data["updated_by"] ?? 0);
+    if ($updatedBy > 0) {
+        $sql .= ", updated_by = :updated_by";
+        $params[":updated_by"] = $updatedBy;
+    }
+
     if ($status === 'resolved') {
         $sql .= ", resolved_at = NOW()";
     }

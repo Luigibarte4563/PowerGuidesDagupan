@@ -1,11 +1,13 @@
 import {
   AlertTriangle,
   Bell,
+  Flame,
   LayoutDashboard,
   Map as MapIcon,
   Plug,
   User,
   UserCheck,
+  Waves,
   Wrench,
   Zap,
 } from 'lucide-react';
@@ -19,7 +21,9 @@ import {
  */
 export const COMPANY_NAV = [
   { to: '/company', label: 'Dashboard', icon: LayoutDashboard, end: true, group: 'Monitor' },
+  { to: '/company/heatmap', label: 'Heatmap', icon: Flame, group: 'Monitor' },
   { to: '/company/outages', label: 'Outage Reports', icon: Zap, group: 'Respond' },
+  { to: '/company/floods', label: 'Flood Review', icon: Waves, group: 'Respond' },
   { to: '/company/hazards', label: 'Hazard Review', icon: AlertTriangle, group: 'Respond' },
   { to: '/company/assignments', label: 'Lineman Assignments', icon: UserCheck, group: 'Plan' },
   { to: '/company/maintenance', label: 'Maintenance', icon: Wrench, group: 'Plan' },

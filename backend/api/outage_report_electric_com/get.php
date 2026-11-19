@@ -24,6 +24,7 @@ try {
         SELECT
             orp.id,
             orp.user_id,
+            CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name) AS reporter_name,
             orp.location_name,
             orp.latitude,
             orp.longitude,
@@ -41,6 +42,7 @@ try {
             orp.status AS status
         FROM outage_reports orp
         LEFT JOIN barangays b    ON b.id = orp.barangay_id
+        LEFT JOIN users u        ON u.id = orp.user_id
         WHERE 1=1
     ";
 
@@ -51,7 +53,7 @@ try {
         $params[':status'] = $status;
     }
     if (!empty($severity)) {
-        $sql .= " AND sl.severity_name = :severity";
+        $sql .= " AND orp.severity = :severity";
         $params[':severity'] = $severity;
     }
     if ($active !== null) {

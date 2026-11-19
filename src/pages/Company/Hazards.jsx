@@ -1,41 +1,39 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ZoomControl } from 'react-leaflet';
-import { AlertTriangle, CheckCircle2, Crosshair, MapPin, ShieldCheck, XCircle } from 'lucide-react';
+import { AlertTriangle, ArrowUpDown, CheckCircle2, MapPin, ShieldCheck, UserCheck, XCircle } from 'lucide-react';
 import Pagination from '@/components/Pagination';
 import Badge from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Select } from '@/components/ui/Select';
 import { InfoNote } from '@/components/ui/Alert';
-import { LoadingState } from '@/components/ui/States';
 import DataView from '@/components/DataView';
 import RecordCard from '@/components/RecordCard';
 import AppMap, {
   FitPoints,
-  MapCircle,
   MapLegend,
-  MapPin as MapPinMarker,
   MapPoints,
   MapView,
   SEVERITY_COLORS,
 } from '@/components/Map';
-import MapPicker from '@/components/MapPicker';
 import MapWorkspace, { FeedActions, FeedPills, FeedToggle } from '@/components/MapWorkspace';
+import Modal from '@/components/ui/Modal';
+import StatusChangeDialog from '@/components/StatusChangeDialog';
 import { useReference } from '@/context/ReferenceContext';
+import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useLinemenList } from '@/hooks/useLinemanAssignments';
 import { hazardsApi, HAZARD_STATUSES } from '@/api';
 import {
   COMPANY_PAGE_SIZE,
   COMPANY_QUERY_KEYS,
-  DEFAULT_RADIUS_METERS,
-  RADIUS_OPTIONS,
   severityTone,
   statusTone,
 } from '@/utils/constants';
-import { readHazard, resolveImageUrl, withDistance } from '@/utils/records';
-import { formatDateTime, formatDistance, formatRelativeTime, formatTime, hasCoordinates, humanize } from '@/utils/formatters';
+import { readHazard, resolveImageUrl } from '@/utils/records';
+import { formatDateTime, formatRelativeTime, formatTime, humanize } from '@/utils/formatters';
 import { toUserMessage } from '@/utils/errorMessage';
 
 const TABS = [
@@ -52,7 +50,7 @@ const STATUS_ACTIONS = {
 };
 
 /**
- * Module HAZ - electrical hazard review (FR-HAZ-1, FR-HAZ-2, FR-HAZ-3).
+ * Module HAZ - electrical hazard review (FR-HAZ-1, FR-HAZ-2).
  *
  * `electrical_hazard/get.php` has no role check, but `update_status.php` lets a staff
  * role change ANY hazard (not just the reporter's), so both actions are offered to
@@ -66,10 +64,6 @@ const STATUS_ACTIONS = {
  * `resolved_at` when moving TO resolved, and never clears it), so the server keeps a
  * stale resolution timestamp on a reopened record - surfaced in the confirm copy
  * rather than hidden.
- *
- * FR-HAZ-3 gets its own panel at the bottom rather than a filter above: it is a different
- * endpoint (`get_nearby.php`), it takes a point and a radius instead of the list's filters,
- * and it is the only one of the two that reports how far away each hazard is.
  */
 export default function Hazards() {
   const { barangays, severityLevels } = useReference();
@@ -81,9 +75,36 @@ export default function Hazards() {
   const [barangay, setBarangay] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [probe, setProbe] = useState(null);
-  const [probeRadius, setProbeRadius] = useState(DEFAULT_RADIUS_METERS);
   const debouncedSearch = useDebouncedValue(search);
+
+  const { isManager } = useAuth();
+  // Only managers may pick which lineman carries out a status change.
+  const linemenQuery = useLinemenList({ enabled: isManager });
+
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignHazard, setAssignHazard] = useState(null);
+  const [assignStatus, setAssignStatus] = useState('');
+  const [assignLinemanId, setAssignLinemanId] = useState('');
+  const [statusTarget, setStatusTarget] = useState(null);
+
+  const closeAssign = () => {
+    setAssignOpen(false);
+    setAssignHazard(null);
+    setAssignStatus('');
+    setAssignLinemanId('');
+  };
+
+  const linemanOptions = useMemo(
+    () =>
+      (linemenQuery.data || []).map((person) => ({
+        value: String(person.id),
+        label: person.email ? `${person.name} · ${person.email}` : person.name,
+      })),
+    [linemenQuery.data]
+  );
+
+  const resolveLinemanName = (linemanId) =>
+    (linemenQuery.data || []).find((person) => person.id === linemanId)?.name;
 
   const listQuery = useQuery({
     queryKey: COMPANY_QUERY_KEYS.hazards({ tab, severity, barangay }),
@@ -116,6 +137,7 @@ export default function Hazards() {
     mutationFn: ({ hazardId, status }) => hazardsApi.updateStatus({ hazard_id: hazardId, status }),
     onSuccess: (_result, variables) => {
       toast.success(`Hazard moved to ${humanize(variables.status)}.`, { title: 'Status updated' });
+      setStatusTarget(null);
       queryClient.invalidateQueries({ queryKey: COMPANY_QUERY_KEYS.hazards({}) });
       // The map layer and the risk query read the same table.
       queryClient.invalidateQueries({ queryKey: ['company-outages'] });
@@ -132,83 +154,6 @@ export default function Hazards() {
     [rows]
   );
 
-  /**
-   * FR-HAZ-3 - `electrical_hazard/get_nearby.php` around a point the user picks.
-   *
-   * A separate request from the list above because this endpoint returns `distance` per
-   * row, which is what makes the answer useful ("which of these is closest to the crew"),
-   * and because it re-reads the radius the picker was last set to. Results are ordered
-   * by that distance rather than by the list's own ordering.
-   */
-  const nearbyQuery = useQuery({
-    queryKey: COMPANY_QUERY_KEYS.hazards({ nearby: probe, radius: probeRadius }),
-    queryFn: async ({ signal }) =>
-      (await hazardsApi.getNearby({ ...probe, radius: probeRadius }, { signal })).items.map(readHazard),
-    enabled: Boolean(probe),
-    retry: 1,
-  });
-
-  const nearby = useMemo(() => {
-    const list = nearbyQuery.data || [];
-    if (!probe || !hasCoordinates(probe.lat, probe.lng)) return list;
-    // `get_nearby.php` supplies `distance`; `withDistance` fills it in when it does not,
-    // so a row is never shown with an unknown distance. Nearest first is the useful order
-    // for a crew deciding where to go.
-    return list
-      .map((hazard) => withDistance(hazard, probe))
-      .sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
-  }, [nearbyQuery.data, probe]);
-
-  const nearbyPoints = useMemo(
-    () => nearby.filter((hazard) => Number.isFinite(hazard.lat) && Number.isFinite(hazard.lng)),
-    [nearby]
-  );
-
-  // The hazard map keeps showing the list; picking a point only feeds the lookup panel.
-  const probeMap =
-    !probe || !hasCoordinates(probe.lat, probe.lng) ? null : (
-      <AppMap zoom={15} className="h-full w-full">
-        <MapView center={probe} />
-        <FitPoints items={nearbyPoints} />
-        <MapPoints items={nearbyPoints} toneFor={() => 'danger'} glyphFor={() => 'H'}>
-          {(hazard) => (
-            <div className="min-w-[12rem]">
-              <p className="font-bold text-navy-900">
-                {hazard.locationName || hazard.barangay || 'Electrical hazard'}
-              </p>
-              <p className="mt-0.5 text-xs text-navy-500">
-                {[hazard.barangay, hazard.distance ? formatDistance(hazard.distance) : null]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </p>
-              {hazard.severity ? (
-                <Badge tone={severityTone(hazard.severity)} size="sm" className="mt-2">
-                  {humanize(hazard.severity)}
-                </Badge>
-              ) : null}
-            </div>
-          )}
-        </MapPoints>
-        <MapCircle center={probe} radius={probeRadius} color="#22D3EE" fillOpacity={0.06} />
-        <MapPinMarker position={probe} tone="primary">
-          <p className="font-bold text-navy-900">Search centre</p>
-          <p className="mt-0.5 text-xs text-navy-500">
-            {probe.lat.toFixed(5)}, {probe.lng.toFixed(5)}
-          </p>
-        </MapPinMarker>
-        <MapLegend
-          title="Distance"
-          items={
-            nearbyPoints.length
-              ? nearbyPoints.slice(0, 5).map((hazard, index) => ({
-                  label: hazard.distance ? formatDistance(hazard.distance) : `Result ${index + 1}`,
-                  tone: index === 0 ? 'danger' : index < 3 ? 'warning' : 'primary',
-                }))
-              : []
-          }
-        />
-      </AppMap>
-    );
 
   const hazardMap =
     mapped.length === 0 ? (
@@ -364,6 +309,9 @@ export default function Hazards() {
             }}
             renderCard={(hazard) => {
               const action = STATUS_ACTIONS[String(hazard.status ?? '').toLowerCase()];
+              const assignedLineman = hazard.updatedBy
+                ? resolveLinemanName(hazard.updatedBy) || 'Unknown lineman'
+                : null;
               return (
                 <RecordCard
                   variant="feed"
@@ -382,23 +330,32 @@ export default function Hazards() {
                       ? { label: humanize(hazard.severity), tone: severityTone(hazard.severity) }
                       : null,
                     hazard.status ? { label: humanize(hazard.status), tone: statusTone(hazard.status) } : null,
+                    assignedLineman ? { label: `Assigned: ${assignedLineman}`, tone: 'info' } : null,
                   ]}
                   description={hazard.description}
                   meta={[{ label: 'Reported', value: formatDateTime(hazard.createdAt) }]}
                   actions={
-                    action ? (
-                      <Button
-                        size="xs"
-                        variant={action.tone}
-                        icon={action.icon}
-                        loading={statusMutation.isPending && statusMutation.variables?.hazardId === hazard.id}
-                        onClick={() =>
-                          statusMutation.mutate({ hazardId: hazard.id, status: action.value })
-                        }
-                      >
-                        {action.label}
+                    <>
+                      {isManager && action ? (
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          icon={UserCheck}
+                          onClick={() => {
+                            setAssignHazard(hazard);
+                            setAssignStatus(action.value);
+                            setAssignLinemanId('');
+                            setAssignOpen(true);
+                          }}
+                          aria-label={`Assign a lineman in ${hazard.barangay || 'this barangay'}`}
+                        >
+                          Assign
+                        </Button>
+                      ) : null}
+                      <Button size="xs" variant="outline" icon={ArrowUpDown} onClick={() => setStatusTarget(hazard)}>
+                        Change status
                       </Button>
-                    ) : null
+                    </>
                   }
                 >
                   {hazard.image ? (
@@ -431,138 +388,78 @@ export default function Hazards() {
         </div>
       </MapWorkspace>
 
-      {/* FR-HAZ-3 - the point/radius lookup, kept out of the filter card above because
-          it is a separate endpoint with its own answer rather than a filter on the list. */}
-      <Card>
-        <CardHeader description="electrical_hazard/get_nearby.php around any point, nearest first.">
-          <span className="inline-flex items-center gap-2">
-            <Crosshair className="h-4 w-4 text-primary-600" aria-hidden="true" />
-            Hazards near a point
-          </span>
-        </CardHeader>
-        <CardBody className="space-y-4">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-            <div className="space-y-3">
-              <MapPicker
-                label="Pick a centre point"
-                value={probe}
-                onChange={setProbe}
-                height="h-56"
-              />
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold text-navy-600">Radius</span>
-                {RADIUS_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setProbeRadius(option.value)}
-                    aria-pressed={probeRadius === option.value}
-                    className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition ${
-                      probeRadius === option.value
-                        ? 'border-primary-400 bg-primary-100 text-primary-800'
-                        : 'border-navy-200 bg-white text-navy-600 hover:bg-navy-50'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-                {probe ? (
-                  <Button size="sm" variant="ghost" onClick={() => setProbe(null)}>
-                    Clear point
-                  </Button>
-                ) : null}
-              </div>
-            </div>
+      <Modal
+        open={assignOpen}
+        onClose={statusMutation.isPending ? undefined : closeAssign}
+        title="Assign lineman & update status"
+        size="sm"
+        closeOnBackdrop={!statusMutation.isPending}
+        description={
+          assignHazard
+            ? `Assign a lineman to ${humanize(assignStatus)} this hazard: ${assignHazard.locationName || assignHazard.barangay || 'Electrical hazard'}.`
+            : ''
+        }
+      >
+        <div className="space-y-3">
+          <Select
+            label="Lineman"
+            required
+            options={linemanOptions}
+            placeholder={
+              linemenQuery.isLoading ? 'Loading linemen…' : 'Select a lineman'
+            }
+            loading={linemenQuery.isLoading}
+            disabled={statusMutation.isPending}
+            value={assignLinemanId}
+            onChange={(event) => setAssignLinemanId(event.target.value)}
+            error={
+              assignOpen && !assignLinemanId ? 'Choose a lineman' : undefined
+            }
+          />
+          {linemenQuery.isError && (
+            <InfoNote>
+              The lineman list could not be loaded. Check your connection and try again.
+            </InfoNote>
+          )}
+        </div>
+        <footer className="mt-4">
+          <Button
+            variant="outline"
+            onClick={closeAssign}
+            disabled={statusMutation.isPending}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              if (!assignLinemanId || !assignHazard) return;
+              closeAssign();
+              statusMutation.mutate({
+                hazardId: assignHazard.id,
+                status: assignStatus,
+                updated_by: Number(assignLinemanId),
+              });
+            }}
+            loading={statusMutation.isPending}
+            disabled={!assignLinemanId || !assignHazard || statusMutation.isPending}
+          >
+            Assign & update
+          </Button>
+        </footer>
+      </Modal>
 
-            <div className="space-y-3">
-              {/* `h-72` rather than `h-full`: this map sits in a normal flow card, not in
-                  `MapWorkspace`'s fixed-height pane, so it needs its own height. */}
-              {probe ? (
-                <div className="h-72 w-full overflow-hidden rounded-card border border-navy-200">
-                  {probeMap}
-                </div>
-              ) : null}
-              {!probe ? (
-                <p className="text-sm text-navy-500">
-                  Pick a point on the map to search for hazards around it. The lookup is a
-                  separate call from the list, so it ignores the filters above.
-                </p>
-              ) : nearbyQuery.isLoading ? (
-                <LoadingState label="Checking nearby hazards…" />
-              ) : nearbyQuery.isError ? (
-                <InfoNote>
-                  {toUserMessage(nearbyQuery.error, 'The nearby hazard lookup failed.')}{' '}
-                  <button
-                    type="button"
-                    className="font-semibold underline"
-                    onClick={() => nearbyQuery.refetch()}
-                  >
-                    Try again
-                  </button>
-                  .
-                </InfoNote>
-              ) : nearby.length === 0 ? (
-                <p className="text-sm text-navy-500">
-                  No hazards within {formatDistance(probeRadius)} of that point.
-                </p>
-              ) : (
-                <>
-                  <p className="text-xs text-navy-500">
-                    {nearby.length} hazard{nearby.length === 1 ? '' : 's'} within{' '}
-                    {formatDistance(probeRadius)}, nearest first.
-                  </p>
-                  <ul className="space-y-2">
-                    {nearby.slice(0, 8).map((hazard) => (
-                      <li key={hazard.id} className="rounded-control border border-navy-100 p-3">
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <p className="text-sm font-semibold text-navy-900">
-                            {hazard.locationName || hazard.barangay || 'Electrical hazard'}
-                          </p>
-                          <span className="shrink-0 text-xs font-semibold text-navy-600">
-                            {hazard.distance === null ? '—' : formatDistance(hazard.distance)}
-                          </span>
-                        </div>
-                        <p className="mt-0.5 text-xs text-navy-500">
-                          {[
-                            humanize(hazard.hazardType, 'Hazard'),
-                            hazard.barangay,
-                            `reported ${formatRelativeTime(hazard.createdAt)}`,
-                          ]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </p>
-                        <div className="mt-1.5 flex flex-wrap gap-1">
-                          {hazard.severity ? (
-                            <Badge tone={severityTone(hazard.severity)} size="sm">
-                              {humanize(hazard.severity)}
-                            </Badge>
-                          ) : null}
-                          {hazard.status ? (
-                            <Badge tone={statusTone(hazard.status)} size="sm">
-                              {humanize(hazard.status)}
-                            </Badge>
-                          ) : null}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                  {nearby.length > 8 ? (
-                    <p className="text-xs text-navy-400">
-                      Showing the 8 closest of {nearby.length}. Narrow the radius to see fewer.
-                    </p>
-                  ) : null}
-                </>
-              )}
-            </div>
-          </div>
-
-          <InfoNote>
-            This endpoint has no status filter and drops the image proof from each row, so it is
-            a situational aid for dispatching a crew. Confirming or closing a hazard still
-            happens on the list above.
-          </InfoNote>
-        </CardBody>
-      </Card>
+      <StatusChangeDialog
+        open={Boolean(statusTarget)}
+        reportLabel={statusTarget?.locationName || statusTarget?.barangay}
+        currentStatus={statusTarget?.status}
+        statuses={HAZARD_STATUSES}
+        hint="Reopening a resolved hazard does not clear its stored resolution timestamp."
+        onClose={() => setStatusTarget(null)}
+        onSubmit={(nextStatus) =>
+          statusMutation.mutateAsync({ hazardId: statusTarget.id, status: nextStatus })
+        }
+        loading={statusMutation.isPending}
+      />
 
       <p className="text-xs text-navy-400">
         Statuses are the database enum: {HAZARD_STATUSES.map((value) => humanize(value)).join(', ')}.

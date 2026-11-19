@@ -55,6 +55,9 @@ function BaseLayer() {
   );
 }
 
+/** Dark outline drawn outside the light ring so pins stay visible on pale tiles. */
+const PIN_OUTLINE = '#0B1B26';
+
 const PIN_COLORS = {
   primary: '#f18f01',
   danger: '#FF2E1F',
@@ -110,20 +113,20 @@ export const POWER_STATION_COLORS = {
  * marker images).
  *
  * Geometry lives in a 32 x 42 box: a circular head (r 11.5, centred at y 14.5)
- * tapering to a tip at `PIN_TIP_Y`. The tip stops just short of the box floor so
- * its white outline is not clipped, and `iconAnchor` is derived from `PIN_TIP_Y`
- * so the tip - not the box centre - sits on the coordinate.
+ * tapering to a tip at `PIN_TIP_Y`. The tip stops short of the box floor so its
+ * white outline and the dark underlay are not clipped, and `iconAnchor` is derived
+ * from `PIN_TIP_Y` so the tip - not the box centre - sits on the coordinate.
  */
 const PIN_BOX = { width: 32, height: 42 };
-const PIN_TIP_Y = 40.5;
+const PIN_TIP_Y = 38.5;
 const PIN_PATH =
   `M16 ${PIN_TIP_Y}C16 ${PIN_TIP_Y} 4.5 26 4.5 14.5` +
   'A11.5 11.5 0 1 1 27.5 14.5' +
   `C27.5 26 16 ${PIN_TIP_Y} 16 ${PIN_TIP_Y}Z`;
 const PIN_HEAD = { cx: 16, cy: 14.5, r: 4.5 };
-const PIN_WIDTH = 30;
-/** Diameter of the round record pin (MapPoints) — 2x the Outages CircleMarker radius. */
-const PIN_DOT_WIDTH = 18;
+const PIN_WIDTH = 34;
+/** Diameter of the round record pin (MapPoints). */
+const PIN_DOT_WIDTH = 22;
 
 const escapeHtml = (value) =>
   String(value).replace(/[&<>"']/g, (character) => {
@@ -147,6 +150,7 @@ export function pinSvg(tone = 'primary', glyph = '') {
 
   return (
     `<svg viewBox="0 0 ${PIN_BOX.width} ${PIN_BOX.height}" width="100%" height="100%" aria-hidden="true" focusable="false">` +
+    `<path d="${PIN_PATH}" fill="${color}" stroke="${PIN_OUTLINE}" stroke-width="5" stroke-linejoin="round" />` +
     `<path d="${PIN_PATH}" fill="${color}" stroke="#ffffff" stroke-width="2.5" stroke-linejoin="round" />` +
     centre +
     `</svg>`
@@ -174,13 +178,23 @@ export function pinIcon(tone = 'primary', glyph = '', options = {}) {
 }
 
 /**
- * The record pin used by every map: a white-ringed circle, matching the Outages
- * map's `CircleMarker` look (white 2px ring, tone-coloured fill at 0.88). An
- * optional glyph letter renders centred in white for the staff maps.
+ * The record pin used by every map: a white-ringed circle with a dark outer edge,
+ * so it reads on both pale tiles and dark overlays. An optional glyph letter
+ * renders centred in white for the staff maps.
  * `size` is the circle DIAMETER in pixels.
  */
-export function circlePinSvg(tone = 'primary', glyph = '', size = PIN_DOT_WIDTH, pulse = true) {
+export function circlePinSvg(tone = 'primary', glyph = '', size = PIN_DOT_WIDTH, pulse = true, soft = false) {
   const color = PIN_COLORS[tone] || tone || PIN_COLORS.primary;
+  // Heatmap marker: layered translucent colour instead of a solid, ringed pin.
+  if (soft) {
+    return (
+      `<svg viewBox="0 0 18 18" width="100%" height="100%" aria-hidden="true" focusable="false">` +
+      `<circle cx="9" cy="9" r="8.5" fill="${color}" fill-opacity="0.14" />` +
+      `<circle cx="9" cy="9" r="5.5" fill="${color}" fill-opacity="0.3" />` +
+      `<circle cx="9" cy="9" r="2.5" fill="${color}" fill-opacity="0.45" />` +
+      `</svg>`
+    );
+  }
   const centre = glyph
     ? `<text x="9" y="9" text-anchor="middle" dominant-baseline="central" font-size="${Math.max(9, Math.round(size * 0.42))}" font-weight="700" fill="#ffffff">${escapeHtml(glyph)}</text>`
     : '';
@@ -190,19 +204,20 @@ export function circlePinSvg(tone = 'primary', glyph = '', size = PIN_DOT_WIDTH,
   return (
     `<svg viewBox="0 0 18 18" width="100%" height="100%" aria-hidden="true" focusable="false">` +
     pulseRing +
-    `<circle cx="9" cy="9" r="7.5" fill="${color}" fill-opacity="0.88" stroke="#ffffff" stroke-width="2" />` +
+    `<circle cx="9" cy="9" r="7.4" fill="none" stroke="${PIN_OUTLINE}" stroke-width="2.4" />` +
+    `<circle cx="9" cy="9" r="6.8" fill="${color}" fill-opacity="0.88" stroke="#ffffff" stroke-width="2" />` +
     centre +
     `</svg>`
   );
 }
 
 export function circlePinIcon(tone = 'primary', glyph = '', options = {}) {
-  const { size = PIN_DOT_WIDTH, className = '', pulse = true } = options;
+  const { size = PIN_DOT_WIDTH, className = '', pulse = true, soft = false } = options;
   const width = Math.max(12, Math.round(Number(size) || PIN_DOT_WIDTH));
 
   return L.divIcon({
-    className: clsx('pg-pin', pulse ? 'pulse-marker' : '', className),
-    html: circlePinSvg(tone, glyph, width, pulse),
+    className: clsx('pg-pin', pulse && !soft ? 'pulse-marker' : '', className),
+    html: circlePinSvg(tone, glyph, width, pulse, soft),
     iconSize: [width, width],
     iconAnchor: [width / 2, width / 2],
     popupAnchor: [0, -width / 2 + 4],
@@ -310,8 +325,8 @@ export function MapPin({ position, tone = 'primary', glyph = '', size, children 
   );
 }
 
-/** Many records drawn as the white-ringed circle pin (one marker each). */
-export function MapPoints({ items = [], toneFor, size = PIN_DOT_WIDTH, glyphFor, children }) {
+/** Many records drawn as circle pins (one marker each); `soft` gives translucent heat blobs. */
+export function MapPoints({ items = [], toneFor, size = PIN_DOT_WIDTH, glyphFor, children, soft = false }) {
   return (
     <>
       {items.map((item, index) => {
@@ -323,7 +338,7 @@ export function MapPoints({ items = [], toneFor, size = PIN_DOT_WIDTH, glyphFor,
           <Marker
             key={item.id ?? `${lat}-${lng}-${index}`}
             position={[lat, lng]}
-            icon={circlePinIcon(tone, glyphFor ? glyphFor(item) : '', { size })}
+            icon={circlePinIcon(tone, glyphFor ? glyphFor(item) : '', { size, soft })}
           >
             {children ? <Popup>{children(item)}</Popup> : null}
           </Marker>
@@ -535,15 +550,11 @@ export function HeatLayer({
       return undefined;
     }
 
-    let layer = null;
-    let cancelled = false;
-
-    layer = L.heatLayer(validPoints, { radius, blur, minOpacity, maxZoom, gradient });
+    const layer = L.heatLayer(validPoints, { radius, blur, minOpacity, maxZoom, gradient });
     layer.addTo(map);
 
     return () => {
-      cancelled = true;
-      if (layer) map.removeLayer(layer);
+      map.removeLayer(layer);
     };
   }, [validPoints, map, radius, blur, minOpacity, maxZoom, gradient]);
 

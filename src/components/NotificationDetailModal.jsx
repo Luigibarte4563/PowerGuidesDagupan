@@ -40,6 +40,7 @@ export default function NotificationDetailModal({
       title={notification.title || typeLabel}
       description={`${typeLabel} · received ${formatDateTime(notification.createdAt)}`}
       size="md"
+      className="bg-[#153243]!"
       footer={
         <>
           {target ? (

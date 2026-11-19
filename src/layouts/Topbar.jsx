@@ -270,8 +270,15 @@ export default function Topbar({
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-navy-900 text-xs font-bold text-primary-300 dark:bg-navy-700">
             {initials(user?.name)}
           </span>
-          <span className="hidden max-w-[9rem] truncate text-sm font-semibold text-navy-800 dark:text-navy-100 sm:block">
-            {user?.name || 'Account'}
+          <span className="hidden max-w-[9rem] flex-col sm:flex">
+            <span className="truncate text-sm font-semibold text-navy-800 dark:text-navy-100">
+              {user?.name || 'Account'}
+            </span>
+            {role ? (
+              <span className="truncate text-[11px] font-medium text-primary-700 dark:text-primary-300">
+                {ROLE_LABELS[normaliseRole(role)] || role}
+              </span>
+            ) : null}
           </span>
           <ChevronDown className="hidden h-4 w-4 text-navy-400 sm:block" aria-hidden="true" />
         </button>
