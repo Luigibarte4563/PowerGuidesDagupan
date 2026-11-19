@@ -35,7 +35,7 @@ export const SERVICE_AREA_RADIUS_METERS = 25000;
  * tied to its own barangay.
  *
  * Deliberately NOT `DEFAULT_RADIUS_METERS` / `RADIUS_OPTIONS`: those belong to the
- * "near me" searches (RiskAreas, Floods, Outages, PowerStations, MapRisk, Hazards),
+ * "near me" searches (RiskAreas, Floods, Outages, PowerStations, Hazards),
  * which legitimately need 2-5 km and are left untouched.
  */
 export const MAX_MAINTENANCE_RADIUS_METERS = 500;

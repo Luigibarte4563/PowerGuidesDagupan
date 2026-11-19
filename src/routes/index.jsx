@@ -34,7 +34,6 @@ import CompanyOutages from '@/pages/Company/Outages';
 import CompanyOutageDetail from '@/pages/Company/OutageDetail';
 import CompanyMaintenance from '@/pages/Company/Maintenance';
 import CompanyAssignments from '@/pages/Company/Assignments';
-import CompanyMapRisk from '@/pages/Company/MapRisk';
 import CompanyHeatmap from '@/pages/Company/Heatmap';
 import CompanyPowerStations from '@/pages/Company/PowerStations';
 import CompanyNotifications from '@/pages/Company/Notifications';
@@ -105,7 +104,6 @@ export default function AppRoutes() {
             <Route path="assignments" element={<CompanyAssignments />} />
             <Route path="maintenance" element={<CompanyMaintenance />} />
             <Route path="heatmap" element={<CompanyHeatmap />} />
-            <Route path="map" element={<CompanyMapRisk />} />
             <Route path="power-stations" element={<CompanyPowerStations />} />
             <Route path="notifications" element={<CompanyNotifications />} />
             <Route path="hazards" element={<CompanyHazards />} />

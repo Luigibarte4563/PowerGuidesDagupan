@@ -83,7 +83,7 @@ export function notificationTarget(notification, { company = false } = {}) {
   }
   if (floodId) {
     return company
-      ? { to: '/company/map', label: 'View floods on the map' }
+      ? { to: '/company/floods', label: 'View flood reports' }
       : { to: '/dashboard/floods', label: 'View flood reports' };
   }
   if (hazardId) {

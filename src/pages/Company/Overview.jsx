@@ -128,7 +128,7 @@ export default function Overview() {
       value: summary?.recentHeatmapReports?.count,
       icon: Flame,
       tone: 'danger',
-      to: '/company/map',
+      to: '/company/heatmap',
       hint: 'From the heatmap window',
     },
   ];
@@ -174,7 +174,7 @@ export default function Overview() {
       value: summary?.openFloods?.count,
       icon: Waves,
       tone: 'info',
-      to: '/company/map',
+      to: '/company/floods',
       hint: 'Reported, awaiting review',
     },
   ];
@@ -193,7 +193,7 @@ export default function Overview() {
       value: summary?.activeClusters?.count,
       icon: CircleDot,
       tone: 'primary',
-      to: '/company/map',
+      to: '/company/heatmap',
       hint: 'Computed outage groupings',
     },
     {
@@ -385,12 +385,6 @@ export default function Overview() {
                   text="Post field linemen to the barangays they cover."
                 />
               ) : null}
-              <QuickAction
-                to="/company/map"
-                icon={CircleDot}
-                title="Open the situational map"
-                text="Outage heatmap, clusters, flood reports and electrical hazards."
-              />
               <QuickAction
                 to="/company/notifications"
                 icon={Bell}

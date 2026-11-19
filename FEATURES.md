@@ -188,11 +188,6 @@ inside a dashboard they cannot use.
 - A lineman whose assignment covers the schedule's barangay can post **status-only** updates
   (work type `maintenance` or `both`)
 
-### Map and risk
-
-- Heatmap, clusters, floods, hazards and risk layers on one map, for operational situational
-  awareness
-
 ### Power stations
 
 - Station directory for the whole city

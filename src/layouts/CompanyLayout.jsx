@@ -13,7 +13,7 @@ import { COMPANY_NAV, COMPANY_NAV_GROUPS, findCompanyNavItem } from '@/routes/co
  * `RequireRole` wraps this route so the gate cannot be bypassed by a deep link.
  *
  * The map workspace pages render edge-to-edge; every other page keeps the standard
- * padded `max-w-7xl` column. `/company/map` was not converted, so it stays padded.
+ * padded `max-w-7xl` column.
  */
 const WORKSPACE_PATHS = new Set([
   '/company/outages',

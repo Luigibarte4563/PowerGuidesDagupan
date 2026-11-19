@@ -203,7 +203,7 @@ frontend/                     # project root (this folder)
     │   │                     # Floods, Hazards, RiskAreas, Heatmap, Profile
     │   │   └── components/   # per-module form modals
     │   ├── Company/          # Overview, Outages, OutageDetail, Assignments, Maintenance,
-    │   │                     # MapRisk, PowerStations, Notifications, Hazards, Profile
+    │   │                     # Floods, Hazards, PowerStations, Notifications, Profile
     │   │   └── components/   # per-module form modals / dialogs
     │   ├── Admin/            # Overview (platform stats), Users (directory + role management)
     │   └── NotFound.jsx
@@ -260,7 +260,6 @@ lands on the access-denied page rather than inside a dashboard they cannot use. 
 | `/company/assignments` | Manager | Lineman ↔ barangay assignments (managers only) |
 | `/company/maintenance` | Staff | Schedules; create/edit/delete is manager-only |
 | `/company/heatmap` | Staff | Outage heatmap with live intensity + feed |
-| `/company/map` | Staff | Heatmap, clusters, floods, hazards, risk |
 | `/company/power-stations` | Staff | Station directory |
 | `/company/notifications` | Staff | Inbox; composing is manager-only |
 | `/company/floods` | Staff | Flood review with status updates |
