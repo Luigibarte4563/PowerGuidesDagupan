@@ -13,7 +13,7 @@ import { apiRequest, pickItem, pickList } from './client';
  *   -> { success, count, data: [ id, user_id, location_name, latitude, longitude,
  *        description, affected_houses, is_active, started_at, resolved_at,
  *        resolution_note, created_at, updated_at, barangay_name, category, severity,
- *        hazard_type, status ] }
+ *        hazard_type, status, image_url ] }
  *   Names are matched exactly (st.status_name = :status), so the reference
  *   `outage_statuses` / `severity_levels` labels are what the filter sends.
  *   `active` is presence-based server side: `?active=` casts to 0, so it must be

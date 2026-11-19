@@ -37,7 +37,7 @@ import {
   severityTone,
   statusTone,
 } from '@/utils/constants';
-import { readCompanyOutage } from '@/utils/records';
+import { readCompanyOutage, resolveImageUrl } from '@/utils/records';
 import {
   formatDateTime,
   formatRelativeTime,
@@ -332,7 +332,23 @@ export default function Outages() {
                     </Button>
                   </>
                 }
-              />
+              >
+                {outage.images[0] ? (
+                  <a
+                    href={resolveImageUrl(outage.images[0])}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 block"
+                  >
+                    <img
+                      src={resolveImageUrl(outage.images[0])}
+                      alt="Outage evidence"
+                      loading="lazy"
+                      className="h-32 w-full rounded-control border border-navy-100 object-cover"
+                    />
+                  </a>
+                ) : null}
+              </RecordCard>
             )}
           />
 

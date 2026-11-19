@@ -23,7 +23,7 @@ import { outagesApi } from '@/api';
 import { QUERY_KEYS } from '@/utils/constants';
 import { formatRelativeTime, formatTime, hasCoordinates } from '@/utils/formatters';
 import { toUserMessage } from '@/utils/errorMessage';
-import { isOwnedBy, readOutage } from '@/utils/records';
+import { isOwnedBy, readOutage, resolveImageUrl } from '@/utils/records';
 import {
   filterByStatus,
   formatCategory,
@@ -557,6 +557,22 @@ export default function Outages() {
                         <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-white/50">
                           {outage.description || 'No description provided.'}
                         </p>
+
+                        {outage.images[0] ? (
+                          <a
+                            href={resolveImageUrl(outage.images[0])}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-2 block"
+                          >
+                            <img
+                              src={resolveImageUrl(outage.images[0])}
+                              alt="Outage evidence"
+                              loading="lazy"
+                              className="h-24 w-full rounded-lg border border-white/10 bg-white/5 object-cover"
+                            />
+                          </a>
+                        ) : null}
 
                         <div className="mt-1.5 flex items-center justify-between gap-2">
                           <div className="flex min-w-0 items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-white/40">

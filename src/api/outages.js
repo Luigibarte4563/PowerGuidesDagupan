@@ -19,12 +19,12 @@ import { apiRequest, pickItem, pickList, uploadWithProgress } from './client';
  *                     -> { success, count, data: [ id, report_key, location_name, latitude,
  *                          longitude, description, affected_houses, is_active, started_at,
  *                          resolved_at, resolution_note, created_at, updated_at, barangay_id,
- *                          barangay_name, category, severity, hazard_type, status ] }
+ *                          barangay_name, category, severity, hazard_type, status, image_url ] }
  *                     NOTE: rows do not include user_id - ownership is resolved by intersecting
  *                     with get_my_report.php ids.
  *   get_active.php    -> count only (`total_active_reports`)
  *   get_resolve.php   -> count only (`total_resolved`)
- *   get_my_report.php -> { count, data } for the signed-in user
+ *   get_my_report.php -> { count, data } for the signed-in user, with image_url
  *   get_detail.php    ?id= -> report + images[], updates[], verifications[]; 403 for other users
  *   update.php        POST { id*, location_name, description, affected_houses, started_at,
  *                            category, severity, hazard_type, barangay_name, latitude?, longitude? }
