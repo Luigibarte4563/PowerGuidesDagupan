@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users } from 'lucide-react';
+import { History, LayoutDashboard, Users } from 'lucide-react';
 
 /**
  * Navigation for the Admin Dashboard (`/admin`).
@@ -10,6 +10,7 @@ import { LayoutDashboard, Users } from 'lucide-react';
  */
 export const ADMIN_NAV = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true, group: 'Platform' },
+  { to: '/admin/activity', label: 'Activity History', icon: History, group: 'Platform' },
   { to: '/admin/users', label: 'Users & Roles', icon: Users, group: 'People' },
 ];
 

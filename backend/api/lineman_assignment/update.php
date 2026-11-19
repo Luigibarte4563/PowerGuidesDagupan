@@ -9,6 +9,7 @@ require_once __DIR__ . '/../../auth/jwt_auth.php';
 require_once __DIR__ . '/../../auth/rbac.php';
 require_once __DIR__ . '/../../auth/lineman_access.php';
 require_once __DIR__ . '/../services/create_notification.php';
+require_once __DIR__ . '/../services/audit.php';
 
 $conn = getConnection();
 $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -44,10 +45,12 @@ if ($id === false) {
 $linemanIdRaw  = array_key_exists("lineman_id", $data) ? $data["lineman_id"] : null;
 $barangayIdRaw = array_key_exists("barangay_id", $data) ? $data["barangay_id"] : null;
 $statusRaw     = array_key_exists("status", $data) ? $data["status"] : null;
+$jobTypeRaw    = array_key_exists("job_type", $data) ? $data["job_type"] : null;
 
 $linemanId  = null;
 $barangayId = null;
 $status     = null;
+$jobType    = null;
 
 if ($linemanIdRaw !== null) {
     $linemanId = filter_var($linemanIdRaw, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
@@ -76,11 +79,20 @@ if ($statusRaw !== null && $statusRaw !== '') {
     }
 }
 
+if ($jobTypeRaw !== null && $jobTypeRaw !== '') {
+    $jobType = strtolower(trim((string)$jobTypeRaw));
+    if (!in_array($jobType, LINEMAN_ASSIGNMENT_JOB_TYPES, true)) {
+        http_response_code(400);
+        echo json_encode(["success" => false, "message" => "Invalid job_type"]);
+        exit;
+    }
+}
+
 /* =========================================
    LOAD CURRENT VALUES
    ========================================= */
 $currentStmt = $conn->prepare("
-    SELECT la.id, la.lineman_id, la.barangay_id, la.status
+    SELECT la.id, la.lineman_id, la.barangay_id, la.job_type, la.status
     FROM lineman_assignments la
     WHERE la.id = ?
     LIMIT 1
@@ -97,6 +109,7 @@ if (!$current) {
 $targetLinemanId  = $linemanId ?? (int)$current['lineman_id'];
 $targetBarangayId = $barangayId ?? (int)$current['barangay_id'];
 $targetStatus     = $status ?? $current['status'];
+$targetJobType    = $jobType ?? ($current['job_type'] ?? 'all');
 
 /* =========================================
    VALIDATE EVERY CHANGED VALUE
@@ -168,9 +181,27 @@ try {
 
     $conn->prepare("
         UPDATE lineman_assignments
-        SET lineman_id = ?, barangay_id = ?, status = ?, assigned_by = ?
+        SET lineman_id = ?, barangay_id = ?, job_type = ?, status = ?, assigned_by = ?
         WHERE id = ?
-    ")->execute([$targetLinemanId, $targetBarangayId, $targetStatus, $assignedBy, $id]);
+    ")->execute([$targetLinemanId, $targetBarangayId, $targetJobType, $targetStatus, $assignedBy, $id]);
+
+    $assignmentLabel = trim(
+        $lineman['first_name'] . ' ' .
+        ($lineman['middle_name'] ? $lineman['middle_name'] . ' ' : '') .
+        $lineman['last_name']
+    ) . ' · ' . $barangay['barangay_name'];
+
+    recordActivity(
+        $conn,
+        $assignedBy,
+        'assignment',
+        $id,
+        $targetStatus === 'inactive' ? 'unassigned' : 'assigned',
+        $assignmentLabel,
+        null,
+        $current['status'],
+        $targetStatus
+    );
 
     /* Notify the lineman of assignment changes (status, barangay, or lineman swap). */
     $assignedByStmt = $conn->prepare("SELECT first_name, last_name FROM users WHERE id = ? LIMIT 1");
@@ -255,6 +286,7 @@ echo json_encode([
         "lineman_email"    => $lineman['email'],
         "barangay_id"      => $targetBarangayId,
         "barangay_name"    => $barangay['barangay_name'],
+        "job_type"         => $targetJobType,
         "assigned_by"      => $assignedBy,
         "assigned_by_name" => trim($saved['ab_first'] . ' ' . ($saved['ab_middle'] ? $saved['ab_middle'] . ' ' : '') . $saved['ab_last']),
         "assigned_at"      => $saved['created_at'],

@@ -7,6 +7,7 @@ require_once __DIR__ . '/../../auth/jwt_auth.php';
 require_once __DIR__ . '/../../auth/rbac.php';
 require_once __DIR__ . '/../services/lookup.php';
 require_once __DIR__ . '/../../auth/lineman_access.php';
+require_once __DIR__ . '/../services/audit.php';
 
 $conn = getConnection();
 $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -36,8 +37,11 @@ if (!$status) {
 }
 
 try {
-    $sql = "UPDATE outage_reports SET status = :status, updated_at = NOW()";
-    $params = [":status" => $status];
+    $auditRows = $conn->query("SELECT id, report_key, status FROM outage_reports")
+        ->fetchAll(PDO::FETCH_ASSOC);
+
+    $sql = "UPDATE outage_reports SET status = :status, updated_by = :updated_by, updated_at = NOW()";
+    $params = [":status" => $status, ":updated_by" => (int)$user['id']];
 
     if ($status === "resolved") {
         $sql .= ", resolved_at = NOW()";
@@ -45,6 +49,20 @@ try {
 
     $stmt = $conn->prepare($sql);
     $stmt->execute($params);
+
+    foreach ($auditRows as $auditRow) {
+        recordActivity(
+            $conn,
+            (int)$user['id'],
+            'outage',
+            (int)$auditRow['id'],
+            'updated',
+            $auditRow['report_key'] ?? "Report #{$auditRow['id']}",
+            null,
+            $auditRow['status'] ?? null,
+            $status
+        );
+    }
 
     echo json_encode([
         "success" => true,

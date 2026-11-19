@@ -8,6 +8,7 @@ ini_set('display_errors', 0);
 require_once __DIR__ . '/../../config/db_connect.php';
 require_once __DIR__ . '/../../auth/jwt_auth.php';
 require_once __DIR__ . '/../services/lookup.php';
+require_once __DIR__ . '/../services/audit.php';
 
 try {
     $conn = getConnection();
@@ -132,6 +133,18 @@ try {
         ":description" => $description,
         ":updated_by" => $user_id,
     ]);
+
+    recordActivity(
+        $conn,
+        (int)$user_id,
+        'hazard',
+        $id,
+        'updated',
+        $location_name,
+        $description !== '' ? $description : null,
+        null,
+        $hazard['status'] ?? null
+    );
 
     echo json_encode([
         "success" => true,

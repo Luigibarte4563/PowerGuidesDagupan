@@ -1,59 +1,49 @@
 # SETUP.md — PowerGuide Dagupan from scratch
 
-Everything needed to run this project on a machine that has never seen it, including
-the CORS setup. `README.md` documents how the app works; this file documents how to
-get it running.
+This file documents how to get the app running. [`README.md`](README.md) documents how it works.
 
-- [1. What you need](#1-what-you-need)
-- [2. The monolith](#2-the-monolith)
+- [1. Requirements](#1-requirements)
+- [2. Repository layout](#2-repository-layout)
 - [3. Backend setup](#3-backend-setup)
 - [4. Frontend setup](#4-frontend-setup)
-- [5. CORS](#5-cors)
+- [5. CORS and the API proxy](#5-cors-and-the-api-proxy)
 - [6. Google sign-in](#6-google-sign-in)
-- [6. Google sign-in](#6-google-sign-in)
-- [7. Barangay-sourced coordinates](#7-barangay-sourced-coordinates)
+- [7. Location model](#7-location-model)
 - [8. Verify the install](#8-verify-the-install)
-- [9. Troubleshooting](#9-troubleshooting)
-- [10. Creating staff accounts](#10-creating-staff-accounts)
+- [9. Creating staff/admin accounts](#9-creating-staffadmin-accounts)
+- [10. Troubleshooting](#10-troubleshooting)
 
 ---
 
-## 1. What you need
+## 1. Requirements
 
 | Tool | Version | Notes |
-|------|---------|-------|
+| ---- | ------- | ----- |
 | Node.js | 18+ (tested on 20) | [nodejs.org](https://nodejs.org) |
-| npm | 9+ | ships with Node |
-| XAMPP | any current | Apache + PHP 8 + MariaDB in one installer |
-| Composer | 2.x | [getcomposer.org](https://getcomposer.org) — needed for the backend API |
-| Git | any | to clone this repository |
+| npm | 9+ | Ships with Node |
+| XAMPP | Any current release | Apache, PHP 8 and MariaDB/MySQL |
+| Composer | 2.x | [getcomposer.org](https://getcomposer.org) — needed for `vlucas/phpdotenv` and `firebase/php-jwt` |
+| Git | Any | To clone the repository |
 
-PHP needs the `pdo_mysql`, `curl`, `json`, `fileinfo` and `openssl` extensions. XAMPP
-enables all of them by default.
-
-Two accounts/API keys are optional but needed for the features that use them: a
-**Geoapify** key (used only once to backfill barangay centroids — after that the API
-never geocodes addresses) and **Google OAuth** credentials.
+PHP needs `pdo_mysql`, `curl`, `json`, `fileinfo` and `openssl` (enabled by default in XAMPP).
+Google OAuth and Geoapify keys are optional; email/password login works without them.
 
 ---
 
-## 2. The monolith
+## 2. Repository layout
 
-This repository now contains **both** apps in one codebase:
+This repository is a monolith: the React frontend and procedural PHP JSON API live together.
 
-| Folder | Contains |
-|--------|----------|
-| `src/` | the React frontend (Vite + Tailwind) |
-| `backend/` | the PHP API (the former [`CrowdsourcedAPI`](https://github.com/Luigibarte4563/CrowdsourcedAPI) repo) |
-
-The backend must sit inside Apache's web root so it can be served as
-`http://localhost/<this repo>/backend`. Clone this repo directly into `htdocs`:
-
-```
-C:\xampp\htdocs\PowerGuides    <- frontend + backend in one checkout
+```text
+C:\xampp\htdocs\PowerGuidesDagupan\
+├── backend\       # PHP API, served by Apache at /PowerGuidesDagupan/backend
+├── src\           # React frontend (Vite + Tailwind)
+└── package.json
 ```
 
-Both apps run from this single checkout — there is no second repository to clone.
+Do not clone a separate API repository. The current canonical schema is
+`backend/database/powerguide.sql`; older references to `powerguidedagupan.sql` or
+`CrowdsourcedAPI` are stale.
 
 ---
 
@@ -62,344 +52,223 @@ Both apps run from this single checkout — there is no second repository to clo
 ### 3.1 Install PHP dependencies
 
 ```bash
-cd C:\xampp\htdocs\PowerGuides\backend
+cd C:\xampp\htdocs\PowerGuidesDagupan\backend
 composer install
 ```
 
-`composer install` is not optional — `config/env.php` requires
-`vendor/autoload.php` (phpdotenv) before anything else runs.
+This is required: `backend/config/env.php` loads `vendor/autoload.php` before handling requests.
 
 ### 3.2 Create the database
 
-Start MySQL in the XAMPP control panel, then either:
+Start MySQL in XAMPP, then import `backend/database/powerguide.sql` via phpMyAdmin
+(<http://localhost/phpmyadmin>) or, from Command Prompt:
 
-**phpMyAdmin** — <http://localhost/phpmyadmin> → **Import** → choose
-`backend/database/powerguidedagupan.sql` → **Go**.
-
-Or from a terminal:
-
-```bash
-"C:\xampp\mysql\bin\mysql.exe" -u root < backend\database\powerguidedagupan.sql
+```bat
+"C:\xampp\mysql\bin\mysql.exe" -u root < C:\xampp\htdocs\PowerGuidesDagupan\backend\database\powerguide.sql
 ```
 
-The script creates the `powerguide` database itself (it starts with
-`DROP DATABASE IF EXISTS powerguide`, which is safe on a fresh install and
-**destructive on an existing one** — never re-run it against real data).
+The script starts with `DROP DATABASE IF EXISTS powerguide`, so it is safe on a fresh install and
+**destructive on an existing database**. It creates the `powerguide` schema with all current tables,
+including `activity_log` and `lineman_assignments.job_type`.
 
-It seeds everything needed, including the 36 Dagupan barangays and the `roles`,
-`outage_categories`, `severity_levels`, `hazard_types`, `outage_statuses`,
-`power_station_types` and `notification_types` lookup tables.
+### 3.3 Migrating an existing database
 
-Already have a database from an older schema? Apply the additive migration instead:
+Apply the numbered scripts in `backend/database/` in order (Command Prompt):
 
-```bash
-"C:\xampp\mysql\bin\mysql.exe" -u root powerguide < backend\database\005_reduce_tables.sql
-"C:\xampp\mysql\bin\mysql.exe" -u root powerguide < backend\database\006_add_hazard_review_work_type.sql
+```bat
+cd C:\xampp\htdocs\PowerGuidesDagupan\backend\database
+for %f in (005_reduce_tables.sql 006_add_hazard_review_work_type.sql 007_add_flood_cancelled_status.sql 008_merge_outage_images.sql 009_activity_log.sql 010_backfill_activity_log.sql 011_assignment_job_type.sql) do "C:\xampp\mysql\bin\mysql.exe" -u root powerguide < %f
 ```
 
-### 3.3 Create `.env`
+| Script | Effect |
+| ------ | ------ |
+| `005_reduce_tables.sql` | ENUM categories/hazard types/severity; unified severity; drops lookup tables and `outage_cluster_reports` |
+| `006_add_hazard_review_work_type.sql` | Removes `work_type`; active assignments become barangay-wide |
+| `007_add_flood_cancelled_status.sql` | Adds `cancelled` to flood status |
+| `008_merge_outage_images.sql` | Consolidates outage images into `image_proof` |
+| `009_activity_log.sql` | Creates the append-only `activity_log` table |
+| `010_backfill_activity_log.sql` | Backfills creation events and active assignments |
+| `011_assignment_job_type.sql` | Adds label-only `job_type` to assignments |
+
+**Deployment requirement:** an existing database must run `009`, then `010`, then `011` before the
+current audit and assignment UI is used. Without `activity_log`, audited write endpoints fail.
+
+### 3.4 Create `backend/.env`
 
 ```bash
-cd C:\xampp\htdocs\PowerGuides\backend
-cp .env.example .env      # Windows: copy .env.example .env
+cd C:\xampp\htdocs\PowerGuidesDagupan\backend
+copy .env.example .env
 ```
 
-`.env` is **gitignored**, so a fresh clone does not have one — and without it every
-endpoint fails immediately. Fill in:
+`.env` is gitignored. Fill in at least:
 
 | Key | Value |
-|-----|-------|
+| --- | ----- |
 | `DB_HOST` | `localhost` |
 | `DB_NAME` | `powerguide` |
-| `DB_USER` / `DB_PASS` | your MySQL credentials (XAMPP default is `root` / empty) |
-| `JWT_SECRET_KEY` | a long random string. Changing it later invalidates every existing session |
-| `GEOAPIFY_GEOCODING_API_KEY` | optional, needed for address geocoding |
-| `GOOGLE_CLIENT_ID` / `_SECRET` / `_REDIRECT_URI` | optional, see [§6](#6-google-sign-in) |
+| `DB_USER` / `DB_PASS` | Your MySQL credentials (XAMPP default: `root` / empty) |
+| `JWT_SECRET_KEY` | A long random string; changing it invalidates all existing sessions |
+| `GEOAPIFY_GEOCODING_API_KEY` | Optional; not used for ordinary address geocoding |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional; see [§6](#6-google-sign-in) |
+| `GOOGLE_REDIRECT_URI` | `http://localhost/PowerGuidesDagupan/backend/api/auth/google_callback.php` |
 | `FRONTEND_URL` | `http://localhost:5174` — the OAuth redirect target, **not** CORS |
-| `ALLOWED_ORIGINS` | leave commented out unless you bypass the proxy, see [§5](#5-cors) |
+| `ALLOWED_ORIGINS` | Leave unset when using the Vite proxy; see [§5](#5-cors-and-the-api-proxy) |
 
-### 3.4 Confirm the API is serving
+### 3.5 Confirm Apache serves the API
 
-Start Apache in XAMPP, then:
+Start Apache, then:
 
 ```bash
-curl -i http://localhost/PowerGuides/backend/api/reference/get.php
+curl.exe -i http://localhost/PowerGuidesDagupan/backend/api/reference/get.php
 ```
 
-A `401` with a JSON body is the **correct** healthy answer — that endpoint needs a
-session. A blank page, a PHP warning, or a 500 means `.env` or the database is wrong.
+A `401` with a JSON body is the healthy answer: the endpoint requires a session. A blank page,
+PHP warning or 500 means the path, `.env` or database is wrong.
 
 ---
 
 ## 4. Frontend setup
 
 ```bash
-cd C:\xampp\htdocs\PowerGuides
+cd C:\xampp\htdocs\PowerGuidesDagupan
 npm install
-cp .env.example .env      # Windows: copy .env.example .env
+copy .env.example .env
 npm run dev
 ```
 
-The committed `.env.example` is already correct for a normal machine — no editing
-required:
+The committed `.env.example` is already correct for the default setup:
 
-```
+```dotenv
 VITE_API_BASE_URL=/backend
+# API_PROXY_TARGET=http://localhost
 ```
 
-That is a **relative** path. Requests go to the Vite dev server, which forwards
-`/backend` to Apache using the proxy in `vite.config.js`. The browser only
-ever talks to one origin, so CORS never comes into play.
+Open <http://localhost:5174>. The port is pinned with `strictPort: true`: Vite refuses to start if
+5174 is busy, because `FRONTEND_URL` and Google's redirect must match that exact origin.
 
-Open **<http://localhost:5174>**. The port is pinned with `strictPort: true` — if
-something else already holds 5174, Vite refuses to start instead of silently moving
-to 5175. That is deliberate: `FRONTEND_URL` in `backend/.env` must match this
-origin exactly for Google sign-in to work.
-
-If Apache is not on this machine's `localhost:80`, set the proxy destination in
-`.env`:
-
-```
-API_PROXY_TARGET=http://192.168.1.10:8080
-```
+`vite.config.js` forwards `/backend/api/...` to `http://localhost` and rewrites the path to
+`/PowerGuidesDagupan/backend/api/...` on Apache. Change `API_PROXY_TARGET` only if Apache is not on
+`localhost:80`.
 
 | Command | Purpose |
-|---------|---------|
-| `npm run dev` | start the dev server with hot reload |
-| `npm run build` | production build into `dist/` |
-| `npm run preview` | serve the production build locally |
-| `npm run lint` | ESLint over `src/` |
+| ------- | ------- |
+| `npm run dev` | Dev server with hot reload |
+| `npm run build` | Production build into `dist/` |
+| `npm run preview` | Serve the production build locally |
+| `npm run lint` | ESLint (currently reports pre-existing issues in untouched files) |
+| `npm run check:outage-feed`, `npm run check:no-black` | Repo-specific regression checks |
 
 ---
 
-## 5. CORS
+## 5. CORS and the API proxy
 
-### The short version
+With the default `VITE_API_BASE_URL=/backend`, the browser only talks to the Vite dev server; Vite
+forwards `/backend` to Apache. The request is same-origin, so CORS headers are never consulted and
+the HttpOnly `jwt_token` cookie works on localhost, 127.0.0.1 and LAN IPs alike.
 
-**With the default configuration you do not need CORS at all.** The frontend calls
-the API through the Vite proxy on its own origin, so every request is same-origin
-and the browser never applies its CORS rules. This is why a fresh clone works on any
-machine, over any host or port, without touching a single header setting.
+CORS matters only if you replace the relative API URL with an absolute one. In that case:
 
-CORS only becomes relevant if you switch `VITE_API_BASE_URL` to an absolute URL.
-
-### Why the proxied path is the default
-
-| | Proxied (default) | Absolute URL |
-|---|---|---|
-| `VITE_API_BASE_URL` | `/backend` | `http://localhost/backend` |
-| Browser → | `localhost:5174` | `localhost:5174` then `localhost:80` |
-| Cross-origin? | no | yes (different port) |
-| `config/cors.php` consulted? | no | yes |
-| Session cookie | always works | works only if the origin is allow-listed |
-
-### Where the CORS config actually is
-
-`backend/config/cors.php`, included at the top of every endpoint, and the
-only file that sets `Access-Control-*` headers. It matches the request's `Origin`
-against an allow-list and **echoes it back only on a match**:
-
-```php
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-
-if ($origin !== '' && in_array($origin, $allowedOrigins, true)) {
-    header('Access-Control-Allow-Origin: ' . $origin);
-    header('Access-Control-Allow-Credentials: true');
-    // ...
-}
-```
-
-The default list is `http://localhost:5173`, `http://127.0.0.1:5173`,
-`http://localhost:5174` and `http://127.0.0.1:5174`.
-
-### If you need CORS: `ALLOWED_ORIGINS`
-
-In `backend/.env`:
-
-```dotenv
-ALLOWED_ORIGINS=http://localhost:5174,http://127.0.0.1:5174,http://localhost:5173,http://127.0.0.1:5173,http://192.168.1.20:5174
-```
-
-Comma separated, no spaces. This **replaces** the default list rather than adding to
-it, so re-list any default you still want.
-
-Typical reason to set it: you opened the dev server at `http://192.168.1.20:5174` (the
-machine's LAN IP) and pointed `VITE_API_BASE_URL` at the absolute API URL. A LAN
-origin is not on the localhost list, so the browser gets **no**
-`Access-Control-Allow-Origin` header and blocks the request.
-
-### Two rules that are not negotiable
-
-- **`Access-Control-Allow-Origin: *` will not work.** The session is an httpOnly
-  `jwt_token` cookie and every request is sent with `credentials: 'include'`. The
-  spec requires a single exact origin in that case. The API must name your origin.
-- **`FRONTEND_URL` does not control CORS.** In `backend/.env` it is the Google OAuth
-  redirect destination and nothing else. Editing it in the hope of fixing a CORS
-  error is the most common wasted hour in this project.
-
-### Checking it by hand
-
-```bash
-# Origin is allowed -> header comes back
-curl -i -H "Origin: http://localhost:5174" \
-  http://localhost/PowerGuides/backend/api/reference/get.php
-
-# Origin is not allowed -> no Access-Control-Allow-Origin header at all
-curl -i -H "Origin: http://192.168.1.20:5174" \
-  http://localhost/PowerGuides/backend/api/reference/get.php
-```
-
-A missing header on the second command is correct behaviour, not a bug — it means
-that origin is not on the list.
+- `backend/config/cors.php` allows `http://localhost:5174`, `http://127.0.0.1:5174`,
+  `http://localhost:5173` and `http://127.0.0.1:5173` by default.
+- Setting `ALLOWED_ORIGINS` in `backend/.env` **replaces** that list. Use comma-separated exact
+  origins with no spaces.
+- `Access-Control-Allow-Origin: *` cannot work because the client sends credentials.
+- `FRONTEND_URL` is the OAuth redirect target and has no effect on CORS.
 
 ---
 
 ## 6. Google sign-in
 
-Optional. Skip it if you do not need it — email/password sign-in works regardless.
+Optional. Email/password sign-in works without it.
 
-1. In the [Google Cloud console](https://console.cloud.google.com/), enable the
-   **Google People API** and create an **OAuth 2.0 Client ID** of type *Web
-   application*.
-2. Add the exact authorized redirect URI:
+1. In Google Cloud, enable the **Google People API** and create an OAuth 2.0 Client ID of type
+   *Web application*.
+2. Add this exact authorized redirect URI:
 
-   ```
-   http://localhost/PowerGuides/backend/api/auth/google_callback.php
-   ```
-
-3. Copy the client ID and secret into `backend/.env`:
-
-   ```dotenv
-   GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
-   GOOGLE_CLIENT_SECRET=xxxxx
-   GOOGLE_REDIRECT_URI=http://localhost/PowerGuides/backend/api/auth/google_callback.php
-   FRONTEND_URL=http://localhost:5174
+   ```text
+   http://localhost/PowerGuidesDagupan/backend/api/auth/google_callback.php
    ```
 
-`FRONTEND_URL` is where `google_callback.php` sends the browser once the code is
-exchanged — to `/auth/google-callback?token=...` on success. **It must match the dev
-server origin exactly, including the port.** A mismatch is silent and confusing: the
-round trip completes, a valid JWT is issued, and the browser is simply redirected to
-a port nothing is listening on, so the app never loads. If Google sign-in lands on a
-blank page, this value is the first thing to check.
+3. Put the client ID/secret and the same redirect URI in `backend/.env`, with
+   `FRONTEND_URL=http://localhost:5174`.
 
-Google accounts created for testing land in the `user` role — see
-[§10](#10-creating-staff-accounts).
+A mismatch is silent and confusing: Google issues a valid JWT, but the browser is redirected to an
+origin where the app is not listening. If `/auth/google-callback` never loads, check
+`FRONTEND_URL` first.
 
 ---
 
-## 7. Barangay-sourced coordinates
+## 7. Location model
 
-This is the most important behaviour change in the frontend/backend contract:
+Every outage, flood, hazard, power station and saved location is positioned from the **barangay's
+stored centroid** in the `barangays` table. Forms require a barangay; the map pin can refine the
+point. The free-text address/location name is only a label and is never geocoded.
 
-**Every report, hazard, flood, power station and saved location is placed on the
-map by its barangay's stored centroid.** The `barangays` table in the API
-database holds `latitude`/`longitude` for each barangay. The form shows a
-barangay dropdown (required); selecting one drops the map pin on that centroid.
-The user may drag the pin to refine the point. The free-text `Location name` /
-`Address` field is only a label shown to others; it is **never geocoded**.
-
-### Where the coordinates live
-
-| File | Purpose |
-|------|---------|
-| `backend/database/fill_barangay_coordinates.php` | One-off script that geocodes each of the 37 barangay names via OSM/Geoapify and writes the result to the `barangays` table. Idempotent. |
-| `backend/database/powerguidedagupan.sql` | The canonical seed now includes the coordinates, so a fresh import is correct. |
-| `backend/config/cors.php` | NOT involved — same-origin proxy means this never runs in dev. |
-
-### What happens when a barangay has no coordinates
-
-11 of the 37 barangays could not be resolved automatically (OSM/Geoapify had no
-entry or returned the city centre). Those rows have `NULL` latitude/longitude in
-the seed. If a user tries to submit a report in one of them, the API answers
-**503** with the full list of missing barangays. The form surfaces this before
-the user submits.
-
-To fill in a missing barangay:
-
-```bash
-# Look up the centroid on a map, then:
-"C:\xampp\mysql\bin\mysql.exe" -u root powerguide -e \
-  "UPDATE barangays SET latitude = 16.0xxx, longitude = 120.3xxx WHERE barangay_name = 'Bacag';"
-```
-
-### Endpoints affected
-
-| Endpoint | Required field | Optional refine |
-|---|---|---|
-| `outage_report/create.php` | `barangay_name` | `latitude`, `longitude` |
-| `flood_report/create.php` | `barangay_name` | `latitude`, `longitude` |
-| `electrical_hazard/create.php` | `barangay_name` | `latitude`, `longitude` |
-| `power_station/create.php` | `barangay_name` | `latitude`, `longitude` |
-| `user_location/location.php` | `barangay_name` | — |
-| `maintenance/create.php` | `barangays[]` (names) | — |
+A `user` account must save a location before the resident dashboard is usable: `DashboardLayout`
+shows a location setup modal first. Staff roles are not gated this way. A barangay without stored
+coordinates is rejected on submit; fill its `latitude`/`longitude` in the `barangays` table if that
+happens.
 
 ---
 
 ## 8. Verify the install
 
 ```bash
-# 1. API reachable (a 401 here is healthy - the endpoint requires a session)
-curl -i http://localhost/PowerGuides/backend/api/reference/get.php
+# API reachable; 401 + JSON is healthy
+curl.exe -i http://localhost/PowerGuidesDagupan/backend/api/reference/get.php
 
-# 2. Register through the API
-curl -c cookies.txt -X POST http://localhost/PowerGuides/backend/api/auth/register.php \
-  -H "Content-Type: application/json" \
-  -d '{"first_name":"Test","last_name":"User","email":"test@example.com","password":"secret123"}'
+# Register a throwaway account
+curl.exe -c cookies.txt -X POST http://localhost/PowerGuidesDagupan/backend/api/auth/register.php -H "Content-Type: application/json" -d '{"first_name":"Test","last_name":"User","email":"test@example.com","password":"secret123"}'
 
-# 3. Read back with the session cookie
-curl -b cookies.txt http://localhost/PowerGuides/backend/api/auth/me.php
+# Read the session back
+curl.exe -b cookies.txt http://localhost/PowerGuidesDagupan/backend/api/auth/me.php
 ```
 
 In the browser:
 
-- <http://localhost:5174> loads the landing page.
-- `/login` → register a throwaway account → you land on `/dashboard`.
-- The dashboard loads reference data (barangays, categories, statuses) from
-  `backend/api/reference/get.php`. An empty sidebar or a failing reference call means
-  the proxy is not reaching Apache.
+1. <http://localhost:5174> shows the landing page.
+2. `/register` creates a `user`; after login it lands on `/dashboard`.
+3. The location setup modal appears; save a location to unlock the dashboard.
+4. Sidebar/reference data loads from `reference/get.php`. An empty sidebar means the proxy is not
+   reaching Apache or the session is missing.
+5. Check the role-specific home: `admin` → `/admin`, `electric_company` → `/company`,
+   `lineman`/`user` → `/dashboard`.
 
 ---
 
-## 9. Troubleshooting
+## 9. Creating staff/admin accounts
 
-| Symptom | Cause | Fix |
-|---------|-------|-----|
-| Console: `CORS policy: No 'Access-Control-Allow-Origin' header` | Absolute URL + origin not allow-listed | Switch to `VITE_API_BASE_URL=/backend`, or add the origin to `ALLOWED_ORIGINS` |
-| Every request fails, API returns 500 | No `.env` in `backend/`, or a key is missing | Copy `.env.example` → `.env` and fill it in |
-| `Failed to fetch` / `ECONNREFUSED` on every call | Apache is not running, or the proxy target is wrong | Start Apache; set `API_PROXY_TARGET` in the frontend `.env` |
-| 404 on `/backend/...` | API not in Apache's web root, or the folder name differs | Confirm the URL — the frontend proxies `/backend` to `http://localhost` |
-| Vite refuses to start, "Port 5174 is in use" | Something else holds the pinned port | Free the port; the port cannot move (Google OAuth depends on it) |
-| Login works, then 401 on the next call | Cookie blocked | Stay on the proxied relative URL — an absolute URL across origins drops the cookie unless the origin is allow-listed |
-| Google sign-in lands on a blank page | `FRONTEND_URL` mismatch | Set `FRONTEND_URL=http://localhost:5174` in `backend/.env` |
-| Dashboard loads but reference data is empty | `backend/api/reference/get.php` failing | Check the browser network tab; the endpoint needs a valid session |
-| Geocoded locations land in the wrong country | Known backend issue — no `countrycodes=ph` on the Geoapify request | Backend fix; out of scope for setup |
+New registrations always get the `user` role. Roles are the `users.role` ENUM
+(`user`, `lineman`, `electric_company`, `admin`); there is no `role_id` lookup table.
 
----
+Once an admin account exists, use **`/admin/users` → Users & Roles** to create accounts with any
+role and to change roles. An admin cannot change their own role there. A role change lives in the
+JWT, so it reaches the target's API permissions at their **next sign-in**; `auth/me.php` shows it on
+the next page load.
 
-## 10. Creating staff accounts
-
-New accounts always get the `user` role. There is no role-management UI and no
-role endpoint — roles are granted by writing `users.role_id` in the database:
-
-| Role | `role_id` | Can do |
-|------|-----------|--------|
-| `user` | 1 | resident app only |
-| `lineman` | 2 | verify/update outages in **assigned** barangays only |
-| `electric_company` | 3 | all company writes, maintenance, notifications, assign linemen |
-| `admin` | 4 | everything |
-
-Verify the ids against the `roles` table before writing:
+To bootstrap the first admin from SQL after registering normally:
 
 ```sql
-SELECT id, role_name FROM roles;
-
-UPDATE users SET role_id = 2 WHERE email = 'lineman@example.com';
+UPDATE users SET role = 'admin' WHERE email = 'you@example.com';
 ```
 
-Confirm the ids against your own `roles` table before trusting the numbers above —
-the table is seeded by `backend/database/powerguidedagupan.sql`.
+Then sign in again. For a lineman, also create an active row in `lineman_assignments` from
+**`/company/assignments`** (managers only) or by SQL; without one, all assigned-barangay data is
+empty. `job_type` is only a label — an active assignment covers every job in that barangay.
 
-Lineman access is scoped by the `lineman_assignments` table, which has no UI in the
-resident app. Create assignments in the **company** app (`/company/assignments`,
-managers only) or insert the rows directly.
+---
+
+## 10. Troubleshooting
+
+| Symptom | Cause | Fix |
+| ------- | ----- | --- |
+| `Failed to fetch` / `ECONNREFUSED` | Apache is not running, or the proxy target is wrong | Start Apache; set `API_PROXY_TARGET` if it is not on `localhost:80` |
+| 404 on `/backend/...` | API path or folder name differs | Confirm Apache serves `/PowerGuidesDagupan/backend`; the Vite proxy rewrites `/backend` to that path |
+| Every API call returns 500 | Missing/invalid `backend/.env` or DB | Copy `.env.example` → `.env`, fill `DB_*` and `JWT_SECRET_KEY`, confirm the import |
+| CORS error in the console | Absolute API URL with an unlisted origin | Use `VITE_API_BASE_URL=/backend`, or add the exact origin to `ALLOWED_ORIGINS` |
+| Login succeeds, next call is 401 | Cookie dropped across origins | Stay on the relative proxied URL; with an absolute URL set CORS correctly |
+| Vite refuses to start on 5174 | Port already in use | Free it; Google OAuth depends on the pinned origin |
+| Google sign-in lands on a blank page | `FRONTEND_URL` mismatch | Set `FRONTEND_URL=http://localhost:5174` in `backend/.env` |
+| Dashboard is empty after login | `user` has no saved location, or API calls failed | Save a location; check `reference/get.php` in the network tab |
+| Audited writes fail after upgrading an old DB | `activity_log` missing | Apply `009_activity_log.sql`, `010_backfill_activity_log.sql` and `011_assignment_job_type.sql` |
+| Lineman sees no reports | No active assignment | Create one in `/company/assignments`; `job_type` does not grant access by itself |

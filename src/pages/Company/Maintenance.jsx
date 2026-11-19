@@ -67,7 +67,7 @@ export default function Maintenance() {
 
   const completeQuery = useQuery({
     queryKey: COMPANY_QUERY_KEYS.completedMaintenance,
-    // Staff-only endpoint; a lineman gets 403, so the tab count just stays unknown.
+    // Manager-only endpoint; a lineman's count comes from the scoped list instead.
     enabled: isManager,
     queryFn: async ({ signal }) => (await maintenanceApi.getComplete({}, { signal })).items,
     retry: 1,

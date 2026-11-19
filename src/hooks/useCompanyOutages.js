@@ -24,18 +24,14 @@ import { COMPANY_QUERY_KEYS } from '@/utils/constants';
  *     scoped to the caller's active assignments server-side, so the numbers a lineman
  *     sees agree with the rows they can open.
  *  2. `maintenance/get_complete` is manager-only, so it is only requested when
- *     `includeManagerCounts` is set. Skipping it entirely - rather than fetching and
- *     handling the 403 - keeps a lineman from putting a request on the wire that is
- *     certain to be refused. This is a convenience, not a control: the server rejects
- *     it either way.
+ *     `includeManagerCounts` is set. A lineman gets the same figure from `maintenance/get.php`,
+ *     which is already scoped to their active barangays and includes completed rows. Skipping
+ *     the manager endpoint - rather than fetching and handling the 403 - keeps a lineman from
+ *     putting a request on the wire that is certain to be refused. This is a convenience, not
+ *     a control: the server rejects it either way.
  *
  *     That is why `includeManagerCounts` DEFAULTS TO FALSE: rule 2 is opt-in, so a screen
- *     that forgets the flag gets a summary without the manager figure rather than one
- *     that quietly 403s. It is not cosmetic either - `maintenance/get_complete.php` is
- *     in the client's `ROLE_GATED_PATHS`, so a 403 from it is reported to the user as
- *     "your access may have changed", accusing a lineman of a role change that never
- *     happened. Defaulting to false removes the trap instead of relying on every future
- *     caller remembering the flag.
+ *     that forgets the flag gets the scoped figure rather than one that quietly 403s.
  */
 const REFRESH_INTERVAL_MS = 60 * 1000;
 
@@ -97,12 +93,15 @@ export function useCompanySummary({
           (await heatmapApi.getHeatmap({ days: 7 }, { signal })).reportCount
         ),
 
-        /* --- Manager-only (see rule 2 above) --- */
+        /* --- Completed maintenance (see rule 2 above) --- */
         includeManagerCounts
           ? settledCount('completedMaintenance', async () =>
               (await maintenanceApi.getComplete({}, { signal })).count
             )
-          : null,
+          : settledCount('completedMaintenance', async () => {
+              const { items } = await maintenanceApi.list({}, { signal });
+              return items.filter((item) => String(item.status).toLowerCase() === 'completed').length;
+            }),
       ]);
 
       return parts.filter(Boolean).reduce((all, part) => ({ ...all, ...part }), {});

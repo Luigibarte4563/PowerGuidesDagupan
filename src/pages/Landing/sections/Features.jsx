@@ -1,15 +1,21 @@
 import { useState, useEffect } from 'react';
+import outagePicture from '@/assets/outage.png';
+import hazardPicture from '@/assets/hazard.png';
 
 const FEATURES_DATA = [
   {
     eb: 'Report outages • Stay updated',
     ti: 'Stay informed about power interruptions in your community',
     bo: 'Easily report power outages in your area, provide details about affected locations, and track the progress of submitted reports. Stay updated with community-reported information to better understand the situation around you.',
+    image: outagePicture,
+    alt: 'Power outage reporting',
   },
   {
     eb: 'See hazards • Stay safe',
     ti: "Know what's around you before you head out",
     bo: 'See power outages and hazards near your location, and get alerts when conditions change in your area so you can plan ahead.',
+    image: hazardPicture,
+    alt: 'Electrical hazard alert',
   },
 ];
 
@@ -69,7 +75,9 @@ export default function Features() {
           <p id="f-bo">{FEATURES_DATA[activeIndex].bo}</p>
           <a className="btn" href="#contact">Get Started</a>
         </div>
-        <div className="ph" aria-hidden="true">Placeholder image</div>
+        <div className="ph">
+          <img src={FEATURES_DATA[activeIndex].image} alt={FEATURES_DATA[activeIndex].alt} />
+        </div>
       </div>
     </section>
   );

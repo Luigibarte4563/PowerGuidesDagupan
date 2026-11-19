@@ -5,6 +5,7 @@ header("Content-Type: application/json");
 require_once __DIR__ . '/../../config/db_connect.php';
 require_once __DIR__ . '/../../config/env.php';
 require_once __DIR__ . '/../services/lookup.php';
+require_once __DIR__ . '/../services/audit.php';
 require_once __DIR__ . '/../../auth/jwt_auth.php';
 
 $conn = getConnection();
@@ -166,6 +167,7 @@ try {
     ");
 
     $status = getStatus($conn, 'active');
+    $reportKey = uniqid("OR-");
 
     $stmt->execute([
         $user_id,
@@ -174,7 +176,7 @@ try {
         $severity,
         $hazardType,
         $status,
-        uniqid("OR-"),
+        $reportKey,
         $location_name,
         $latitude,
         $longitude,
@@ -184,6 +186,18 @@ try {
     ]);
 
     $outage_report_id = (int)$conn->lastInsertId();
+
+    recordActivity(
+        $conn,
+        (int)$user_id,
+        'outage',
+        $outage_report_id,
+        'created',
+        trim($reportKey . ' · ' . $barangay['name']),
+        $description !== '' ? $description : null,
+        null,
+        $status
+    );
 
     /* Notify the electric company that a resident filed a new outage report.
        Server-side only: the notification endpoint is manager-gated, so we insert

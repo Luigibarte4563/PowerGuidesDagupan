@@ -7,6 +7,7 @@ require_once __DIR__ . '/../../auth/jwt_auth.php';
 require_once __DIR__ . '/../../auth/rbac.php';
 require_once __DIR__ . '/../services/lookup.php';
 require_once __DIR__ . '/../../auth/lineman_access.php';
+require_once __DIR__ . '/../services/audit.php';
 
 $conn = getConnection();
 $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -36,6 +37,12 @@ try {
        the report, nor be able to advance the report's status. */
     require_outage_access($conn, $user, $outageReportId);
 
+    $auditStmt = $conn->prepare("SELECT report_key, status FROM outage_reports WHERE id = ? LIMIT 1");
+    $auditStmt->execute([$outageReportId]);
+    $auditRow = $auditStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+    $previousStatus = $auditRow['status'] ?? null;
+    $reportKey = $auditRow['report_key'] ?? "Report #{$outageReportId}";
+
     /* Store the latest update message on the report itself. */
     $status = null;
     if ($statusName !== "") {
@@ -48,8 +55,8 @@ try {
     }
 
     if ($status !== null) {
-        $sql = "UPDATE outage_reports SET status = :status, update_message = :update_message, updated_at = NOW()";
-        $params = [":status" => $status, ":update_message" => $updateMessage, ":id" => $outageReportId];
+        $sql = "UPDATE outage_reports SET status = :status, update_message = :update_message, updated_by = :updated_by, updated_at = NOW()";
+        $params = [":status" => $status, ":update_message" => $updateMessage, ":updated_by" => (int)$user['id'], ":id" => $outageReportId];
 
         if ($status === 'resolved') {
             $sql .= ", resolved_at = NOW()";
@@ -60,13 +67,26 @@ try {
     } else {
         $conn->prepare("
             UPDATE outage_reports
-            SET update_message = :update_message, updated_at = NOW()
+            SET update_message = :update_message, updated_by = :updated_by, updated_at = NOW()
             WHERE id = :id
         ")->execute([
             ":update_message" => $updateMessage,
+            ":updated_by" => (int)$user['id'],
             ":id" => $outageReportId,
         ]);
     }
+
+    recordActivity(
+        $conn,
+        (int)$user['id'],
+        'outage',
+        $outageReportId,
+        'updated',
+        $reportKey,
+        $updateMessage,
+        $previousStatus,
+        $status ?? $previousStatus
+    );
 
     echo json_encode([
         "success" => true,

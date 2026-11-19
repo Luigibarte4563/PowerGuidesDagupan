@@ -124,12 +124,13 @@ export default function Hazards() {
   const rows = useMemo(() => {
     const term = debouncedSearch.trim().toLowerCase();
     return (listQuery.data || []).filter((hazard) => {
+      if (tab === 'all' && String(hazard.status).toLowerCase() === 'resolved') return false;
       if (!term) return true;
       return [hazard.locationName, hazard.barangay, hazard.description, hazard.hazardType]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(term));
     });
-  }, [listQuery.data, debouncedSearch]);
+  }, [listQuery.data, tab, debouncedSearch]);
 
   const pageCount = Math.max(1, Math.ceil(rows.length / COMPANY_PAGE_SIZE));
   const pageRows = rows.slice((page - 1) * COMPANY_PAGE_SIZE, page * COMPANY_PAGE_SIZE);
@@ -175,7 +176,6 @@ export default function Hazards() {
                 ? 'warning'
                 : 'success'
           }
-          glyphFor={() => 'H'}
         >
           {(hazard) => (
             <div className="min-w-[13rem]">

@@ -1,349 +1,116 @@
-# PowerGuide Dagupan: A Smart Power Outage Survival and Resource Management System
-
-PowerGuide Dagupan is a smart power outage and resource management system designed to help
-residents of Dagupan City report and monitor power outages, floods, and electrical hazards.
-The system allows users to view scheduled maintenance, locate nearby power stations, view
-possible risks around their saved location, and track the status of reported incidents. It
-also provides a staff dashboard where linemen can verify reports and update field
-information within their assigned barangays, and where electric company managers can assign
-linemen, manage maintenance schedules, and send notifications to residents, helping improve
-communication between the community and the electric company.
-
-PowerGuide Dagupan aims to address the difficulties residents experience during power
-outages, floods, and electrical hazards, especially when information about affected areas,
-maintenance schedules, and available resources is limited. Without a centralized platform,
-residents may have difficulty reporting incidents, tracking their status, and finding nearby
-power stations. The system helps solve these problems by providing a centralized source of
-information, allowing residents and staff to share updates, monitor risks, and coordinate
-responses more efficiently.
-
-The features of the system are the following:
-
-## Public Website Module
-
-This module introduces PowerGuide Dagupan and allows users to access the system.
-
-- Landing Page – Displays the system introduction, feature highlights, report-and-resolve
-  flow, safety guidelines, and links into registration and the resident app.
-- Account Registration – Allows users to create an account with their first name, last name,
-  email, and a password with confirmation, strength meter, and a terms agreement.
-- Login – Allows users to access their accounts using email and password or Google sign-in,
-  with plain-English messages for session expiry, changed roles, and Google errors.
-- Google Callback – Receives the Google sign-in result, stores the session, and redirects
-  each role to its home application.
-
-## Resident Dashboard Module
-
-This module provides residents with a central dashboard for accessing important system
-information.
-
-- Summary Cards – Display the available power stations, upcoming maintenance, open hazards,
-  and risks near the saved location.
-- Quick Actions – Provide shortcuts for reporting outages, floods, and hazards.
-- Nearby Risks Panel – Lists active floods and unresolved hazards within two kilometres of
-  the saved location, with a prompt to set a location when none is saved.
-- Latest Reports Feed – Merges outages, floods, and hazards from across the city, newest
-  first.
-- Area Map – Shows the saved location and nearby reported incidents on a mini map.
-
-## Outage Reporting and Tracking Module
-
-This module allows residents to report power outages and monitor their progress.
-
-- Report Outage – Allows users to submit the severity, houses affected, category, associated
-  hazard type, location name, barangay, start time, and a photo of the outage.
-- Live Outage Map – Plots reports as severity-coloured circles with popups, a plotted count,
-  and a severity legend.
-- Live Report Feed – Refreshes every ten seconds and merges public reports with the user's
-  own, marking personally submitted reports.
-- Track Reports – Filters reports by an All/My scope and an active, resolved, or all status,
-  with search and summary tiles for active, critical, and affected homes.
-- Report History – Shows the full status history, verifications, photos, and location of the
-  user's own reports on a detail page.
-- Manage Reports – Allows users to update or delete their own reports, with one active
-  report per user enforced by the server.
-
-## Flood Reporting Module
-
-This module allows residents to report flooding and view affected areas.
-
-- Report Flood – Allows users to submit the flood location name, flood level, barangay,
-  depth in centimetres, description, and an exact map pin.
-- View Flood Reports – Displays all reported flooding incidents with barangay and level
-  filters, search, and summary tiles.
-- Nearby Floods – Shows flooding incidents near the user's saved location within an
-  adjustable radius, with each report's distance shown.
-- Flood Map – Mirrors the list with severity-coloured pins, a radius circle, the user's
-  location pin, and a flood-level legend.
-
-## Electrical Hazard Reporting Module
-
-This module allows residents to report dangerous electrical conditions.
-
-- Report Hazards – Allows users to report downed wires, exposed cables, and other electrical
-  dangers with a location name, severity, hazard type, barangay, description, and map pin.
-- Hazard Filters – Allow users to filter the city-wide feed by hazard type, severity, and
-  status, with search and summary tiles for open, high-risk, and resolved hazards.
-- Hazard Tracking – Allows users to view all hazards on a map and list and monitor their
-  status.
-- Status Updates – Allow reporters to move their own hazards through reported, verified, and
-  resolved.
-
-## Risk Areas Module
-
-This module helps residents identify flooding and electrical hazards across the city.
-
-- Combined Risk Feed – Displays open flood reports and unresolved electrical hazards in one
-  merged list, newest first.
-- Search Radius – Allows users to narrow the loaded risks to a chosen distance from their
-  saved location, with a radius circle on the map.
-- Risk Information – Shows each risk's kind, severity, description, and distance from the
-  user.
-- Service Area Warning – Warns users whose saved location falls outside Dagupan and offers a
-  shortcut to fix it, plus a button to widen the radius when risks exist just beyond it.
-
-## Heatmap and Cluster Module
-
-This module provides a visual representation of reported incidents across Dagupan City.
-
-- Heatmap – Displays the intensity of reported outages as a heat layer with clickable areas
-  showing report counts, affected households, forecast level, and confidence.
-- Clusters – Groups stored outage hotspots into bubbles sized by report count.
-- Map Layers – Allows users to switch the heatmap and cluster layers on or off and refresh
-  them.
-- Top Areas List – Ranks the ten areas with the most reports and the largest stored
-  clusters.
-
-## Maintenance Schedule Module
-
-This module allows residents to view scheduled electrical maintenance activities.
+# PowerGuide Dagupan — Features per page
+
+This document lists what each rendered page actually does in the current app. It follows the route
+map in `src/routes/index.jsx` and the nav files under `src/routes/`. For the product-level summary,
+see [`FEATURES.md`](FEATURES.md); for setup, see [`SETUP.md`](SETUP.md).
+
+Role names are the JWT values: `user`, `lineman`, `electric_company`, `admin`. Nav visibility is not
+access control — the API re-checks roles, and lineman data is scoped server-side.
+
+---
+
+## Public pages
+
+| Route | Page | Audience | Current behavior |
+| --- | --- | --- | --- |
+| `/` | Landing | Everyone | Renders Header, Hero, Blackout, About, Features, FAQs, Contact and Footer. |
+| `/login` | Login | Signed-out visitors | Email/password and Google sign-in. Signed-in visitors get an “already signed in” chooser. |
+| `/register` | Register | Signed-out visitors | Email registration. New accounts are `user`. |
+| `/auth/google-callback` | OAuth handoff | Everyone | Stores the JWT from the API redirect, then forwards to the role's home app. |
+| `*` | Not found | Everyone | Catch-all page. |
+
+### Landing sections
+
+| Section | Current content |
+| --- | --- |
+| Header | Anchors for Features, FAQs and Contact; Sign In and Create an Account actions. |
+| Hero | “Know Before your Lights goes Out” with `hero_picture.png`. |
+| Blackout | “A Blackout Shouldn't Leave You Powerless” with `lighting_candle.png`. |
+| About | “Power Outages Don't Have to Leave You Unprepared”. |
+| Features | Two tabs: **Outage Reporting** (`outage.png`) and **Risks & Hazards Alert** (`hazard.png`). Images use `object-fit: contain`. |
+| FAQs | Six answers matching the app: reports and maps, Power Stations → Near my location for charging, automatic notifications with no switch, and location required before the resident dashboard. No standalone charging-station finder is described. |
+| Contact | Placeholder form: sets a local submitted state, resets after 3 s, and does **not** call an API. |
+| Footer | Branding and anchor links. `HowItWorks`, `Safety` and `CtaBanner` files exist but are not rendered. |
+
+---
+
+## Shared shell behavior
+
+| Area | Current behavior |
+| --- | --- |
+| Resident location gate | A `user` without a saved location is blocked by `DashboardLayout` and shown `LocationSetupModal`. Staff roles are not gated this way. |
+| Topbar | Page title, notifications bell and account menu. The bell is hidden for `admin`. The avatar's **My location** link is shown only to residents, not to `lineman`, `electric_company` or `admin`. |
+| Sidebar | Grouped nav from the route folder. Hidden items (lineman Power Stations, lineman My Assigned Barangays for non-linemen) do not block direct URLs. |
+| Session/role guards | 401 sends signed-out users to `/login`; 403 shows Access Denied or a re-login banner after a role change. |
+
+---
+
+## Resident app (`/dashboard`)
+
+Any authenticated role can open these routes. A `user` must first save a location.
+
+| Route | Nav label | Current behavior |
+| --- | --- | --- |
+| `/dashboard` | Overview | Cards for available power stations, upcoming maintenance, open hazards and nearby risks within 2 km; merged latest outage/flood/hazard feed; maintenance list. There is no area map on this page despite a stale code comment. |
+| `/dashboard/assignments` | My Assigned Barangays | Lineman-oriented view of active assignments; nav item is shown only to `linemen`, but the route itself is not role-gated. Non-linemen see an explanatory card. |
+| `/dashboard/outages` | Outage Reports | Leaflet map and feed with 10 s refetch, Active / Resolved / All and All Reports / My Reports tabs, search/filters, and report form. The visible feed is currently sliced to 3 rows with no pager. |
+| `/dashboard/outages/:id` | — | Outage detail: report facts, evidence photo, status progress, field updates and owner cancel/update controls. |
+| `/dashboard/floods` | Flood Reports | All reports / Nearby tabs, radius control, map/feed, level filters, report form and owner delete. Nearby uses the saved location. |
+| `/dashboard/hazards` | Electrical Hazards | Whole-city hazard list and map, type/severity/status filters, search, report form and owner status changes. It is intentionally not radius-scoped. |
+| `/dashboard/risk-areas` | Risk Areas | Combined active floods and unresolved hazards, All / Nearby tabs, radius control, map and risk cards with distance. |
+| `/dashboard/heatmap` | Heatmap | Read-only outage heat layer and stored clusters, lookback selection, points/cluster stats and top areas. |
+| `/dashboard/maintenance` | Maintenance | Read-only Upcoming / Ongoing / Completed / All schedules, search, status filter and coverage-circle map with a 500 m radius cap. |
+| `/dashboard/power-stations` | Power Stations | All / Available / Near my location / My post, station-type and availability filters, map, and one station post per user with optional charging type. Nav item hidden for `lineman`; direct URL not blocked. |
+| `/dashboard/notifications` | — | All / Unread, search and type filter, day-grouped timeline, load-more paging, mark read / mark all, and detail links. |
+| `/dashboard/location` | — | Save the primary location used by nearby searches; shows coordinates, matched barangay and last saved time. |
+| `/dashboard/profile` | — | Read-only profile from `me.php`, inbox/location stats and logout. |
+
+Coordinates come from the selected barangay's stored centroid. The optional map pin refines the
+point; the free-text address/location label is never geocoded.
+
+---
+
+## Staff app (`/company`)
+
+Available to `lineman`, `electric_company` and `admin`. Sidebar groups are **Monitor**, **Respond**,
+**Plan**, **Assets** and **Account**. **Respond** contains only Outage Reports, Flood Review and
+Hazard Review; **Assignments** lives under **Plan**. Linemen do not see Power Stations in the
+sidebar, but the URL is not blocked.
+
+| Route | Nav label | Current behavior |
+| --- | --- | --- |
+| `/company` | Dashboard | Operations overview: outage status counts, manager-only crew coverage, hazards/floods/assets, recent outage feed and quick links. Lineman counts are scoped to active assigned barangays, including completed maintenance. |
+| `/company/heatmap` | Heatmap | 24h / 7d / 14d / 30d lookback, wider heat pins, All / High risk / Low risk hotspot feeds, map and a visibly labelled hottest-area list with pagination. |
+| `/company/outages` | Outage Reports | All / Active / Verified / Resolved tabs, severity filter, map/feed and pagination. **All** hides `resolved`; map pins have no letters. Terminal rows remain available under Resolved. |
+| `/company/outages/:id` | — | Report detail with photo, resident info, verification history, staff notes, status change, verify and add-update actions. |
+| `/company/floods` | Flood Review | All / Reported / Verified / Cleared tabs, severity filter, map/feed, status dialog and pagination. **All** hides `cleared`; map pins have no letters. |
+| `/company/hazards` | Hazard Review | All / Reported / Verified / Resolved tabs, severity filter, map/feed, status changes, lineman assignment dialog and pagination. **All** hides `resolved`; map pins have no letters. |
+| `/company/assignments` | Assignments | Manager CRUD plus lineman self-view. One row per lineman with assigned barangays, job labels, **Jobs Done** and a Lineman Activity modal that lists the barangays. `job_type` is label-only; an active assignment covers every job in the barangay. |
+| `/company/maintenance` | Maintenance | Upcoming / Ongoing / Completed tabs, create/edit/delete (manager-only), map, coverage circles and pagination. Covered linemen can post status-only updates. |
+| `/company/power-stations` | Power Stations | All / Near my location / My stations, type/availability filters, map and own-post CRUD. Hidden in the lineman sidebar; lineman reads are scoped to assigned barangays by the API. |
+| `/company/notifications` | — | All / Unread / Read inbox with day-grouped timeline and manager-only composer for explicit user IDs. |
+| `/company/profile` | — | Staff profile, role capabilities and inbox/location summary. |
+
+Lineman scoping is enforced in `backend/auth/lineman_access.php`, not by hiding controls. An active
+assignment grants access to that whole barangay. `jobs_done` counts distinct outage reports the
+lineman updated or verified that are now `resolved` or `verified`; other modules are excluded.
+City-wide outage updates are denied for linemen. Flood/hazard staff status endpoints currently do
+not apply the barangay guard.
+
+---
+
+## Admin app (`/admin`)
 
-- Maintenance Schedules – Displays upcoming and all published schedules with search, a
-  status filter, and summary tiles for upcoming, ongoing, and completed work.
-- Affected Areas – Identifies the barangays covered by each maintenance activity.
-- Maintenance Map – Draws a coverage circle at every affected barangay based on the
-  schedule's radius, with a status legend.
-- Read-Only Viewing – Keeps scheduling with the utility; residents can view but not create
-  or edit schedules.
+Admin-only. There is no company-side audit page and no admin notification bell.
 
-## Power Station Module
+| Route | Nav label | Current behavior |
+| --- | --- | --- |
+| `/admin` | Dashboard | Platform Overview from `admin/stats.php`: user totals/counts by role, report totals, 30-day trend and top barangays. |
+| `/admin/activity` | Activity History | One shared audit timeline with **Electric Company** and **Lineman** tabs, Who / Module / Action filters and pagination. Modules: Maintenance, Outage, Flood, Hazard, Assignment. Actions: Created, Updated, Status changed, Verified, Assigned, Unassigned. |
+| `/admin/users` | Users & Roles | Account directory with search/role filters and pagination, create user, and change role. Admins cannot change their own role; changes take effect at the target's next sign-in. |
 
-This module helps residents locate charging facilities and manage station information.
-
-- Station Directory – Displays registered power stations under All, Available, Near my
-  location, and My post tabs.
-- Station Filters – Allow users to filter stations by availability, station type, and
-  search term, with an adjustable radius on the nearby tab.
-- Nearby Stations – Shows power stations near the user's saved location with distances.
-- Station Management – Allows users to add one station post per account and update or
-  delete their own post. Operating hours (optional) must be a number between 0 and 24.
-  Charging type (optional) defaults to Type-2 AC; choose from predefined connectors or
-  select Other to enter a custom type.
-
-## Notification Module
-
-This module provides residents with important updates about outages, hazards, and
-maintenance.
-
-- Notification Inbox – Displays received notifications under All and Unread tabs with
-  search, a type filter, and an unread banner.
-- Notification History – Organizes previous alerts into a timeline grouped by day with
-  load-more paging.
-- Read Notifications – Allows users to mark single notifications or all of them as read.
-- Related Information – Opens the report, schedule, flood, or hazard connected to a
-  notification from its detail view.
-
-## Saved Location Module
-
-This module allows residents to save their primary location for nearby searches.
-
-- Save Location – Allows users to register a primary address with an optional barangay,
-  which the server resolves into coordinates.
-- Geolocation – Uses browser location to fill the address field with the device's
-  coordinates.
-- Map Preview – Displays the resolved point on a map with its coordinates, matched
-  barangay, and last-saved time.
-
-## User Profile Module
-
-This module allows users to view their account information and manage their session.
-
-- Account Information – Displays the user's name, email, role, user ID, saved-location
-  status, and member-since date.
-- Activity Summary – Shows the user's notification count, unread count, and location
-  status.
-- Logout – Allows users to securely end their session and return to the landing page.
-
-## Staff Operations Module
-
-This module provides staff members with an overview of ongoing electrical operations.
-
-- Operations Overview – Displays outage reports by status, hazards and floods, and power
-  stations, clusters, and maintenance counts.
-- Field Crew Coverage – Shows active and total lineman assignments, visible to managers.
-- Recent Activities – Displays the newest outage reports with links to their detail pages.
-- Quick Actions – Provide shortcuts to reviewing reports, planning maintenance, assigning
-  linemen, opening the map, and notifications.
-
-## Outage Management Module
-
-This module allows electric company staff to review and manage outage reports.
-
-- Outage Reports – Displays a company view and a raw report list with filters for status,
-  severity, category, barangay, and date range, plus search, sorting, and pagination.
-- Report Verification – Allows staff to record a confirmed, not confirmed, or false-report
-  verdict that moves the report's status accordingly.
-- Field Updates – Allows staff to append field notes, optionally changing the status at the
-  same time.
-- Lineman Assignment – Allows managers to assign a lineman to a report's barangay straight
-  from the list.
-- Status Management – Allows staff to change a single report's status, with bulk updates per
-  barangay and city-wide reserved for managers.
-- Report Detail – Shows the full report, evidence photos, field updates, verification
-  history, and location map for every report.
-
-## Lineman Assignment Module
-
-This module allows managers to assign linemen to specific barangays.
-
-- Create Assignment – Assigns a lineman to a barangay with a work type and status.
-- Manage Assignments – Allows managers to edit, deactivate, and reactivate assignments,
-  where re-assigning the same pair reactivates the existing record.
-- Work Type – Determines whether an assignment covers outages, maintenance, or both.
-- My Assigned Barangays – Gives linemen a read-only view of their own assignments on both
-  dashboards.
-
-## Staff Maintenance Module
-
-This module allows staff to view maintenance schedules and managers to maintain them.
-
-- Schedule Viewing – Displays upcoming, ongoing, and completed schedules with counts and a
-  coverage-circle map.
-- Schedule Management – Allows managers to create, edit, and delete maintenance schedules.
-- Assignment Shortcut – Lets managers open the assignment form from a schedule, prefilled
-  when it covers a single known barangay.
-
-## Staff Map and Risk Module
-
-This module provides staff with a map for monitoring reported incidents.
-
-- Incident Map – Displays four toggleable layers: the outage heatmap with a selectable
-  lookback window, stored clusters, flood reports, and electrical hazards.
-- Risk Monitoring – Lets staff probe risks around a chosen point and radius and filter to
-  open incidents only.
-- Cluster Storage – Allows staff to save a computed cluster with its barangay, forecast
-  level, radius, and report count.
-
-## Staff Notification Module
-
-This module allows staff to receive and send important system updates.
-
-- Staff Inbox – Displays notifications received by the signed-in staff account with search,
-  a type filter, and All/Unread tabs.
-- Notification History – Shows previous notifications in a date-grouped timeline with a
-  detail view.
-- Send Notifications – Allows managers to compose alerts with a title, message, type, and
-  explicit recipient user IDs.
-
-## Staff Hazard Management Module
-
-This module allows staff to review and manage electrical hazard reports.
-
-- Hazard Reports – Displays reported hazards under all, reported, verified, and resolved
-  tabs with severity and barangay filters and pagination.
-- Hazard Review – Allows staff to review each hazard's information, severity, and location
-  on a map.
-- Status Updates – Allows staff to mark hazards verified or resolved, or reopen resolved
-  ones.
-- Nearby Probe – Lets staff search hazards around a chosen point and radius, ordered by
-  distance.
-
-## Staff Flood Review Module
-
-This module allows staff to review and manage flood reports.
-
-- Flood Reports – Displays all flood reports with status, severity, and barangay filters,
-  search, and pagination.
-- Flood Map – Shows flood reports on a map with severity-colored pins matching the
-  outage/hazard review style.
-- Status Updates – Allows staff to move any flood report through reported → verified → cleared.
-
-## Staff Outage Heatmap Module
-
-This module provides staff with a live outage heatmap for operational awareness.
-
-- Heatmap – Displays real-time outage intensity by barangay with a selectable lookback
-  window (1/7/14/30 days) and an intensity legend.
-- Feed – Ranks hotspot areas by report count, severity score, and confidence, with
-  forecast level badges.
-- Forecast Filter – Tabs to view all, high-risk, or low-risk areas.
-
-## Admin Dashboard Module
-
-This module provides administrators with an overview of platform activities.
-
-- Platform Statistics – Displays user totals, new accounts in the last 30 days, accounts by
-  role, and notifications sent.
-- Incident Monitoring – Shows totals for outage reports, floods, hazards, maintenance,
-  power stations, and clusters.
-- Report Analytics – Displays the 30-day report trend chart and the top barangays by report
-  count.
-
-## User and Role Management Module
-
-This module allows administrators to manage user accounts and permissions.
-
-- User Directory – Displays every registered account with its role, provider, and account
-  dates.
-- Search and Filter – Allows administrators to find users by name or email and filter by
-  role, with pagination.
-- Account Creation – Allows administrators to create local accounts with any role.
-- Role Management – Allows administrators to change a user's role, excluding their own
-  account, with the change taking effect at the target's next sign-in.
-
-## Role-Based Access Control Module
-
-This module manages user permissions based on their assigned roles.
-
-- Resident Access – Allows residents to use the resident dashboard.
-- Lineman Access – Restricts linemen to outage reports in their actively assigned barangays
-  and the work their assignment type allows, with the server re-checking every request.
-- Manager Access – Allows electric company and admin accounts to manage assignments,
-  maintenance schedules, bulk status changes, and notifications.
-- Admin Access – Provides administrators access to all applications plus the admin
-  dashboard for users and platform analytics.
-
-## Mapping and Accessibility Module
-
-This module provides interactive maps and an accessible interface throughout the system.
-
-- Location Mapping – Displays reports, hazards, floods, maintenance areas, and power
-  stations on interactive maps.
-- Map Pins – Place incidents using barangay-based coordinates, with a draggable pin to
-  refine the exact point in report forms.
-- Responsive Design – Adjusts the interface for mobile and desktop devices, with the
-  sidebar becoming a drawer and tables becoming cards.
-- Accessibility – Provides labels, inline validation, keyboard-navigable modals, visible
-  focus indicators, and status colours always paired with text.
-
-The primary users of the system are:
-
-**Residents (Regular Users)**
-Residents of Dagupan City who use the system to report power outages, floods, and electrical
-hazards. They can track their reports, view scheduled maintenance, find nearby power
-stations, save a primary location, and receive notifications about possible risks in their area.
-
-**Linemen**
-Field personnel responsible for responding to reported power outages within the barangays
-assigned to them. They can view their assignments, verify reports, provide field updates,
-and change report statuses, with their outage data scoped to their assigned work.
-
-**Electric Company Staff (Managers)**
-Authorized personnel who manage power outage operations. They can monitor city-wide
-reports, assign linemen to barangays, manage maintenance schedules, apply bulk status
-updates per barangay or city-wide, review hazards, and send notifications to residents.
-
-**System Administrator**
-The administrator manages the overall system and its users. They can monitor platform
-statistics, create accounts, manage user roles, and access every application, including the
-company operations dashboard and the admin user-management app.
+Create, update, status, verification and assignment writes to maintenance, outages, floods, hazards
+and assignments append audit rows through `backend/api/services/audit.php`. Deletes, image uploads,
+station CRUD and notifications are not audited. The actor comes from the JWT. Migration
+`010_backfill_activity_log.sql` restores only creation events and active assignments; older update
+details are unrecoverable.

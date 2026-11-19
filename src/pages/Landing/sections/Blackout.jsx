@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom';
+import candleImage from '@/assets/lighting_candle.png';
 
 export default function Blackout() {
   return (
     <div className="blackout">
       <section className="lights" aria-label="Blackout introduction">
         <p>
-          Life doesn't stop when the light goes
+          Life doesn&apos;t stop when the light goes
           <span className="tag"><i>Out</i></span>
         </p>
       </section>
@@ -14,7 +15,7 @@ export default function Blackout() {
         <div className="wrap mx-auto max-w-[1240px] px-[clamp(20px,6.94vw,100px)]">
           <div>
             <h2 id="dark-heading">
-              A Blackout Shouldn't Leave You
+              A Blackout Shouldn&apos;t Leave You
               <em>Powerless</em>
             </h2>
             <p>
@@ -40,8 +41,8 @@ export default function Blackout() {
               </svg>
             </a>
           </div>
-          <div className="imgs" aria-hidden="true">
-            <span>Placeholder image</span>
+          <div className="imgs">
+            <img src={candleImage} alt="Candle lighting up a dark room during a blackout" />
           </div>
         </div>
       </section>

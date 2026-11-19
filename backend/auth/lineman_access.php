@@ -29,6 +29,9 @@ const LINEMAN_ASSIGNMENT_ACTIVE = 'active';
 /** Only this status value is accepted from a client. */
 const LINEMAN_ASSIGNMENT_STATUSES = ['active', 'inactive'];
 
+/** Label for what the assignment is for; access is still barangay-wide. */
+const LINEMAN_ASSIGNMENT_JOB_TYPES = ['all', 'outage', 'flood', 'hazard', 'maintenance'];
+
 /*
  * What the assignment is FOR. With work_type removed, an active assignment simply
  * grants the lineman access to that barangay - outage reports, hazard reports and

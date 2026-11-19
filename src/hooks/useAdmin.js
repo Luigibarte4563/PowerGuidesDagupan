@@ -31,6 +31,20 @@ export function useAdminStats({ enabled = true } = {}) {
   });
 }
 
+/** Staff activity for one role, optionally narrowed by account, module and action. */
+export function useAdminActivity(
+  { role, userId, targetType, action, page = 1, pageSize = 25 } = {},
+  { enabled = true } = {}
+) {
+  return useQuery({
+    queryKey: ADMIN_QUERY_KEYS.activity({ role, userId, targetType, action, page, pageSize }),
+    queryFn: async ({ signal }) =>
+      adminApi.activity({ role, userId, targetType, action, page, pageSize }, { signal }),
+    enabled: enabled && Boolean(role),
+    retry: 1,
+  });
+}
+
 /**
  * Change a user's role.
  *

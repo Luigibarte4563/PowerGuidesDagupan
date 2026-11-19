@@ -6,6 +6,7 @@ require_once __DIR__ . '/../../config/db_connect.php';
 require_once __DIR__ . '/../../auth/jwt_auth.php';
 require_once __DIR__ . '/../../auth/rbac.php';
 require_once __DIR__ . '/../services/create_notification.php';
+require_once __DIR__ . '/../services/audit.php';
 
 $conn = getConnection();
 $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -37,7 +38,7 @@ if ($flood_id <= 0) {
 }
 
 try {
-    $stmt = $conn->prepare("SELECT reported_by FROM flood_reports WHERE id = ? LIMIT 1");
+    $stmt = $conn->prepare("SELECT reported_by, status, location_name FROM flood_reports WHERE id = ? LIMIT 1");
     $stmt->execute([$flood_id]);
     $flood = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$flood) {
@@ -57,6 +58,18 @@ try {
         ":updated_by" => $user_id,
         ":id"        => $flood_id,
     ]);
+
+    recordActivity(
+        $conn,
+        $user_id,
+        'flood',
+        $flood_id,
+        'status_changed',
+        $flood['location_name'] ?? "Flood #{$flood_id}",
+        null,
+        $flood['status'] ?? null,
+        $status
+    );
 
     if ($status === 'verified' || $status === 'cleared') {
         createNotification(

@@ -9,6 +9,7 @@ require_once __DIR__ . '/../../auth/jwt_auth.php';
 require_once __DIR__ . '/../../auth/rbac.php';
 require_once __DIR__ . '/../../auth/lineman_access.php';
 require_once __DIR__ . '/../services/create_notification.php';
+require_once __DIR__ . '/../services/audit.php';
 
 $conn = getConnection();
 $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -31,6 +32,7 @@ if (!is_array($data)) {
    ========================================= */
 $linemanIdRaw  = $data["lineman_id"] ?? null;
 $barangayIdRaw = $data["barangay_id"] ?? null;
+$jobTypeRaw    = $data["job_type"] ?? 'all';
 
 $linemanId  = filter_var($linemanIdRaw, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 $barangayId = filter_var($barangayIdRaw, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
@@ -43,6 +45,13 @@ if ($linemanId === false) {
 if ($barangayId === false) {
     http_response_code(400);
     echo json_encode(["success" => false, "message" => "barangay_id must be a positive integer"]);
+    exit;
+}
+
+$jobType = strtolower(trim((string)$jobTypeRaw));
+if (!in_array($jobType, LINEMAN_ASSIGNMENT_JOB_TYPES, true)) {
+    http_response_code(400);
+    echo json_encode(["success" => false, "message" => "Invalid job_type"]);
     exit;
 }
 
@@ -126,22 +135,40 @@ try {
         $assignmentId = (int)$existing['id'];
         $conn->prepare("
             UPDATE lineman_assignments
-            SET status = 'active', assigned_by = ?
+            SET status = 'active', assigned_by = ?, job_type = ?
             WHERE id = ?
-        ")->execute([$assignedBy, $assignmentId]);
+        ")->execute([$assignedBy, $jobType, $assignmentId]);
 
         $reactivated = true;
     } else {
         $conn->prepare("
-            INSERT INTO lineman_assignments (lineman_id, barangay_id, assigned_by, status)
-            VALUES (?, ?, ?, 'active')
-        ")->execute([$linemanId, $barangayId, $assignedBy]);
+            INSERT INTO lineman_assignments (lineman_id, barangay_id, job_type, assigned_by, status)
+            VALUES (?, ?, ?, ?, 'active')
+        ")->execute([$linemanId, $barangayId, $jobType, $assignedBy]);
 
         $assignmentId = (int)$conn->lastInsertId();
         $reactivated = false;
     }
 
     $conn->commit();
+
+    $assignmentLabel = trim(
+        $lineman['first_name'] . ' ' .
+        ($lineman['middle_name'] ? $lineman['middle_name'] . ' ' : '') .
+        $lineman['last_name']
+    ) . ' · ' . $barangay['barangay_name'];
+
+    recordActivity(
+        $conn,
+        $assignedBy,
+        'assignment',
+        $assignmentId,
+        'assigned',
+        $assignmentLabel,
+        null,
+        $reactivated ? 'inactive' : null,
+        'active'
+    );
 
     /* Notify the lineman of their new/reactivated assignment */
     $assignedByUser = $conn->prepare("SELECT first_name, last_name FROM users WHERE id = ? LIMIT 1");
@@ -215,6 +242,7 @@ echo json_encode([
         "lineman_email"    => $lineman['email'],
         "barangay_id"      => (int)$barangayId,
         "barangay_name"    => $barangay['barangay_name'],
+        "job_type"         => $jobType,
         "assigned_by"      => $assignedBy,
         "assigned_by_name" => trim($saved['ab_first'] . ' ' . ($saved['ab_middle'] ? $saved['ab_middle'] . ' ' : '') . $saved['ab_last']),
         "assigned_at"      => $saved['created_at'],

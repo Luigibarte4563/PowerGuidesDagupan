@@ -97,7 +97,7 @@ export default function Heatmap() {
       <FitPoints items={framedPoints} />
 
       {enabled.heatmap && points.length ? (
-        <HeatLayer points={points} radius={30} blur={18} minOpacity={0.6} />
+        <HeatLayer points={points} radius={50} blur={24} minOpacity={0.6} />
       ) : null}
 
       {/*
@@ -106,7 +106,7 @@ export default function Heatmap() {
         report count. Sized by intensity so the target matches the blob aimed at.
       */}
       {enabled.heatmap && points.length ? (
-        <MapHitAreas items={points} radiusFor={(point) => 30 + (Number(point.intensity) || 0.2) * 46}>
+        <MapHitAreas items={points} radiusFor={(point) => 50 + (Number(point.intensity) || 0.2) * 46}>
           {(point) => {
             const houses = Number(point.raw?.affected_houses) || 0;
             return (

@@ -64,13 +64,20 @@ $sql = "
         lu.email,
         la.barangay_id,
         b.barangay_name,
+        la.job_type,
         la.assigned_by,
         au.first_name AS assigned_by_first_name,
         au.middle_name AS assigned_by_middle_name,
         au.last_name  AS assigned_by_last_name,
         la.created_at,
         la.updated_at,
-        la.status
+        la.status,
+        (SELECT COUNT(DISTINCT o.id)
+           FROM outage_reports o
+           LEFT JOIN outage_report_verifications v
+                  ON v.outage_report_id = o.id AND v.verified_by = la.lineman_id
+          WHERE (o.updated_by = la.lineman_id OR v.verified_by = la.lineman_id)
+            AND o.status IN ('resolved', 'verified')) AS jobs_done
     FROM lineman_assignments la
     JOIN users lu      ON lu.id = la.lineman_id
     JOIN barangays b   ON b.id  = la.barangay_id
@@ -109,13 +116,15 @@ try {
             "lineman_email"    => $row['email'],
             "barangay_id"      => (int)$row['barangay_id'],
             "barangay_name"    => $row['barangay_name'],
+            "job_type"         => $row['job_type'] ?? 'all',
             "assigned_by"      => (int)$row['assigned_by'],
             "assigned_by_name" => trim($row['assigned_by_first_name'] . ' ' . ($row['assigned_by_middle_name'] ? $row['assigned_by_middle_name'] . ' ' : '') . $row['assigned_by_last_name']),
             /* The column is created_at, matching every other table; the API calls it
                assigned_at because that is what the assignment date means to a reader. */
             "assigned_at"      => $row['created_at'],
             "updated_at"       => $row['updated_at'],
-            "status"           => $row['status']
+            "status"           => $row['status'],
+            "jobs_done"        => (int)$row['jobs_done']
         ];
     }
 

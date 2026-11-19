@@ -81,8 +81,8 @@ export default function Heatmap() {
       <FitPoints items={points} />
       {points.length ? (
         <>
-          <HeatLayer points={points} radius={30} blur={18} minOpacity={0.6} />
-          <MapHitAreas items={points} radiusFor={(point) => 30 + point.intensity * 46}>
+          <HeatLayer points={points} radius={50} blur={24} minOpacity={0.6} />
+          <MapHitAreas items={points} radiusFor={(point) => 50 + point.intensity * 46}>
             {(point) => (
               <div className="min-w-[13rem]">
                 <p className="font-bold text-navy-900">{point.label}</p>
@@ -199,17 +199,17 @@ export default function Heatmap() {
                     ? { label: `${humanize(point.forecastLevel)} forecast`, tone: severityTone(point.forecastLevel) }
                     : null,
                 ].filter(Boolean)}
-                meta={[
+                description={[
                   Number.isFinite(Number(point.severityScore))
-                    ? { label: 'Severity score', value: formatNumber(point.severityScore) }
+                    ? `Severity score ${formatNumber(point.severityScore)}`
                     : null,
                   Number.isFinite(Number(point.confidenceScore))
-                    ? { label: 'Confirmed', value: `${formatNumber(point.confidenceScore)}%` }
+                    ? `Confirmed ${formatNumber(point.confidenceScore)}%`
                     : null,
                   Number(point.raw?.affected_houses) > 0
-                    ? { label: 'Households', value: formatNumber(point.raw.affected_houses) }
+                    ? `Households ${formatNumber(point.raw.affected_houses)}`
                     : null,
-                ].filter(Boolean)}
+                ].filter(Boolean).join(' · ') || undefined}
               />
             )}
           />

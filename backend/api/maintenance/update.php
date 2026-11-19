@@ -11,6 +11,7 @@ require_once __DIR__ . '/../../auth/rbac.php';
 require_once __DIR__ . '/../services/create_notification.php';
 require_once __DIR__ . '/../services/lookup.php';
 require_once __DIR__ . '/../services/maintenance_notice.php';
+require_once __DIR__ . '/../services/audit.php';
 
 $conn = getConnection();
 $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -67,8 +68,9 @@ try {
         }
 
         $coverStmt = $conn->prepare("
-            SELECT 1
-            FROM maintenance_locations ml
+            SELECT ms.status
+            FROM maintenance_schedules ms
+            JOIN maintenance_locations ml ON ml.maintenance_id = ms.id
             JOIN lineman_assignments la ON la.barangay_id = ml.barangay_id
             WHERE ml.maintenance_id = ?
               AND la.lineman_id = ?
@@ -76,7 +78,8 @@ try {
             LIMIT 1
         ");
         $coverStmt->execute([$maintenance_id, (int)$user['id']]);
-        if (!$coverStmt->fetchColumn()) {
+        $previousStatus = $coverStmt->fetchColumn();
+        if ($previousStatus === false) {
             http_response_code(403);
             echo json_encode([
                 "success" => false,
@@ -87,6 +90,27 @@ try {
 
         $conn->prepare("UPDATE maintenance_schedules SET status = ? WHERE id = ?")
             ->execute([$manualStatus, $maintenance_id]);
+
+        $labelStmt = $conn->prepare("
+            SELECT GROUP_CONCAT(b.barangay_name ORDER BY b.barangay_name SEPARATOR ', ')
+            FROM maintenance_locations ml
+            JOIN barangays b ON b.id = ml.barangay_id
+            WHERE ml.maintenance_id = ?
+        ");
+        $labelStmt->execute([$maintenance_id]);
+        $barangayLabel = $labelStmt->fetchColumn() ?: "Schedule #{$maintenance_id}";
+
+        recordActivity(
+            $conn,
+            (int)$user['id'],
+            'maintenance',
+            $maintenance_id,
+            'status_changed',
+            $barangayLabel,
+            null,
+            $previousStatus,
+            $manualStatus
+        );
 
         echo json_encode([
             "success" => true,
@@ -203,6 +227,10 @@ try {
         }
     }
 
+    $statusStmt = $conn->prepare("SELECT status FROM maintenance_schedules WHERE id = ? LIMIT 1");
+    $statusStmt->execute([$maintenance_id]);
+    $previousStatus = $statusStmt->fetchColumn();
+
     $conn->beginTransaction();
     try {
         /* Update schedule */
@@ -225,6 +253,18 @@ try {
             ":status" => $finalStatus,
             ":id" => $maintenance_id
         ]);
+
+        recordActivity(
+            $conn,
+            (int)$user['id'],
+            'maintenance',
+            $maintenance_id,
+            'updated',
+            implode(', ', $barangays),
+            $description !== '' ? $description : null,
+            $previousStatus,
+            $finalStatus
+        );
 
         /* Replace locations (barangay_id based) */
         $conn->prepare("DELETE FROM maintenance_locations WHERE maintenance_id = :id")

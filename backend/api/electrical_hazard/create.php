@@ -6,6 +6,7 @@ require_once __DIR__ . '/../../config/db_connect.php';
 require_once __DIR__ . '/../../auth/jwt_auth.php';
 require_once __DIR__ . '/../../auth/rbac.php';
 require_once __DIR__ . '/../services/lookup.php';
+require_once __DIR__ . '/../services/audit.php';
 
 $conn = getConnection();
 $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -121,10 +122,24 @@ try {
         $image_proof
     ]);
 
+    $hazardId = (int)$conn->lastInsertId();
+
+    recordActivity(
+        $conn,
+        $user_id,
+        'hazard',
+        $hazardId,
+        'created',
+        trim($location_name . ' · ' . $barangay_name),
+        $description !== '' ? $description : null,
+        null,
+        'reported'
+    );
+
     echo json_encode([
         "success" => true,
         "message" => "Electrical hazard reported",
-        "hazard_id" => (int)$conn->lastInsertId()
+        "hazard_id" => $hazardId
     ]);
 } catch (Throwable $e) {
     http_response_code(500);

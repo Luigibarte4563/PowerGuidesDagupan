@@ -33,6 +33,7 @@ import CompanyOverview from '@/pages/Company/Overview';
 import CompanyOutages from '@/pages/Company/Outages';
 import CompanyOutageDetail from '@/pages/Company/OutageDetail';
 import CompanyMaintenance from '@/pages/Company/Maintenance';
+import CompanyAssignments from '@/pages/Company/Assignments';
 import CompanyHeatmap from '@/pages/Company/Heatmap';
 import CompanyPowerStations from '@/pages/Company/PowerStations';
 import CompanyNotifications from '@/pages/Company/Notifications';
@@ -42,6 +43,7 @@ import CompanyProfile from '@/pages/Company/Profile';
 
 import AdminLayout from '@/layouts/AdminLayout';
 import AdminOverview from '@/pages/Admin/Overview';
+import AdminActivity from '@/pages/Admin/Activity';
 import AdminUsers from '@/pages/Admin/Users';
 
 /**
@@ -105,6 +107,7 @@ export default function AppRoutes() {
             <Route path="power-stations" element={<CompanyPowerStations />} />
             <Route path="notifications" element={<CompanyNotifications />} />
             <Route path="hazards" element={<CompanyHazards />} />
+            <Route path="assignments" element={<CompanyAssignments />} />
             <Route path="profile" element={<CompanyProfile />} />
           </Route>
         </Route>
@@ -120,6 +123,7 @@ export default function AppRoutes() {
         <Route element={<RequireRole allowed={ADMIN_ROLES} />}>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminOverview />} />
+            <Route path="activity" element={<AdminActivity />} />
             <Route path="users" element={<AdminUsers />} />
           </Route>
         </Route>

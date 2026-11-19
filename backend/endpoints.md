@@ -1,849 +1,257 @@
-# CrowdsourcedAPI — PowerGuide Dagupan
+# PowerGuide Dagupan — API endpoint reference
 
-REST-style JSON API for the PowerGuide Dagupan crowdsourced power-outage tracking
-app. Built with **procedural PHP + PDO + MariaDB** and **JWT cookie authentication**
-(no framework).
+All paths below are relative to the API root:
 
-Base URL: `http://localhost/PowerGuides/backend`
-
----
-
-## Authentication
-
-All endpoints (except `register`, `login`, and the Google OAuth flow) require an
-authenticated JWT.
-
-- The server issues a JWT in an **`HttpOnly` cookie** named `jwt_token` on
-  `register` / `login` / `google_callback`.
-- Send the cookie with every subsequent request (a browser does this
-  automatically; with `curl` use `-b cookies.txt -c cookies.txt`).
-- Unauthorized requests return `401`.
-
-### Roles
-
-| Role | Meaning |
-|------|---------|
-| `user` | Regular PowerGuide user |
-| `lineman` | DECORP field personnel |
-| `electric_company` | DECORP / electric company personnel |
-| `admin` | System administrator |
-
-> `lineman`, `electric_company`, and `admin` are grouped as **staff** in several
-> endpoints and may operate on reports they did not create. Maintenance, cluster
-> store, lineman assignment, and staff notification endpoints are restricted to
-> company/admin.
->
-> A `lineman` is additionally **scoped to their assigned barangays**: every outage
-> endpoint is limited to reports in a barangay actively assigned to them. See
-> [Lineman Assignments](#lineman-assignments).
-
-Role names are stored in the `roles` lookup table and carried in the JWT `role`
-claim, so every role check is a string comparison against one of the four names
-above. Roles are enforced server-side on every request — the frontend's copy of
-the role is only used for hiding UI, never for access decisions.
-
-Both sign-up paths create a `user`, always. `register.php` ignores any `role` in
-the request body and `google_callback.php:141` hard-codes `user` for brand-new
-Google users, so privileged roles can only be granted by writing
-`users.role_id` directly.
-
-### Standard response envelope
-
-```json
-{ "success": true|false, "message": "...", ...data }
+```text
+http://localhost/PowerGuidesDagupan/backend/api/
 ```
 
-Requests that mutate data accept a **JSON body** (also tolerate form-encoded).
+The Vite dev server proxies `/backend/api/...` to that path. There is no router and no per-file HTTP
+verb enforcement: the method column is the **implied** method from each file's input handling.
+CORS advertises `GET, POST, PUT, DELETE, OPTIONS` and answers `OPTIONS` with 200.
+
+Responses are JSON. Most include `success`, often `message` and/or `data`; list endpoints vary
+between `data`, `notifications`, `activities`, etc. Browser clients authenticate with the HttpOnly
+`jwt_token` cookie; the server does not read `Authorization:` headers.
+
+Access legend:
+
+| Legend | Meaning |
+| ------ | ------- |
+| Any | Any authenticated user |
+| Staff | `lineman`, `electric_company`, `admin` |
+| Manager | `electric_company`, `admin` |
+| Admin | `admin` only |
+| Owner | Any authenticated user, but only their own row may be changed |
+
+Lineman scoping comes from `backend/auth/lineman_access.php`: only **active**
+`lineman_assignments` rows grant access, and each row covers its whole barangay. `job_type` is a
+label only. `electric_company` and `admin` are never scoped.
 
 ---
 
-## Authorization
+## 1. Auth
 
-Authentication and authorization are separate steps. Authentication answers
-*who is this?*; authorization answers *may they do this, and on this record?*
+| Endpoint | Method | Access | Inputs / behavior |
+| --- | --- | --- | --- |
+| `auth/register.php` | POST | Public | `first_name`, `middle_name?`, `last_name`, `email`, `password` (min 6). Always creates `user`; any body role is ignored. |
+| `auth/login.php` | POST | Public | `email`, `password`. Rejects Google-only accounts. |
+| `auth/logout.php` | GET/POST | Public | Expires the `jwt_token` cookie. |
+| `auth/me.php` | GET | Any | Re-reads the live user row from the database; returns current role/profile. |
+| `auth/google.php` | GET | Public | Redirects the browser to Google's authorization URL. |
+| `auth/google_callback.php` | GET | Public | `code` or `error`; verifies the id_token via JWKS, finds/creates a `user`, issues JWT, redirects to `/auth/google-callback?token=...`. |
 
-### How a request is authorized
-
-There is no framework middleware. Each endpoint file is a standalone script
-that calls a guard helper at the top, so the guard is visible in the file
-itself. The helpers live in `auth/rbac.php`, and the token check in
-`auth/jwt_auth.php`.
-
-1. **Decode** — `getUserFromJWT()` reads the `jwt_token` cookie, verifies the
-   HS256 signature against `JWT_SECRET_KEY`, and returns the payload
-   (`id`, `email`, `role`). Any failure — missing cookie, bad signature,
-   expired — returns `null`, and all three are indistinguishable to the caller.
-2. **Require a user** — `requireAuthUser()` turns a `null` payload into a `401`.
-3. **Require a role** — `requireRole($user, [...])` exits `403` unless
-   `$user['role']` is in the allow-list. It is a strict `in_array`, so there is
-   no wildcard or hierarchy: `admin` is not implicitly a `lineman`. Each
-   role-gated endpoint lists its roles explicitly.
-4. **Check ownership** — on top of the role check, a `👤` endpoint filters by
-   `user_id` / `created_by` / `reported_by` in the SQL itself, so a
-   non-owner simply gets an empty result or a `404` rather than a data leak.
-
-### `401` vs `403` vs `404`
-
-| Status | Meaning |
-|--------|---------|
-| `401 Unauthorized` | No valid JWT — missing, malformed, wrong signature, or expired. Body: `{"success":false,"message":"Unauthorized"}` |
-| `403 Forbidden` | Valid JWT, insufficient role. Emitted by `denyAccess()`. |
-| `404 Not Found` | Valid JWT and sufficient role, but the record does not exist **or** is owned by someone else. Used to avoid confirming that another user's row exists. |
-
-A `403` therefore means "your role is too low", and a `404` on a mutation
-usually means "not yours" — the two are not interchangeable when debugging.
-
-### Guard styles used in the codebase
-
-The **Guard** column in the access matrix below names the exact pattern each
-endpoint file uses:
-
-| Guard | Pattern | Enforces |
-|-------|---------|----------|
-| `public` | no guard call at all | nothing |
-| `jwt` | `getUserFromJWT()` + a hand-written `401` | any valid JWT |
-| `auth` | `requireAuthUser()` | any valid JWT |
-| `role` | `requireRole(requireAuthUser(), [...])` | an explicit role allow-list |
-| `role-lr` | `hasRole()` + `denyAccess()` written out longhand | an explicit role allow-list |
-| `owner` | the above, plus `user_id` / `created_by` in the SQL | ownership of the record |
-| `owner-or-staff` | `requireAuthUser()` + an `$isStaff` branch on the fetched row | staff, or the record's owner |
-| `assigned` | a `lineman_assignments` lookup from `auth/lineman_access.php` | the outage's barangay is actively assigned to this lineman |
-
-`jwt`, `auth`, `owner` and `assigned` combine with a `+` in the matrix when a file
-layers them on top of its guard. `jwt` and `auth` are functionally identical — both
-require any valid JWT and neither checks a role. The distinction is only
-stylistic: `jwt` predates `auth/rbac.php` and still hand-rolls its `401`. Treat
-them as one tier.
-
-`assigned` narrows a `lineman` only: `electric_company` and `admin` pass through
-untouched, which is why their access to the same endpoints is unchanged.
-
-### What this model does *not* do
-
-- **No permission table.** There is no `permissions` / `role_permissions`
-  table anywhere. Authorization is coarse RBAC on `users.role_id` plus
-  per-query ownership. There are no per-action or per-resource grants.
-- **The role is never re-read from the database.** It is trusted from the JWT
-  for that token's full 24-hour life. If an admin demotes a user in the
-  database, the demotion has no effect until that user's token expires or they
-  log in again. `me.php` is the only endpoint that re-reads the live role, so it
-  can disagree with what the other endpoints actually enforce.
-- **No token revocation.** `logout.php` only expires the cookie. Tokens are not
-  tracked server-side, so a copied or stolen token keeps working until `exp`.
-  The `users.refresh_token` column exists in the schema but is never written
-  or read.
-- **No role-management endpoint.** There is no user creation by admin, and no
-  generic role-assignment API. Roles are changed by writing to `users.role_id`
-  directly, and that is now the only way to grant a role: `register.php` ignores
-  any `role` in the request and always creates a `user` (see
-  [Auth Endpoints](#post-apiauthregisterphp). The one exception is
-  `lineman_assignment/linemen.php`, which lists only `role = 'lineman'` accounts
-  (id, name, email) so the assignment UI has something to populate a picker with —
-  it grants nothing.
-- **No `SameSite` / `Secure` cookie attributes.** `issue_jwt.php:46` sets
-  `httpOnly` but `secure = false` and emits no `SameSite`, relying on browser
-  defaults — acceptable for localhost, not for production over HTTPS.
-- **No rate limiting** on `login` or `register`, and no lockout after repeated
-  failures.
+JWT details: HS256, 24-hour expiry, claims `iat`, `exp`, `id`, `email`, `role`; cookie name
+`jwt_token`, HttpOnly, path `/`. Self-registration and first-time Google signup never choose a role.
 
 ---
 
-## Endpoint Access by Role
+## 2. Admin
 
-Legend:
-`✅` = allowed · `🔒` = blocked (403) · `👤` = only on resources **you** own
-`📍` = allowed only for outage reports in a barangay **actively assigned** to that lineman (see [Lineman Assignments](#lineman-assignments))
-`—` = no authentication needed (public)
+| Endpoint | Method | Access | Inputs / behavior |
+| --- | --- | --- | --- |
+| `admin/users.php` | GET | Admin | Optional `role`, `q` (name/email substring). Directory with name, email, role, provider, dates; no secrets. |
+| `admin/create_user.php` | POST | Admin | `first_name`, `middle_name?`, `last_name`, `email`, `password`, `role` (default `user`). Duplicate email → 409. |
+| `admin/update_role.php` | POST | Admin | `user_id`, `role`; rejects unknown roles and changing your own role. |
+| `admin/stats.php` | GET | Admin | Platform aggregates: user totals/roles, report totals, 30-day trend, top barangays. |
+| `admin/activity.php` | GET | Admin | Audit feed. Required `role=electric_company\|lineman`; optional `user_id`, `target_type`, `action`, `page`, `page_size` (max 100). |
 
-**Guard** names the authorization pattern the endpoint file actually uses — see
-[Guard styles](#guard-styles-used-in-the-codebase) for what each one means and
-[What this model does not do](#what-this-model-does-not-do) for the gaps.
+`admin/activity.php` accepts only these filter values:
 
-| Endpoint | Guard | Public | `user` | `lineman` | `electric_company` | `admin` |
-|----------|-------|:------:|:------:|:---------:|:------------------:|:-------:|
-| **Auth** |||||||
-| `POST /api/auth/register.php` | `public` | — | ✅ | ✅ | ✅ | ✅ |
-| `POST /api/auth/login.php` | `public` | — | ✅ | ✅ | ✅ | ✅ |
-| `POST /api/auth/logout.php` | `public` | — | ✅ | ✅ | ✅ | ✅ |
-| `GET /api/auth/google.php` | `public` | — | ✅ | ✅ | ✅ | ✅ |
-| `GET /api/auth/google_callback.php` | `public` | — | ✅ | ✅ | ✅ | ✅ |
-| `GET /api/auth/me.php` | `jwt` | 🔒 | ✅ | ✅ | ✅ | ✅ |
-| **Reference** |||||||
-| `GET /api/reference/get.php` | `jwt` | 🔒 | ✅ | ✅ | ✅ | ✅ |
-| **Outage reports (own)** |||||||
-| `POST /api/outage_report/create.php` | `jwt` | 🔒 | ✅ | ✅ | ✅ | ✅ |
-| `GET /api/outage_report/get.php` | `jwt` | 🔒 | ✅ | ✅ | ✅ | ✅ |
-| `GET /api/outage_report/get_active.php` | `jwt` + `assigned` | 🔒 | ✅ | 📍 | ✅ | ✅ |
-| `GET /api/outage_report/get_resolve.php` | `jwt` + `assigned` | 🔒 | ✅ | 📍 | ✅ | ✅ |
-| `GET /api/outage_report/get_my_report.php` | `jwt` + `owner` | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| `GET /api/outage_report/get_detail.php` | `auth` + `owner-or-staff` + `assigned` | 🔒 | 👤 | 📍 | ✅ | ✅ |
-| `POST /api/outage_report/update.php` | `jwt` + `owner` | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| `POST /api/outage_report/delete.php` | `jwt` + `owner` | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| `POST /api/outage_report/upload_image.php` | `auth` + `owner-or-staff` | 🔒 | 👤 | ✅ | ✅ | ✅ |
-| **Outage field ops (staff)** |||||||
-| `GET /api/outage/get.php` | `role` + `assigned` | 🔒 | 🔒 | 📍 | ✅ | ✅ |
-| `POST /api/outage/verify.php` | `role` + `assigned` | 🔒 | 🔒 | 📍 | ✅ | ✅ |
-| `POST /api/outage/add_update.php` | `role` + `assigned` | 🔒 | 🔒 | 📍 | ✅ | ✅ |
-| **Outage mgmt (company)** |||||||
-| `GET /api/outage_report_electric_com/get.php` | `role` + `assigned` | 🔒 | 🔒 | 📍 | ✅ | ✅ |
-| `POST /api/outage_report_electric_com/update_single.php` | `role` + `assigned` | 🔒 | 🔒 | 📍 | ✅ | ✅ |
-| `POST /api/outage_report_electric_com/update_barangay.php` | `role` + `assigned` | 🔒 | 🔒 | 📍 | ✅ | ✅ |
-| `POST /api/outage_report_electric_com/update_dagupan.php` | `role` *(manager only)* | 🔒 | 🔒 | 🔒 | ✅ | ✅ |
-| **Lineman assignments** |||||||
-| `GET /api/lineman_assignment/get.php` | `role` | 🔒 | 🔒 | 🔒 | ✅ | ✅ |
-| `GET /api/lineman_assignment/linemen.php` | `role` | 🔒 | 🔒 | 🔒 | ✅ | ✅ |
-| `POST /api/lineman_assignment/create.php` | `role` | 🔒 | 🔒 | 🔒 | ✅ | ✅ |
-| `POST /api/lineman_assignment/update.php` | `role` | 🔒 | 🔒 | 🔒 | ✅ | ✅ |
-| `POST /api/lineman_assignment/delete.php` | `role` | 🔒 | 🔒 | 🔒 | ✅ | ✅ |
-| `GET /api/lineman_assignment/my.php` | `role` *(lineman only)* | 🔒 | 🔒 | ✅ | 🔒 | 🔒 |
-| **Maintenance (company writes)** |||||||
-| `POST /api/maintenance/create.php` | `role` | 🔒 | 🔒 | 🔒 | ✅ | ✅ |
-| `POST /api/maintenance/update.php` | `role` *(no owner scope)* | 🔒 | 🔒 | 🔒 | ✅ | ✅ |
-| `POST /api/maintenance/delete.php` | `role` + `owner` | 🔒 | 🔒 | 🔒 | ✅ | ✅ |
-| `GET /api/maintenance/get_complete.php` | `role` | 🔒 | 🔒 | 🔒 | ✅ | ✅ |
-| `GET /api/maintenance/get.php` | `jwt` | 🔒 | ✅ | ✅ | ✅ | ✅ |
-| `GET /api/maintenance/get_upcoming.php` | `jwt` | 🔒 | ✅ | ✅ | ✅ | ✅ |
-| `GET /api/maintenance_map/get.php` | `jwt` | 🔒 | ✅ | ✅ | ✅ | ✅ |
-| **Power stations** |||||||
-| `POST /api/power_station/create.php` | `jwt` | 🔒 | ✅ | ✅ | ✅ | ✅ |
-| `GET /api/power_station/get.php` | `jwt` | 🔒 | ✅ | ✅ | ✅ | ✅ |
-| `GET /api/power_station/get_available.php` | `jwt` | 🔒 | ✅ | ✅ | ✅ | ✅ |
-| `GET /api/power_station/get_near_location.php` | `jwt` + self | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| `GET /api/power_station/get_my_posts.php` | `jwt` + `owner` | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| `POST /api/power_station/update.php` | `jwt` + `owner` | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| `POST /api/power_station/delete.php` | `jwt` + `owner` | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| **Notifications** |||||||
-| `GET /api/notification/get.php` | `jwt` + `owner` | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| `POST /api/notification/mark_as_read.php` | `jwt` + `owner` | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| `POST /api/notification/mark_all_as_read.php` | `jwt` + `owner` | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| `POST /api/notification/create.php` | `role` | 🔒 | 🔒 | 🔒 | ✅ | ✅ |
-| **User location** |||||||
-| `GET /api/user_location/get.php` | `jwt` + self | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| `POST /api/user_location/location.php` | `jwt` + self | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| **Battery devices** |||||||
-| `POST /api/battery/create.php` | `auth` | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| `GET /api/battery/get.php` | `auth` + `owner` | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| `GET /api/battery/get_history.php` | `auth` + `owner` | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| `POST /api/battery/update.php` | `auth` + `owner` | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| `POST /api/battery/set_percentage.php` | `auth` + `owner` | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| `POST /api/battery/log_usage.php` | `auth` + `owner` | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| `POST /api/battery/delete.php` | `auth` + `owner` | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| **Safety timers** |||||||
-| `POST /api/safety_timer/create.php` | `auth` | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| `GET /api/safety_timer/get.php` | `auth` + `owner` | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| `POST /api/safety_timer/stop.php` | `auth` + `owner` | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| `POST /api/safety_timer/delete.php` | `auth` + `owner` | 🔒 | 👤 | 👤 | 👤 | 👤 |
-| **Flood reports** |||||||
-| `POST /api/flood_report/create.php` | `auth` | 🔒 | ✅ | ✅ | ✅ | ✅ |
-| `GET /api/flood_report/get.php` | `auth` | 🔒 | ✅ | ✅ | ✅ | ✅ |
-| `GET /api/flood_report/get_nearby.php` | `auth` | 🔒 | ✅ | ✅ | ✅ | ✅ |
-| `POST /api/flood_report/update_status.php` | `role` | 🔒 | 🔒 | ✅ | ✅ | ✅ |
-| **Electrical hazards** |||||||
-| `POST /api/electrical_hazard/create.php` | `auth` | 🔒 | ✅ | ✅ | ✅ | ✅ |
-| `GET /api/electrical_hazard/get.php` | `auth` | 🔒 | ✅ | ✅ | ✅ | ✅ |
-| `POST /api/electrical_hazard/update_status.php` | `auth` + `owner-or-staff` | 🔒 | 👤 | ✅ | ✅ | ✅ |
-| **Risk / heatmap / clusters** |||||||
-| `GET /api/risk/get_nearby.php` | `auth` | 🔒 | ✅ | ✅ | ✅ | ✅ |
-| `GET /api/heatmap/get.php` | `auth` | 🔒 | ✅ | ✅ | ✅ | ✅ |
-| `GET /api/cluster/get.php` | `auth` | 🔒 | ✅ | ✅ | ✅ | ✅ |
-| `POST /api/cluster/store.php` | `role-lr` | 🔒 | 🔒 | ✅ | ✅ | ✅ |
+- `target_type`: `maintenance`, `outage`, `flood`, `hazard`, `assignment`
+- `action`: `created`, `updated`, `status_changed`, `verified`, `assigned`, `unassigned`
 
-> `api/services/*.php` (`create_notification`, `get_coordinates`, `lookup`) are
-> **internal includes**, not HTTP endpoints — they are not meant to be called
-> directly.
-
-### Quick list per role
-
-**Everyone (no login)** — `register.php`, `login.php`, `logout.php`,
-`google.php`, `google_callback.php`
-
-**`user`** — everything marked `👤` or `✅` in the table: report & view outage
-reports (own detail only), power stations, maintenance viewing, notifications,
-user location, battery tracking, safety timers, flood reports, electrical
-hazards, risk areas, heatmap, cluster viewing, reference lookups, `me.php`.
-
-**`lineman`** (all of `user` **plus**) — field operations, **each limited to
-outage reports in a barangay actively assigned to that lineman**:
-`outage/get.php`, `outage/verify.php`, `outage/add_update.php`,
-`outage_report_electric_com/get.php`, `update_single.php`,
-`update_barangay.php`, and owner-or-staff access to
-`outage_report/get_detail.php`. Also `cluster/store.php`,
-`outage_report/upload_image.php` and `electrical_hazard/update_status.php`
-(these are not outage-scoped), plus `lineman_assignment/my.php` for their own
-scope. `outage_report_electric_com/update_dagupan.php` is **not** available.
-
-**`electric_company`** (all of `lineman`, **unscoped**, **plus**) — maintenance
-management (`maintenance/create.php`, `update.php`, `delete.php`,
-`get_complete.php`), broadcasting notifications (`notification/create.php`),
-city-wide outage updates (`outage_report_electric_com/update_dagupan.php`), and
-lineman assignment management (`lineman_assignment/get.php`, `linemen.php`,
-`create.php`, `update.php`, `delete.php`).
-
-**`admin`** — the union of every row in the table.
-
-> There is **no** user-management or general role-assignment endpoint. Role changes
-> must be made directly in the database (`users.role_id`); `register.php` always
-> creates a `user`. `lineman_assignment/linemen.php` is the single user listing and
-> is restricted to `role = 'lineman'` (id, name, email) for the assignment picker.
-> See [What this model does *not* do](#what-this-model-does-not-do) for the rest of
-> the authorization gaps.
+Invalid filter values return 400. Response includes `summary.total_activities`, `page`,
+`page_size`, `total_pages`, and an `activities[]` array of newest-first rows with `actor_name`,
+human-readable `action`, `target`, `detail`, `status` and `performed_at`.
 
 ---
 
-## Auth Endpoints
+## 3. Reference
 
-### `POST /api/auth/register.php`
-Register a new local user and log them in (sets JWT cookie).
-Body: `first_name`, `last_name`, `middle_name?`, `email`, `password` (min 6).
+| Endpoint | Method | Access | Inputs / behavior |
+| --- | --- | --- | --- |
+| `reference/get.php` | GET | Any | Roles, barangays, outage categories, severities, hazard types, outage statuses, station types, notification types. |
 
-**Always creates a `user`.** Any `role` in the body is ignored outright rather
-than validated and honoured — this endpoint is unauthenticated, so honouring it
-would let anyone `POST {"role":"admin"}` and mint themselves a privileged
-account. `lineman`, `electric_company` and `admin` are granted only by an
-administrator writing `users.role_id` directly.
-
-### `POST /api/auth/login.php`
-Login with local credentials (sets JWT cookie).
-Body: `email`, `password`.
-
-### `POST /api/auth/logout.php`
-Clears the JWT cookie.
-
-### `GET /api/auth/me.php`
-Returns the authenticated user's profile, including their `role`.
-
-### `GET /api/auth/google.php`
-Redirects the browser to Google's OAuth consent screen.
-
-### `GET /api/auth/google_callback.php`
-OAuth callback: exchanges the `code`, verifies the Google id_token, links or
-creates the user (new Google users are always created as `user`), and sets the
-JWT cookie.
-
-**This endpoint never returns JSON.** It is a top-level browser navigation, so
-every outcome is a `302` to the frontend — success to
-`{FRONTEND_URL}/auth/google-callback?token={jwt}`, failure to
-`{FRONTEND_URL}/login?error={code}`. The success redirect puts the JWT in a
-query string, which lands in browser history and server logs; prefer the
-cookie-based `login.php` path where possible. Failure codes are
-`google_auth_denied`, `google_missing_code`, `google_exchange_failed`,
-`google_invalid_token`, `google_role_missing`, `google_db_error`,
-`google_jwt_failed`. Details are written to the PHP error log, not the response.
-
-> Requires real `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` in `.env`
-> (currently placeholders).
+The raw `barangays` rows are `{ id: <numeric id>, barangay_name, city, province, latitude,
+longitude }`. The frontend's `ReferenceContext` normalises them to `{ id: <NAME>, name: <NAME>,
+rowId: <numeric id>, raw, ... }`; use `rowId` wherever an integer `barangay_id` is required.
 
 ---
 
-## Reference / Lookups
+## 4. Outages — resident
 
-> **Roles:** any authenticated user.
+| Endpoint | Method | Access | Inputs / behavior |
+| --- | --- | --- | --- |
+| `outage_report/create.php` | POST | Any | `location_name`, `description`, `barangay_name`, `latitude`, `longitude`, `category`, `severity`, `hazard_type`, `started_at`, `image_url?`. Enforces one active report per user. |
+| `outage_report/get.php` | GET | Any, lineman scoped | `status?`, `category?`. |
+| `outage_report/get_active.php` | GET | Any, lineman scoped | `status?`, `category?`, `severity?`. Returns counts only (`total_active_reports`). |
+| `outage_report/get_resolve.php` | GET | Any, lineman scoped | Returns counts only (`total_resolved`). |
+| `outage_report/get_my_report.php` | GET | Any | Caller's reports, excluding `rejected`. |
+| `outage_report/get_detail.php` | GET | Any | `id`. Residents are owner-scoped; linemen are barangay-scoped; company/admin unrestricted. |
+| `outage_report/update.php` | POST/PUT | Owner | `id` plus editable report fields. |
+| `outage_report/delete.php` | POST/DELETE | Owner | Soft-cancels own `active`/`under_review` report to `rejected`. |
+| `outage_report/upload_image.php` | POST multipart | Owner or Staff | `outage_report_id`, `image`. Valid jpg/jpeg/png/gif/webp, max 5 MB. |
 
-### `GET /api/reference/get.php`
-Returns all lookup tables in one call:
-`roles`, `barangays`, `outage_categories`, `severity_levels`, `hazard_types`,
-`outage_statuses`, `power_station_types`, `safety_timer_types`,
-`notification_types`.
-
----
-
-## Outage Reports (user-facing)
-
-> **Roles:** any authenticated user. `get_detail` is owner-only for `user`
-> (staff may open any report); `update` and `delete` are **owner-only for every
-> role** — staff must use `/api/outage/*` or `/api/outage_report_electric_com/*`
-> instead. `upload_image` is owner-or-staff.
-
-### `POST /api/outage_report/create.php`
-Create an outage report. Coordinates are geocoded (Geoapify) or matched to a
-barangay. Enforces one active report per user.
-Body: `location_name`, `description`, `category?`, `severity?`, `hazard_type?`,
-`affected_houses?`, `barangay_name?`, `started_at?`, `image_url?`.
-Out-of-coverage-area locations are rejected (`403`).
-
-### `GET /api/outage_report/get.php`
-List active (non-rejected) reports. Filters: `?status=`, `?category=`.
-
-### `GET /api/outage_report/get_active.php`
-Count of open reports. Filters: `?status=`, `?category=`, `?severity=`.
-Returns `total_active_reports`.
-
-The count is `status != 'rejected' AND is_active = 1` — i.e. every **open** report,
-not only those whose status is literally `active`. It is therefore broader than
-`electric_com/get.php?status=active` and the two numbers are not expected to match.
-Scoped to the caller's assignments for a lineman, so it always agrees with the rows
-`outage/get.php` returns them.
-
-### `GET /api/outage_report/get_resolve.php`
-Returns `total_resolved` (count of resolved reports). Scoped for a lineman, like
-`get_active.php`.
-
-### `GET /api/outage_report/get_my_report.php`
-List the authenticated user's own reports.
-
-### `GET /api/outage_report/get_detail.php?id=`
-Full report detail with `images`, `updates`, and `verifications`.
-Regular users may only view their own; staff may view any.
-
-### `POST /api/outage_report/update.php`
-Update own report. Body: `id`, plus any of `location_name`, `description`,
-`category`, `severity`, `hazard_type`, `affected_houses`, `barangay_name`,
-`started_at`.
-
-### `POST /api/outage_report/delete.php`
-Cancel (soft-delete) own active report. Body: `id`. Sets status `rejected`,
-`is_active = 0`.
-
-### `POST /api/outage_report/upload_image.php`
-Multipart upload. Fields: `image` (file, max 5 MB, jpg/png/gif/webp),
-`outage_report_id`. Owner or staff only. Stores under `uploads/outage/` and
-saves the path to `outage_reports.image_proof`.
+`get_active.php` counts rows with `status != 'rejected'` plus any supplied filters and lineman
+scope, not just `status = 'active'`. The canonical schema has no `is_active` column.
 
 ---
 
-## Outage Field / Staff Operations
+## 5. Outages — staff
 
-These endpoints require a **staff** role (`lineman`, `electric_company`, `admin`).
-
-> **Lineman scope.** A `lineman` only ever sees and acts on reports whose
-> `barangay_id` has an **active** row in `lineman_assignments` for their user id.
-> The restriction is a `WHERE` subquery, not a post-fetch filter, so an
-> unauthorized row is never read at all. `electric_company` and `admin` are not
-> narrowed. See [Lineman Assignments](#lineman-assignments).
-
-### `GET /api/outage/get.php`
-List all reports for staff. Filters: `?status=`, `?category=`, `?severity=`,
-`?barangay=` (a name).
-
-`?barangay=` cannot widen a lineman's scope: it is ANDed with the assignment
-subquery, so naming an unassigned barangay returns `count: 0` rather than its
-reports. For a lineman the response also carries `barangay_id` (not just
-`barangay_name`), which is what the UI's assigned-efficacy filter uses.
-
-### `POST /api/outage/verify.php`
-Verify a report and preserve the verification history. Body:
-`outage_report_id`, `verification_status` (`confirmed` | `not_confirmed` |
-`false_report`), `notes?`, `status?` (optional explicit target status).
-Rule-based result: `confirmed → verified`, `false_report → rejected`,
-`not_confirmed → under_review`.
-
-### `POST /api/outage/add_update.php`
-Add a field update (history) and optionally advance status. Body:
-`outage_report_id`, `update_message`, `status?` (optional; `resolved` also sets
-`is_active = 0`).
-
-Both single-record endpoints resolve the report and check its barangay **before**
-writing anything, so a lineman refused by the assignment check leaves no row in
-`outage_report_verifications` / `outage_report_updates` and cannot advance a
-status. A missing report is `404`; a report outside the lineman's assigned
-barangays is `403`.
+| Endpoint | Method | Access | Inputs / behavior |
+| --- | --- | --- | --- |
+| `outage/get.php` | GET | Staff, lineman scoped | `status?`, `category?`, `severity?`, `barangay?`. |
+| `outage/verify.php` | POST | Staff, per-report scope | `outage_report_id`, `verification_status=confirmed\|not_confirmed\|false_report`, `notes?`, optional `status`. Writes audit. |
+| `outage/add_update.php` | POST | Staff, per-report scope | `outage_report_id`, `update_message`, optional `status`. Writes audit. |
 
 ---
 
-## Electric Company Outage Management
+## 6. Outages — company bulk/status
 
-Require `electric_company`, `admin`, or `lineman` — with a `lineman` limited to
-their assigned barangays as above.
-
-### `GET /api/outage_report_electric_com/get.php`
-List reports. Filters: `?status=`, `?severity=`, `?active=` (0/1).
-
-### `POST /api/outage_report_electric_com/update_single.php`
-Update one report's status. Body: `id`, `status`
-(`active`/`under_review`/`verified`/`resolved`/`rejected`). A lineman gets `403`
-for a report outside their assigned barangays.
-
-### `POST /api/outage_report_electric_com/update_barangay.php`
-Update status for all reports in a barangay. Body: `barangay` (a **name**),
-`status`.
-
-For a lineman the name is resolved with a plain lookup and checked against their
-assignments first: a `403` for an unassigned or unknown name, and — unlike for
-company/admin — `resolveBarangay()` is **not** used, so a lineman request cannot
-create a new `barangays` row.
-
-### `POST /api/outage_report_electric_com/update_dagupan.php`
-Update status for all reports city-wide. Body: `status`.
-
-**`electric_company` and `admin` only** — a lineman gets `403`. This endpoint
-issues one `UPDATE` with no `WHERE` clause, so there is no barangay to narrow it
-to and no scoped version of it that would be meaningful.
+| Endpoint | Method | Access | Inputs / behavior |
+| --- | --- | --- | --- |
+| `outage_report_electric_com/get.php` | GET | Staff, lineman scoped | `status?`, `severity?`, `active?`. |
+| `outage_report_electric_com/update_single.php` | POST/PUT | Staff, per-report scope | `id`, `status` ∈ `active\|under_review\|verified\|resolved\|rejected`. Writes audit. |
+| `outage_report_electric_com/update_barangay.php` | POST/PUT | Staff; lineman must be assigned to the barangay | `barangay` (name), `status` (not validated through `getStatus()`). Writes audit. |
+| `outage_report_electric_com/update_dagupan.php` | POST/PUT | Manager only | `status` (not validated through `getStatus()`). City-wide rewrite with no `WHERE`. Linemen are denied outright. Writes audit. |
 
 ---
 
-## Lineman Assignments
+## 7. Lineman assignments
 
-Which `lineman` covers which `barangay`. Rows live in `lineman_assignments`
-(migration: `database/002_lineman_assignments.sql`, also in the base schema) and
-are **enforced by the backend** on every outage endpoint listed above.
+| Endpoint | Method | Access | Inputs / behavior |
+| --- | --- | --- | --- |
+| `lineman_assignment/get.php` | GET | Manager | `lineman_id?`, `barangay_id?`, `status?`. Returns assignments with `jobs_done`. |
+| `lineman_assignment/create.php` | POST | Manager | `lineman_id`, `barangay_id`, `job_type?`; `assigned_by` comes from JWT; reactivates a duplicate pair. Writes audit. |
+| `lineman_assignment/update.php` | POST/PUT | Manager | `id`, optional `lineman_id`, `barangay_id`, `status`, `job_type`. Writes audit. |
+| `lineman_assignment/delete.php` | POST/DELETE | Manager | `id`. Soft-deactivates; writes audit. |
+| `lineman_assignment/my.php` | GET | `lineman` only | No identity parameter; caller comes from JWT. |
+| `lineman_assignment/linemen.php` | GET | Manager | Lineman picker. |
+| `lineman_assignment/activity.php` | GET/POST | Any; managers any lineman, linemen self only | `lineman_id` (optional for linemen), `limit` (1–200), `work_type=all\|done\|pending`. Returns work history and `summary.total_done`. |
 
-Manage them with `electric_company` or `admin`; a `lineman` reads only their own.
-
-`assigned_by` is always written from the JWT identity — never from the request
-body — so it records who actually made the change. The target's role is re-read
-from `roles` on every create and update, so a `user` who was promoted since an
-assignment row was written cannot be left as a "lineman" assignment.
-
-`UNIQUE(lineman_id, barangay_id)` means a pair has exactly one row: re-assigning
-a deactivated pair **reactivates that row** instead of inserting a duplicate.
-
-### `GET /api/lineman_assignment/get.php`
-List assignments. Require `electric_company` or `admin`.
-
-Query: `?lineman_id=`, `?barangay_id=`, `?status=` (`active` | `inactive`).
-Each is validated; an invalid value is a `400` rather than a silently ignored
-"return everything".
-
-```json
-{ "success": true, "message": "...", "count": 1, "data": [
-  { "id": 9, "lineman_id": 13, "lineman_name": "Lineman Line",
-    "lineman_email": "lineman@gmail.com", "barangay_id": 27,
-    "barangay_name": "Pantal", "assigned_by": 37,
-    "assigned_by_name": "Test Company", "assigned_at": "2026-10-01 11:29:53",
-    "updated_at": "2026-10-01 11:29:53", "status": "active" }
-] }
-```
-
-Only name and email are exposed for users — never a password hash, `google_id`
-or `refresh_token`.
-
-### `POST /api/lineman_assignment/create.php`
-Assign a lineman to a barangay. Body: `lineman_id`, `barangay_id` (both positive
-integers).
-
-| Status | Meaning |
-|---|---|
-| `201` | created, or an inactive pair was reactivated |
-| `400` | id not a positive integer, user/barangay missing, or the target's role is not `lineman` |
-| `403` | caller is not `electric_company` / `admin` |
-| `409` | the pair is already active |
-
-Re-activating returns the **same `id`** with `"Assignment reactivated"`, so
-history is preserved and no duplicate row can appear.
-
-### `POST /api/lineman_assignment/update.php`
-Edit an assignment. Body: `id` (required), and any of `lineman_id`,
-`barangay_id`, `status`.
-
-**Partial update** — omitted fields keep their stored value, so
-`{ "id": 9, "status": "inactive" }` is a valid status-only edit. `assigned_by`
-is rewritten to the authenticated caller and cannot be set from the client.
-
-`400` invalid value · `403` wrong role · `404` unknown `id` · `409` the move
-lands on a pair this lineman already holds (no duplicate is created).
-
-### `POST /api/lineman_assignment/delete.php`
-Deactivate an assignment. Body: `id`.
-
-Sets `status = 'inactive'` rather than deleting the row, which keeps the record
-of who was assigned and when, and lets a later re-assignment reactivate the same
-row. Access is revoked **immediately** — a lineman's next request is already
-scoped out. `404` if the id does not exist; an already-inactive row is a `200`
-(idempotent).
-
-### `GET /api/lineman_assignment/my.php`
-The authenticated lineman's own **active** assignments. Require `lineman`.
-
-There is deliberately **no id parameter**: the identity comes from the JWT alone,
-so a lineman cannot ask for anybody else's assignments — the question cannot be
-posed. `assigned_by` and email are not returned.
-
-```json
-{ "success": true, "message": "Your assigned barangays", "count": 1, "data": [
-  { "id": 9, "barangay_id": 27, "barangay_name": "Pantal", "status": "active" }
-] }
-```
-
-### `GET /api/lineman_assignment/linemen.php`
-List assignable linemen for the UI picker. Require `electric_company` or `admin`.
-
-Returns only users whose role is `lineman`, and only `id`, `name`, `email`.
-This is the only user listing in the API and exists solely because nothing else
-could populate a picker.
-
-```json
-{ "success": true, "message": "...", "count": 1,
-  "data": [ { "id": 13, "name": "Lineman Line", "email": "lineman@gmail.com" } ] }
-```
-
-### Status codes used by these endpoints
-
-`200` ok · `201` created · `400` invalid input or non-lineman target ·
-`401` not authenticated · `403` wrong role · `404` assignment not found ·
-`409` duplicate assignment · `500` server error.
+Valid assignment statuses: `active`, `inactive`. Valid `job_type` labels: `all`, `outage`,
+`flood`, `hazard`, `maintenance`. None of the job labels narrow access.
 
 ---
 
-## Maintenance Schedules
+## 8. Maintenance
 
-Create/update require `electric_company` or `admin`. List endpoints require any
-authenticated user. Affected users are auto-notified based on their location
-within the maintenance radius.
+| Endpoint | Method | Access | Inputs / behavior |
+| --- | --- | --- | --- |
+| `maintenance/get.php` | GET | Any, lineman scoped | Company-created schedules with locations; no params. |
+| `maintenance/get_upcoming.php` | GET | Any, lineman scoped | Count of `upcoming`/`ongoing` schedules. |
+| `maintenance/get_complete.php` | GET | Manager | Completed schedules management list. |
+| `maintenance/create.php` | POST | Manager | `maintenance_date`, `start_time`, `end_time`, `description`, `radius`, `barangays[]`; creates locations and notices; writes audit. |
+| `maintenance/update.php` | POST/PUT | Staff | Full edit for managers; linemen in a covered barangay may send status-only updates. Writes audit. |
+| `maintenance/delete.php` | POST/DELETE | Manager, owner | `maintenance_id`; removes dependent notifications and locations. |
 
-### `POST /api/maintenance/create.php`
-Body: `maintenance_date` (`YYYY-MM-DD`), `start_time`, `end_time`,
-`barangays` (array of names), `description?`, `radius?` (default 2000 m).
-Returns `users_notified`.
-
-### `POST /api/maintenance/update.php`
-Body: `maintenance_id`, `maintenance_date`, `start_time`, `end_time`,
-`barangays` (array), `description?`, `radius?`, `status?` (optional:
-`upcoming`/`ongoing`/`completed`/`cancelled`). Status is otherwise computed from
-the date/time.
-
-> ⚠️ Unlike `delete.php`, this endpoint's `UPDATE` is **not** scoped by
-> `created_by` — any `electric_company` or `admin` user can edit **any**
-> maintenance schedule, not just the ones they created. Treat that as a bug;
-> add `AND created_by = :user_id` to match the delete behaviour.
-
-### `GET /api/maintenance/get.php`
-List electric-company maintenance schedules with their affected `locations`.
-
-### `GET /api/maintenance/get_upcoming.php`
-Returns `upcoming_count` (schedules with status `upcoming`/`ongoing`).
-
-### `GET /api/maintenance/get_complete.php`
-Lists completed maintenance (`electric_company`/`admin` only).
-
-### `POST /api/maintenance/delete.php`
-Delete own maintenance (company/admin only). Body: `maintenance_id`. Cleans up
-linked notifications, locations, and the schedule.
-
-### `GET /api/maintenance_map/get.php`
-List maintenance with coordinates for map display.
-Filters: `?status=`, `?date=`.
+`maintenance_map/get.php` (GET, any, lineman scoped) returns map points with optional `status?` and
+`date?` filters.
 
 ---
 
-## Power Stations
+## 9. Power stations
 
-> **Roles:** any authenticated user may browse, post, and view their own posts.
-> `update` and `delete` are **owner-only for every role**. `get_near_location`
-> and `get_my_posts` are scoped to the caller.
-
-### `POST /api/power_station/create.php`
-Body: `station_name`, `location_name`, `station_type?` (`power_station` |
-`solar_station` | `charging_station` | `generator_station`), `access_type?`
-(`free`/`paid`), `availability_status?`, `opening_time?`, `closing_time?`, `is_24_hours?`,
-`charging_type?`, `description?`, `image?`, `latitude?`/`longitude?`, `barangay_name?`.
-
-### `GET /api/power_station/get.php`
-List stations (paginated). Query: `?page=`, `?limit=`.
-
-### `GET /api/power_station/get_available.php`
-Returns `total_available` count.
-
-### `GET /api/power_station/get_my_posts.php`
-List the authenticated user's own stations.
-
-### `GET /api/power_station/get_near_location.php`
-List available stations near the user's primary saved location, sorted by
-distance. Query: `?radius=` (meters).
-
-### `POST /api/power_station/update.php`
-Update own station. Body: `id` + fields to change (same set as create).
-
-### `POST /api/power_station/delete.php`
-Delete own station. Body: `station_id`.
+| Endpoint | Method | Access | Inputs / behavior |
+| --- | --- | --- | --- |
+| `power_station/create.php` | POST | Any | `station_name`, `location_name`, `station_type?`, `access_type?`, `availability_status?`, `opening_time?`, `closing_time?`, `is_24_hours?`, `charging_type?`, `description?`, `barangay_name`, `latitude`, `longitude`. One station per creator. |
+| `power_station/get.php` | GET | Any, lineman scoped | `page?`, `limit?` (max 50). |
+| `power_station/get_available.php` | GET | Any, lineman scoped | Returns count only (`total_available`). |
+| `power_station/get_my_posts.php` | GET | Any | Caller's stations. |
+| `power_station/get_near_location.php` | GET | Any, lineman scoped | `radius` only; centre is the caller's saved location. |
+| `power_station/update.php` | POST/PUT | Owner | `id` plus editable station fields. |
+| `power_station/delete.php` | POST/DELETE | Owner | `station_id` (not `id`). |
 
 ---
 
-## Notifications
+## 10. Notifications
 
-> **Roles:** `get`, `mark_as_read`, `mark_all_as_read` are own-notifications-only
-> for any authenticated user. `create` is **`electric_company` / `admin` only**.
-
-### `GET /api/notification/get.php`
-List the user's notifications. Query: `?unread=1`, `?type=`, `?maintenance_id=`,
-`?limit=`, `?offset=`.
-
-### `POST /api/notification/mark_as_read.php`
-Body: `notification_id`.
-
-### `POST /api/notification/mark_all_as_read.php`
-Marks all of the user's notifications read.
-
-### `POST /api/notification/create.php`
-Staff only (`electric_company`/`admin`). Create one or many notifications.
-Either a single object `{user_id, title, message, type?}` or an array
-`{notifications: [{user_id, title, message, type?}, ...]}`.
-
-> Most notifications are created automatically by the system (e.g. maintenance
-> schedules, safety-timer reminders, hazard verification).
+| Endpoint | Method | Access | Inputs / behavior |
+| --- | --- | --- | --- |
+| `notification/get.php` | GET | Any | `limit?` (default 50, max 200), `offset?`, `unread?`, `type?`, `maintenance_id?`. Returns `unread_count`. |
+| `notification/create.php` | POST | Manager | `notifications[]` or `user_id`, `title`, `message`, `type`. Explicit user ids only. |
+| `notification/mark_as_read.php` | POST | Owner | `notification_id`. |
+| `notification/mark_all_as_read.php` | POST | Any | Marks all caller's unread rows read. |
 
 ---
 
-## User Location
+## 11. Saved location
 
-> **Roles:** own location only, any authenticated user.
-
-### `GET /api/user_location/get.php`
-Get the user's primary saved location.
-
-### `POST /api/user_location/location.php`
-Save/update the user's location. Body: `address` (or `location_name`),
-`barangay_name`, `latitude`/`longitude` (optional; geocoded if omitted).
+| Endpoint | Method | Access | Inputs / behavior |
+| --- | --- | --- | --- |
+| `user_location/get.php` | GET | Any | Caller's barangay, address and point. |
+| `user_location/location.php` | POST/PUT | Any | `address` or `location_name`, `barangay_name`; saves the barangay centroid. |
 
 ---
 
-## Battery Devices
+## 12. Floods
 
-> **Roles:** own devices only, any authenticated user. Staff have no special
-> access to other users' devices.
-
-### `POST /api/battery/create.php`
-Body: `device_name`, `device_type` (`phone`|`laptop`|`powerbank`|`ups`|`tablet`
-|`other`), `capacity_mah?`, `current_percentage?` (0–100, default 100),
-`is_primary?`. Only one device is `is_primary`.
-
-### `GET /api/battery/get.php`
-List the user's devices with `recent_logs`, `estimated_usage_rate_per_hour`,
-and `estimated_hours_remaining` (simple %-per-hour budgeting).
-
-### `POST /api/battery/update.php`
-Update a device. Body: `device_id` + any of `device_name`, `device_type`,
-`capacity_mah`, `current_percentage`, `is_primary`. Ownership enforced.
-
-### `POST /api/battery/set_percentage.php`
-Update just the current battery level. Body: `device_id`, `current_percentage`.
-Ownership enforced.
-
-### `POST /api/battery/log_usage.php`
-Log a usage session. Body: `device_id`, `battery_percentage_start`,
-`battery_percentage_end`, `usage_minutes?`, `estimated_watts?`, `activity?`.
-Also updates the device's `current_percentage` to the end value.
-
-### `GET /api/battery/get_history.php?device_id=`
-List usage logs for a device (ownership enforced).
-
-### `POST /api/battery/delete.php`
-Body: `device_id`. Ownership enforced.
+| Endpoint | Method | Access | Inputs / behavior |
+| --- | --- | --- | --- |
+| `flood_report/create.php` | POST | Any | `location_name`, `description`, `severity` or `flood_level`, `flood_depth_cm?`, `image_url?`, `barangay_name`, `latitude`, `longitude`. Writes audit. |
+| `flood_report/get.php` | GET | Any, lineman scoped | `status?`, `severity?`, `barangay?`. |
+| `flood_report/get_nearby.php` | GET | Any, lineman scoped | `lat`, `lng`, `radius` (default 3000 m). |
+| `flood_report/update.php` | POST/PUT | Owner | `id` plus editable flood fields. Writes audit. |
+| `flood_report/update_status.php` | POST | Staff | `flood_id`, `status=reported\|verified\|cleared`. Writes audit. Does **not** apply lineman barangay scoping. |
+| `flood_report/delete.php` | POST/DELETE | Owner | Soft-cancels own report to `cancelled`. |
+| `flood_report/upload_image.php` | POST multipart | Owner or Staff | `flood_report_id`, `image`; same validation/cap as outage uploads. |
 
 ---
 
-## Safety Timers
+## 13. Electrical hazards
 
-> **Roles:** own timers only, any authenticated user.
-
-### `GET /api/reference/get.php`
-Returns `safety_timer_types`:
-`sealed_refrigerator` (4h / warn 1h), `deep_freezer_24h` (24h / 4h),
-`deep_freezer_48h` (48h / 6h), `medication` (4h / 1h).
-
-### `POST /api/safety_timer/create.php`
-Start a timer for the current user. Provide either `timer_type_name` (one of the
-types above) **or** `duration_hours` + `warning_hours_before`. Optional
-`title`, `notes`, `started_at`.
-Returns `timer_id`, `started_at`, `warning_at`, `expected_expiration_at`,
-`status` (`running` initially).
-
-### `GET /api/safety_timer/get.php`
-List the user's timers with live-computed `status`
-(`running`/`warning`/`expired`/`stopped`) and `remaining_seconds`. When a timer
-enters `warning` or `expired`, a one-time alert is recorded and a notification
-is created.
-
-### `POST /api/safety_timer/stop.php`
-Body: `timer_id`. Sets status `stopped`, `completed_at = NOW()`.
-
-### `POST /api/safety_timer/delete.php`
-Body: `timer_id`. Deletes own timer.
+| Endpoint | Method | Access | Inputs / behavior |
+| --- | --- | --- | --- |
+| `electrical_hazard/create.php` | POST | Any | `location_name`, `description`, `hazard_type`, `severity`, `image_url?`/`image_proof?`, `barangay_name`, `latitude`, `longitude`. Writes audit. |
+| `electrical_hazard/get.php` | GET | Any, lineman scoped | `status?`, `severity?`, `barangay?`. |
+| `electrical_hazard/update.php` | POST/PUT | Owner | `id` plus editable hazard fields. Writes audit. |
+| `electrical_hazard/update_status.php` | POST | Any; owner for residents, any hazard for staff | `hazard_id`, `status=reported\|verified\|resolved`. Actor comes from JWT. Writes audit. Does **not** apply lineman barangay scoping. |
+| `electrical_hazard/upload_image.php` | POST multipart | Owner or Staff | `hazard_id`, `image`; same validation/cap as outage uploads. |
 
 ---
 
-## Flood Reports
+## 14. Risk, heatmap and clusters
 
-> **Roles:** any authenticated user. No staff-only variant; clearing is done via
-> the electrical-hazard / outage workflows.
+| Endpoint | Method | Access | Inputs / behavior |
+| --- | --- | --- | --- |
+| `risk/get_nearby.php` | GET | Any, lineman scoped | `lat`, `lng`, `radius` (default 3000 m). Combined active floods and unresolved hazards. |
+| `heatmap/get.php` | GET | Any, lineman scoped | `mode=by_barangay\|clusters`, `radius` (default 1000 m), `days` (default 7). Active outages only. |
+| `cluster/get.php` | GET | Any, lineman scoped | `status?`, `barangay?`, `from_date?`. Stored outage clusters. |
+| `cluster/store.php` | POST | Staff | `barangay_id`, `latitude`, `longitude`, `radius_meters`, `report_count`, `confidence_score`, `severity_score`, `forecast_level`, `cluster_date`. `report_ids` is accepted but ignored. |
 
-### `POST /api/flood_report/create.php`
-Body: `location_name`, `flood_level` (`low`/`moderate`/`high`/`severe`),
-`flood_depth_cm?`, `description?`, `barangay_name?`, `latitude?`/`longitude?`,
-`image_url?`. Coordinates geocoded if not provided.
-
-### `GET /api/flood_report/get.php`
-List flood reports. Filters: `?status=`, `?flood_level=`, `?barangay=`.
-
-### `GET /api/flood_report/get_nearby.php?lat=&lng=&radius=`
-List active (non-cleared) floods within `radius` meters, sorted by distance.
-Used for electrocution-risk display.
-
-### `POST /api/flood_report/update_status.php` (staff: electric_company / admin / lineman)
-Change any flood report's status. Body: `flood_id`, `status` (`reported` | `verified` | `cleared`).
-Stamps `updated_by` and `updated_at`. When moving to `verified` or `cleared`, creates a
-`flood` notification for the original reporter.
+Heatmap confidence is confirmed verifications divided by total reports; severity weights are
+low=25, moderate=50, high=75, critical=100.
 
 ---
 
-## Electrical Hazards
+## 15. Shared services (not endpoints)
 
-> **Roles:** create/list/nearby are open to any authenticated user;
-> `update_status` is owner-only for `user` and open to all staff.
-
-### `POST /api/electrical_hazard/create.php`
-Body: `location_name`, `hazard_type` (see `hazard_types` lookup, e.g.
-`submerged_electrical_equipment`, `fallen_wire`, `sparks`), `severity?`
-(`low`/`moderate`/`high`/`critical`), `description?`, `barangay_name?`,
-`latitude?`/`longitude?`, `image_url?`.
-
-### `GET /api/electrical_hazard/get.php`
-List hazards. Filters: `?status=`, `?severity=`, `?barangay=`.
-
-### `POST /api/electrical_hazard/update_status.php`
-Body: `hazard_id`, `status` (`reported`/`verified`/`resolved`). Owners may act
-on their own; staff may act on any (`verified`/`resolved` also notifies the
-reporter).
+| File | Purpose |
+| ---- | ------- |
+| `services/audit.php` | `recordActivity()` appends to `activity_log` after a successful write. Actor id comes from the JWT; no FK on `actor_id`. |
+| `services/lookup.php` | ENUM validators, `resolveBarangay()`, `resolveBarangayCoords()`, `barangaysMissingCoordinates()`, `findBarangayId()`. Only `resolveBarangay()` inserts unknown names. |
+| `services/create_notification.php` | `createNotification()` dedupes recipients, validates type and writes source links. |
+| `services/maintenance_notice.php` | Builds maintenance notification title/message for in-area vs out-of-area users. |
 
 ---
 
-## Combined Risk Areas
+## 16. Current quirks to know
 
-> **Roles:** any authenticated user.
-
-### `GET /api/risk/get_nearby.php?lat=&lng=&radius=`
-Returns nearby active floods **and** unresolved electrical hazards together
-(each tagged with `category`), the primary source for rendering potential
-electrocution-risk areas on the map.
-
----
-
-## Heatmap & Clustering
-
-> **Roles:** `heatmap/get.php` and `cluster/get.php` are open to any
-> authenticated user; `cluster/store.php` is **staff only**
-> (`lineman` / `electric_company` / `admin`).
-
-### `GET /api/heatmap/get.php`
-Rule-based heatmap of active outage reports.
-Query: `?mode=` (`by_barangay` default | `clusters`), `?radius=` (cluster
-radius, default 1000 m), `?days=` (lookback window, default 7).
-For each point/barangay it returns `report_count`, `affected_houses`,
-`confidence_score` (verified / total × 100), `severity_score`, and
-`forecast_level` (`low`/`moderate`/`high`/`critical`).
-
-### `POST /api/cluster/store.php` (staff: lineman/company/admin)
-Persist a computed cluster to `outage_clusters`. Body: `barangay_id`,
-`latitude`, `longitude`, `radius_meters?`, `report_count?`,
-`affected_houses?`, `confidence_score?`, `severity_score?`, `forecast_level?`,
-`cluster_date?`, `report_ids` (array, linked into `outage_cluster_reports` with
-their distance from the center).
-
-### `GET /api/cluster/get.php`
-List stored clusters. Filters: `?status=`, `?barangay=`, `?from_date=`,
-`?include_reports=1`.
-
----
-
-## Notes
-
-- **Geocoding**: locations without explicit `latitude`/`longitude` are geocoded
-  via Geoapify (`GEOAPIFY_GEOCODING_API_KEY` in `.env`).
-- **Lookup tables**: the string values you send (`category`, `severity`,
-  `hazard_type`, `station_type`, `status`, `timer_type_name`) are resolved to
-  ids server-side; see `GET /api/reference/get.php` for the valid values.
-- **Test data**: the `powerguide` database ships with seeded lookup tables and
-  36 barangays. The `barangays` seed rows have `NULL` coordinates; use the
-  barangay name (auto-created if needed) or pass coordinates explicitly.
-- **Configuration** lives in `.env`: DB credentials, `JWT_SECRET_KEY`,
-`GEOAPIFY_GEOCODING_API_KEY`, and Google OAuth credentials (placeholders —
-fill in real values before enabling Google sign-in).
+- Method names are advisory; the API has no router and does not reject the wrong verb.
+- `notification/create.php` calls `getNotificationType()` without including
+  `services/lookup.php`, so manual notification creation currently has an undefined helper.
+- Flood and hazard staff status endpoints lack the lineman barangay guard that outage actions use.
+- `flood_report/delete.php` allows `under_review` as a source status even though the canonical
+  flood status ENUM is `reported|verified|cleared|cancelled`; `flood_report/update.php` accepts
+  `severe` instead of the canonical `critical`.
+- `outage_report_electric_com/update_barangay.php` and `update_dagupan.php` do not validate
+  `status` with `getStatus()`; only `update_single.php` does.
+- `maintenance/get.php` and `maintenance_map/get.php` filter creators to `electric_company`, so
+  admin-created schedules are hidden.
+- `cluster/store.php` accepts `report_ids` but ignores it; no cluster/report link table remains.
+- `electrical_hazard/update_status.php` allows residents to set any allowed status and does not
+  apply lineman barangay scoping.
+- `power_station/get_near_location.php` takes only `radius`; it never accepts a latitude/longitude.
+- `get_active.php` and `get_resolve.php` return counts, not report lists.

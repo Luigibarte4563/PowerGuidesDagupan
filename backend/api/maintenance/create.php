@@ -8,6 +8,7 @@ require_once __DIR__ . '/../../auth/rbac.php';
 require_once __DIR__ . '/../services/create_notification.php';
 require_once __DIR__ . '/../services/lookup.php';
 require_once __DIR__ . '/../services/maintenance_notice.php';
+require_once __DIR__ . '/../services/audit.php';
 
 $conn = getConnection();
 $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -164,6 +165,18 @@ try {
             ":lng" => $barangay["longitude"]
         ]);
     }
+
+    recordActivity(
+        $conn,
+        $company_id,
+        'maintenance',
+        $maintenance_id,
+        'created',
+        implode(', ', array_keys($barangayCoords)),
+        $description !== '' ? $description : null,
+        null,
+        'upcoming'
+    );
 
     /* =========================================
        NOTIFY RESIDENTS (message says whether they are in range)

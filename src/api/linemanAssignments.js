@@ -56,11 +56,13 @@ function readAssignment(row) {
     linemanEmail: row?.lineman_email || '',
     barangayId: Number(row?.barangay_id),
     barangayName: row?.barangay_name || '',
+    jobType: row?.job_type || 'all',
     assignedBy: row?.assigned_by ?? null,
     assignedByName: row?.assigned_by_name || '',
     assignedAt: row?.assigned_at || '',
     updatedAt: row?.updated_at || '',
     status: row?.status || 'active',
+    jobsDone: Number(row?.jobs_done ?? 0),
   };
 }
 
@@ -103,17 +105,18 @@ export const linemanAssignmentsApi = {
   },
 
   /** Managers only. Ids are numbers; the server rejects anything non-integer with 400. */
-  async create({ linemanId, barangayId }, { signal } = {}) {
-    const body = { lineman_id: linemanId, barangay_id: barangayId };
+  async create({ linemanId, barangayId, jobType }, { signal } = {}) {
+    const body = { lineman_id: linemanId, barangay_id: barangayId, job_type: jobType || 'all' };
     return apiRequest('/api/lineman_assignment/create.php', { method: 'POST', body, signal });
   },
 
   /** Managers only. Partial - send just the fields that change. */
-  async update({ id, linemanId, barangayId, status }, { signal } = {}) {
+  async update({ id, linemanId, barangayId, status, jobType }, { signal } = {}) {
     const body = { id };
     if (linemanId !== undefined && linemanId !== '') body.lineman_id = linemanId;
     if (barangayId !== undefined && barangayId !== '') body.barangay_id = barangayId;
     if (status) body.status = status;
+    if (jobType) body.job_type = jobType;
     return apiRequest('/api/lineman_assignment/update.php', { method: 'POST', body, signal });
   },
 

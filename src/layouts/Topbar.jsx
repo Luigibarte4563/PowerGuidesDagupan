@@ -7,7 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useMarkAllAsRead, useMarkAsRead, useNotifications } from '@/hooks/useNotifications';
 import NotificationDetailModal from '@/components/NotificationDetailModal';
 import { findNavItem } from '@/routes/navItems';
-import { ROLE_LABELS, isStaff, normaliseRole } from '@/utils/roles';
+import { ROLE, ROLE_LABELS, isStaff, normaliseRole } from '@/utils/roles';
 import { formatRelativeTime, humanize } from '@/utils/formatters';
 import { NOTIFICATION_TYPE_TONES } from '@/utils/notifications';
 import { toUserMessage } from '@/utils/errorMessage';
@@ -67,6 +67,7 @@ export default function Topbar({
   notificationsTo = '/dashboard/notifications',
 }) {
   const { user, logout, role } = useAuth();
+  const showNotifications = role !== ROLE.ADMIN;
   const navigate = useNavigate();
   const routerLocation = useLocation();
 
@@ -140,6 +141,7 @@ export default function Topbar({
       </div>
 
       {/* Notification bell + dropdown */}
+      {showNotifications ? (
       <div className="relative" ref={bellRef}>
         <button
           type="button"
@@ -252,6 +254,7 @@ export default function Topbar({
           </div>
         ) : null}
       </div>
+      ) : null}
 
       {/* User menu */}
       <div className="relative" ref={menuRef}>
@@ -330,13 +333,15 @@ export default function Topbar({
 
       {/* Full notification view, opened from the bell. Rendered outside the header so
           the z-indexed modal portal is not clipped by the sticky bar. */}
-      <NotificationDetailModal
-        notification={selectedNotification}
-        open={selectedNotification !== null}
-        onClose={() => setSelectedId(null)}
-        onMarkRead={(notification) => markOne.mutate(notification.id)}
-        isMarking={markOne.isPending}
-      />
+      {showNotifications ? (
+        <NotificationDetailModal
+          notification={selectedNotification}
+          open={selectedNotification !== null}
+          onClose={() => setSelectedId(null)}
+          onMarkRead={(notification) => markOne.mutate(notification.id)}
+          isMarking={markOne.isPending}
+        />
+      ) : null}
     </header>
   );
 }

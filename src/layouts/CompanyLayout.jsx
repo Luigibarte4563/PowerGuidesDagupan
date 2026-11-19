@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
+import { useAuth } from '@/context/AuthContext';
 import RoleChangeGuard from '@/components/RoleChangeGuard';
 import { COMPANY_NAV, COMPANY_NAV_GROUPS, findCompanyNavItem } from '@/routes/companyNavItems';
 
@@ -25,6 +26,7 @@ const WORKSPACE_PATHS = new Set([
 ]);
 
 export default function CompanyLayout() {
+  const { role } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
@@ -47,7 +49,11 @@ export default function CompanyLayout() {
       <Sidebar
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        items={COMPANY_NAV}
+        items={
+          role === 'lineman'
+            ? COMPANY_NAV.filter((item) => item.to !== '/company/power-stations')
+            : COMPANY_NAV
+        }
         groups={COMPANY_NAV_GROUPS}
         homeTo="/company"
         notificationsTo="/company/notifications"

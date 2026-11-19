@@ -253,6 +253,7 @@ export const COMPANY_QUERY_KEYS = {
 export const ADMIN_QUERY_KEYS = {
   users: (params) => ['admin-users', params],
   stats: ['admin-stats'],
+  activity: (params) => ['admin-activity', params],
 };
 
 /** Page size for the client-side tables (the staff endpoints return every row). */

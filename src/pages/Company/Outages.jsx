@@ -105,6 +105,7 @@ export default function Outages() {
     return (listQuery.data || [])
       .map(readCompanyOutage)
       .filter((outage) => {
+        if (tab === 'all' && String(outage.status).toLowerCase() === 'resolved') return false;
         if (barangay && outage.barangay !== barangay) return false;
         if (!term) return true;
         return [outage.locationName, outage.barangay, outage.description, outage.category, outage.reporter]
@@ -112,7 +113,7 @@ export default function Outages() {
           .some((value) => String(value).toLowerCase().includes(term));
       })
       .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-  }, [listQuery.data, debouncedSearch, barangay]);
+  }, [listQuery.data, tab, debouncedSearch, barangay]);
 
   const pageCount = Math.max(1, Math.ceil(rows.length / COMPANY_PAGE_SIZE));
   const pageRows = rows.slice((page - 1) * COMPANY_PAGE_SIZE, page * COMPANY_PAGE_SIZE);
@@ -143,7 +144,6 @@ export default function Outages() {
                 ? 'warning'
                 : 'success'
           }
-          glyphFor={() => 'O'}
         >
           {(outage) => (
             <div className="min-w-[13rem]">

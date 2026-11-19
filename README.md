@@ -1,494 +1,252 @@
 # PowerGuide Dagupan
 
-React front end for **PowerGuide Dagupan**, a crowdsourced platform where Dagupan residents report and
-track power outages, floods and electrical hazards, see scheduled maintenance, find nearby power
-stations and get notified about risks near their location.
+A crowdsourced power-outage, flood and electrical-hazard platform for **Dagupan City**. Residents
+file and track reports, look up maintenance and power stations, and see nearby risks. Staff verify
+reports, manage schedules and assign linemen. Admins add user/role management, platform analytics
+and a shared activity history.
 
-This repository holds **three apps in one codebase**:
+This repository is a **monolith**: the React frontend and the procedural PHP JSON API live together.
 
-- **`/dashboard`** — the resident app, available to every signed-in user.
-- **`/company`** — the staff app for `lineman`, `electric_company` and `admin`. Linemen verify
-  reports and post field updates for the barangays they are assigned to; electric company and
-  admin also manage maintenance, broadcast notifications and assign linemen.
-- **`/admin`** — the admin app for `admin` only: platform-wide stats and the user directory
-  with role management (`admin/users.php`, `admin/update_role.php`, `admin/create_user.php`).
+- **`/dashboard`** — resident app (also used by staff for their own account).
+- **`/company`** — staff app for `lineman`, `electric_company` and `admin`.
+- **`/admin`** — admin-only app: platform stats, user/role management and Activity History.
 
-Each role has its own home URL after sign-in: residents and linemen land on `/dashboard`,
-electric-company staff on `/company`, and admin on `/admin`. An admin can still open
-`/company` and `/dashboard` — the backend grants the admin role every staff permission.
+After sign-in, `user` and `lineman` land on `/dashboard`, `electric_company` on `/company`, and
+`admin` on `/admin`. Admins can still open the other two apps.
 
 ---
 
 ## 1. Requirements
 
-- Node.js 18+ (tested on Node 20)
-- npm 9+
-- PHP 8 + XAMPP/Apache (the backend API now lives in this repo under `backend/`, served by
-  Apache at `http://localhost/PowerGuides/backend`)
-- Composer 2.x (to install the backend's PHP dependencies)
-- A running MySQL/MariaDB server for the backend
-- The `lineman_assignments` table (see **Lineman assignments** below; without it the `/company`
-  assignment screens and a lineman's assigned scopes will not work)
+- Node.js 18+ (tested on 20) and npm 9+
+- XAMPP / Apache with PHP 8 (`pdo_mysql`, `curl`, `json`, `fileinfo`, `openssl`)
+- Composer 2.x (the API uses `vlucas/phpdotenv` and `firebase/php-jwt`)
+- MySQL / MariaDB with a `powerguide` database
+
+Google sign-in and Geoapify keys are optional; email/password login works without them.
 
 ## 2. Setup
 
-> **Setting up a machine that has never run this project?** Read
-> **[`SETUP.md`](SETUP.md)** first — it walks through the database import, the
-> `.env` files, Composer and CORS. The summary below assumes the API is already
-> running.
+Full walkthrough: **[`SETUP.md`](SETUP.md)**. Short version:
 
 ```bash
+cd C:\xampp\htdocs\PowerGuidesDagupan
+cd backend && composer install && cp .env.example .env
+# import backend/database/powerguide.sql into MySQL, then fill in backend/.env
+cd ..
 npm install
-cp .env.example .env      # Windows: copy .env.example .env
+cp .env.example .env
 npm run dev
 ```
 
-The dev server is **pinned to <http://localhost:5174>** (`strictPort`, so Vite refuses to start
-rather than silently moving ports). Open that URL in your browser.
+Open <http://localhost:5174> (the Vite port is pinned because OAuth redirects here).
 
-| Command           | Purpose                                        |
-| ----------------- | ---------------------------------------------- |
-| `npm run dev`     | Start the Vite dev server with hot reload      |
-| `npm run build`   | Production build into `dist/`                  |
-| `npm run preview` | Serve the production build locally             |
-| `npm run lint`    | ESLint over `src/`                             |
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Vite dev server with hot reload |
+| `npm run build` | Production build into `dist/` |
+| `npm run preview` | Serve the production build |
+| `npm run lint` | ESLint over JS/JSX |
+| `npm run check:outage-feed`, `npm run check:no-black` | Repo-specific regression checks |
 
-### Environment variables
+### Frontend environment
 
-| Variable            | Default | Read by             | Purpose                                                     |
-| ------------------- | ------- | ------------------- | ----------------------------------------------------------- |
-| `VITE_API_BASE_URL` | `/backend`      | `src/api/client.js` | Base URL of the PHP API. Relative = proxied, same-origin   |
-| `API_PROXY_TARGET`  | `http://localhost`      | `vite.config.js`    | Where the dev proxy forwards to. Change if Apache is elsewhere |
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `VITE_API_BASE_URL` | `/backend` | Relative, proxied, same-origin API path |
+| `API_PROXY_TARGET` | `http://localhost` | Where Vite forwards `/backend` (read by `vite.config.js`) |
 
-`.env` is gitignored, so a fresh clone has to make its own copy of `.env.example` — which is
-already set up for the proxy, so nothing needs editing on a normal machine.
+`vite.config.js` rewrites `/backend/api/...` to `/PowerGuidesDagupan/backend/api/...` on Apache.
+Stay on the relative URL: it avoids CORS entirely and keeps the HttpOnly `jwt_token` cookie working
+on localhost, 127.0.0.1 and LAN IPs alike. If you switch to an absolute API URL, set
+`ALLOWED_ORIGINS` in `backend/.env`; `FRONTEND_URL` is only the OAuth redirect target.
 
-Only these are configurable; **every request goes through the single client in
-`src/api/client.js`**, which adds credentials (`credentials: 'include'`, plus an optional bearer
-token if the API returns one), query-string building, timeouts, cancellation and error
-normalisation.
+### Backend environment
 
-### Local development: the dev proxy (the default)
-
-`VITE_API_BASE_URL=/backend` is a **relative** path, and `vite.config.js`
-proxies `/backend` to Apache. In this monolith the PHP API lives in `backend/`
-inside this repo and is served by Apache (e.g. `http://localhost/PowerGuides/backend`).
-The browser therefore only ever talks to one origin, so **CORS is not involved at all**
-and the `jwt_token` session cookie always works — on localhost, on 127.0.0.1, and on a
-LAN IP alike.
-
-```
-# vite.config.js
-server: { proxy: { '/backend': { target: 'http://localhost' } } }
-
-# .env
-VITE_API_BASE_URL=/backend
-```
-
-If Apache is not on this machine's `localhost:80`, set `API_PROXY_TARGET` in
-`.env` (it is read by `vite.config.js`, not by the app).
-
-This is also why the pinned port is a non-issue for CORS: even if the dev server
-were reached on a different host or port, there is no cross-origin request to
-reject. The pin itself is still required for Google OAuth — see **Google
-sign-in** below.
-
-### If you switch to the absolute URL
-
-Setting `VITE_API_BASE_URL=http://localhost/backend` bypasses the proxy and makes every
-request cross-origin (different port), which brings the API's allow-list back into play.
-That file now lives in this repo:
-
-```
-backend/config/cors.php   # the only place Access-Control-* is set
-```
-
-It matches `Origin` against an exact list — `localhost:5173` / `localhost:5174`
-plus their `127.0.0.1` equivalents by default — and sends **no**
-`Access-Control-Allow-Origin` header on a miss. Override the list with
-`ALLOWED_ORIGINS` in `backend/.env` (comma separated, replaces the defaults) if you
-need another origin, e.g. a LAN address.
-
-Two things that do **not** work, and are the usual time sink:
-
-- **`Access-Control-Allow-Origin: *` is not valid here.** The session is an
-  httpOnly cookie sent with `credentials: 'include'`, which the spec requires to
-  be matched by one exact origin.
-- **`FRONTEND_URL` has nothing to do with CORS.** In `backend/.env` it is the
-  Google OAuth redirect target only.
-
-`FRONTEND_URL` in the **backend** `.env` must match this app's origin (5174) or
-the Google OAuth redirect lands on the wrong app either way.
+`backend/.env` holds `DB_*`, `JWT_SECRET_KEY`, `GEOAPIFY_GEOCODING_API_KEY`, the `GOOGLE_*`
+OAuth values, `FRONTEND_URL=http://localhost:5174` and optional `ALLOWED_ORIGINS`. It is
+gitignored; a missing one is a hard failure.
 
 ## 3. Folder layout
 
-```
-frontend/                     # project root (this folder)
-├── index.html
-├── vite.config.js
-├── tailwind.config.js        # design tokens (colours, radii, shadows, animation)
-├── postcss.config.js
-├── .env.example
-├── SETUP.md                   # from-scratch install guide (DB, .env, CORS)
+```text
+PowerGuidesDagupan/
+├── backend/
+│   ├── api/                 # 71 HTTP endpoints + services/
+│   │   ├── admin/           # users, update_role, create_user, stats, activity
+│   │   ├── auth/            # register, login, logout, me, google, google_callback
+│   │   ├── outage_report/   # resident reports
+│   │   ├── outage/          # staff verification / field updates
+│   │   ├── outage_report_electric_com/  # single / barangay / city status changes
+│   │   ├── lineman_assignment/          # assignments, my, linemen, activity
+│   │   ├── maintenance/, maintenance_map/
+│   │   ├── power_station/, notification/, user_location/
+│   │   ├── flood_report/, electrical_hazard/, risk/, heatmap/, cluster/
+│   │   └── services/        # shared PHP includes, NOT endpoints
+│   ├── auth/                # JWT issue/verify, RBAC, lineman_access, Google OAuth
+│   ├── config/              # env.php, cors.php, db_connect.php
+│   ├── database/            # powerguide.sql + numbered migrations
+│   └── README.md, endpoints.md, FRONTEND_SPECIFICATION.md
+├── src/
+│   ├── api/                 # all backend calls (client.js fetch wrapper)
+│   ├── assets/              # logo + landing artwork
+│   ├── components/          # shared UI, maps, modals, tables
+│   ├── context/             # Auth, Reference, Toast
+│   ├── hooks/               # notifications, saved location, assignments, admin queries
+│   ├── layouts/             # Public, Landing, Dashboard, Company, Admin + Sidebar/Topbar
+│   ├── pages/               # Landing, Auth, Dashboard, Company, Admin, NotFound
+│   ├── routes/              # route map + nav item lists + guards
+│   └── utils/               # roles, formatters, validators, constants
 ├── public/
-│   └── favicon.svg
-├── backend/              # PHP API (merged CrowdsourcedAPI)
-│   ├── api/              # public HTTP endpoints
-│   ├── auth/             # JWT issue/verify, RBAC, Google OAuth
-│   ├── config/           # env.php, cors.php, db_connect.php
-│   ├── database/         # schema + migrations
-│   ├── .env              # local (gitignored); copy from .env.example
-│   ├── .env.example
-│   ├── .htaccess
-│   ├── composer.json / composer.lock
-│   └── README.md
-└── src/
-    ├── main.jsx              # providers: QueryClient, Router, Toast, Auth, Reference
-    ├── App.jsx               # routes + scroll manager
-    ├── index.css             # Tailwind layers, base styles, Leaflet overrides
-    ├── api/                  # the ONLY place that talks to the backend
-    │   ├── client.js         # fetch wrapper, ApiError, upload with progress, response helpers
-    │   ├── auth.js           # register / login / logout / google / me
-    │   ├── admin.js          # admin-only: user directory, role changes, create user, stats
-    │   ├── reference.js      # reference data
-    │   ├── outages.js        # resident outage reports
-    │   ├── companyOutages.js # staff outage list / verify / field update / bulk status
-    │   ├── linemanAssignments.js # lineman <-> barangay assignments (+ my.php, linemen.php)
-    │   ├── maintenance.js
-    │   ├── powerStations.js
-    │   ├── notifications.js
-    │   ├── location.js
-    │   ├── floods.js
-    │   ├── hazards.js
-    │   ├── risk.js
-    │   ├── heatmap.js        # heatmap + clusters
-    │   └── index.js
-    ├── assets/               # logo
-    ├── components/           # shared UI
-    │   ├── ui/               # Button, Input, Select, Card, Modal, Badge, Table, Tabs, Alert, States
-    │   ├── layout/           # PageHeader
-    │   ├── Map.jsx           # AppMap, MapPin, MapPoints, RadiusCircle, HeatLayer, MapLegend
-    │   ├── MapPicker.jsx     # clickable map used by every location form
-    │   ├── ImageUploader.jsx # preview + validation + progress
-    │   ├── DataView.jsx      # loading / error / empty / data in one place
-    │   ├── RecordCard.jsx    # responsive record card
-    │   ├── FormModal.jsx     # modal + form with a wired submit button
-    │   ├── ConfirmDialog.jsx
-    │   └── Toast / context-backed toasts
-    ├── context/
-    │   ├── AuthContext.jsx   # user, session restore via me.php, login/register/logout
-    │   ├── ReferenceContext.jsx  # loads reference/get.php once, shared everywhere
-    │   └── ToastContext.jsx
-    ├── hooks/
-    │   ├── useGeolocation.js
-    │   ├── useNotifications.js
-    │   ├── useSavedLocation.js
-    │   ├── useCountdown.js
-    │   ├── useDebouncedValue.js
-    │   ├── useCompanyOutages.js    # company summary counts + staff outage list
-    │   ├── useLinemanAssignments.js # assignments, lineman picker, my.php
-    │   └── useAdmin.js       # admin stats + user directory queries
-    ├── layouts/
-    │   ├── PublicLayout.jsx  # header, anchor nav, mobile menu, footer
-    │   ├── DashboardLayout.jsx  # resident app chrome (role-filtered nav)
-    │   ├── CompanyLayout.jsx    # /company app chrome
-    │   ├── AdminLayout.jsx      # /admin app chrome
-    │   ├── Sidebar.jsx       # grouped nav, drawer on mobile
-    │   └── Topbar.jsx        # page title, notification bell, user menu
-    ├── pages/
-    │   ├── Landing/          # landing page + sections
-    │   ├── Auth/             # Login, Register, AuthShell
-    │   ├── Dashboard/        # Overview, MyAssignments, Outages, OutageDetail, Maintenance,
-    │   │                     # PowerStations, Notifications, Location, Battery, SafetyTimers,
-    │   │                     # Floods, Hazards, RiskAreas, Heatmap, Profile
-    │   │   └── components/   # per-module form modals
-    │   ├── Company/          # Overview, Outages, OutageDetail, Assignments, Maintenance,
-    │   │                     # Floods, Hazards, PowerStations, Notifications, Profile
-    │   │   └── components/   # per-module form modals / dialogs
-    │   ├── Admin/            # Overview (platform stats), Users (directory + role management)
-    │   └── NotFound.jsx
-    ├── routes/
-    │   ├── index.jsx         # route map
-    │   ├── navItems.js       # resident nav (items may be limited to certain roles)
-    │   ├── companyNavItems.js # company nav
-    │   ├── adminNavItems.js  # admin nav
-    │   ├── ProtectedRoute.jsx # requires a session
-    │   ├── PublicOnlyRoute.jsx
-    │   └── RequireRole.jsx   # requires a staff/company role (wraps /company)
-    └── utils/
-        ├── constants.js      # design tokens, tones, radii, query keys
-        ├── roles.js          # role names + allow-lists mirrored from the PHP RBAC
-        ├── formatters.js     # dates, durations, distances, labels
-        ├── validators.js     # email, password, percentage, lat/lng validation
-        ├── errorMessage.js   # human-readable errors + server field errors
-        └── records.js        # response field normalisation
+├── .env.example
+├── SETUP.md, FEATURES.md, feature-perpage.md
+└── vite.config.js, tailwind.config.js, package.json
 ```
 
 ## 4. Routes
 
-| Route | Access | Page |
-| ----- | ------ | ---- |
-| `/` | Public | Landing page |
-| `/login` | Public | Login (email + Google) |
-| `/register` | Public | Register (email + Google) |
-| `/auth/google-callback` | Public | OAuth landing: stores the JWT, then redirects to the account's home (`/dashboard`, `/company` or `/admin`) |
-| `/dashboard` | Protected | Overview with summary cards and quick actions |
-| `/dashboard/assignments` | Lineman | My Assigned Barangays, from `lineman_assignment/my.php` |
-| `/dashboard/outages` | Protected | Outage reports: All / Active / Resolved / My Reports |
-| `/dashboard/outages/:id` | Protected | Outage report detail |
-| `/dashboard/maintenance` | Protected | Maintenance schedules (list + map, read only) |
-| `/dashboard/power-stations` | Protected | All / Available / Near me / My Posts + map |
-| `/dashboard/notifications` | Protected | Notifications with mark-as-read |
-| `/dashboard/location` | Protected | Saved location (geolocation + map adjustment) |
-| `/dashboard/floods` | Protected | Flood reports: all + nearby + create |
-| `/dashboard/hazards` | Protected | Electrical hazards: all + nearby + create + owner status update |
-| `/dashboard/risk-areas` | Protected | Combined nearby risks with adjustable radius |
-| `/dashboard/heatmap` | Protected | Heatmap, clusters and layer toggles (read only) |
-| `/dashboard/profile` | Protected | Account info from `me.php` + logout |
+### Resident (`/dashboard`, any signed-in user)
 
-### Company dashboard (`/company`)
-
-Staff only. `RequireRole` wraps the whole block, so a resident following a company deep link
-lands on the access-denied page rather than inside a dashboard they cannot use. `admin` and
-`electric_company` additionally pass the `isManager` checks that gate every write.
-
-| Route | Access | Page |
-| ----- | ------ | ---- |
-| `/company` | Staff | Operations dashboard: 15 stat cards + recent activity |
-| `/company/outages` | Staff | Company view / All reports (raw), verify, bulk status changes |
-| `/company/outages/:id` | Staff | Report detail: status, verification, field updates |
-| `/company/assignments` | Manager | Lineman ↔ barangay assignments (managers only) |
-| `/company/maintenance` | Staff | Schedules; create/edit/delete is manager-only |
-| `/company/heatmap` | Staff | Outage heatmap with live intensity + feed |
-| `/company/power-stations` | Staff | Station directory |
-| `/company/notifications` | Staff | Inbox; composing is manager-only |
-| `/company/floods` | Staff | Flood review with status updates |
-| `/company/hazards` | Staff | Hazard review and status updates |
-| `/company/profile` | Staff | Account info + role capabilities |
-
-### Admin dashboard (`/admin`)
-
-Admin only — `RequireRole` here uses the single-entry `ADMIN_ROLES` allow-list, so any other
-account (including staff) gets the access-denied page. This is an admin's home URL after
-sign-in.
-
-| Route | Access | Page |
-| ----- | ------ | ---- |
-| `/admin` | Admin | Platform overview: user totals by role, 30-day report trend, top barangays |
-| `/admin/users` | Admin | User directory: search accounts, change roles, create users |
-
-### Roles
-
-`useAuth().role` (from `me.php`) drives everything here, via the allow-lists in
-`src/utils/roles.js`. Those lists mirror the `requireRole(...)` arrays in the PHP endpoints —
-a near-miss like `electric-company` instead of `electric_company` silently becomes a 403.
-
-| Role | Reaches |
-| ---- | ------- |
-| `user` | `/dashboard` only |
-| `lineman` | both apps; outage access limited to assigned barangays |
-| `electric_company` | both apps; all company writes, assignment management |
-| `admin` | owns `/admin` (stats, user & role management) and lands there; can also use `/company` and `/dashboard` |
-
-Hiding UI is a convenience, never a control — the API re-checks every permission.
-
-Unauthenticated visitors are redirected to `/login` (with the original destination remembered), and
-signed-in visitors who open `/login` or `/register` see an "already signed in" card where they can
-continue to their own app or sign out to use a different account.
-
-### Google sign-in
-
-`api/auth/google_callback.php` ends the OAuth round trip by redirecting the browser to
-`{FRONTEND_URL}/auth/google-callback?token=<jwt>` on success, or to `{FRONTEND_URL}/login?error=<code>`
-on failure. This app handles both:
-
-- `/auth/google-callback` (`src/pages/Auth/GoogleCallback.jsx`) stores the token, restores the session
-  through `me.php`, and redirects to the account's home (`/dashboard`, `/company` or `/admin`). Staff and
-  admin get an app chooser when no specific destination was requested. A missing token or a failed session
-  shows a friendly message with a link back to login instead of a blank screen.
-- `/login` maps the `error` codes (`google_auth_denied`, `google_exchange_failed`,
-  `google_invalid_token`, ...) to plain-English copy in `src/pages/Auth/googleErrors.js`; raw codes are
-  never shown.
-
-Because the redirect target is decided by the backend, `FRONTEND_URL` in
-`backend/.env` **must match this dev server's origin** (currently
-`http://localhost:5174`, because port 5173 is taken by another project). If Google sign-in lands on a
-blank page or the wrong app, check that value first.
-
-## 5. API coverage (73 endpoints)
-
-| Feature | Endpoint(s) |
-| ------- | ----------- |
-| Auth | `register.php`, `login.php`, `logout.php`, `google.php`, `me.php` |
-| Admin | `admin/users.php`, `admin/update_role.php`, `admin/create_user.php`, `admin/stats.php` |
-| Reference | `reference/get.php` |
-| Outages (resident) | `create`, `get`, `get_active`, `get_resolve`, `get_my_report`, `get_detail`, `update` (owner), `delete` (owner), `upload_image` |
-| Outages (staff) | `outage/get`, `outage/verify`, `outage/add_update` |
-| Outages (company) | `outage_report_electric_com/get`, `update_single`, `update_barangay`, `update_dagupan` |
-| Lineman assignments | `lineman_assignment/get`, `linemen`, `create`, `update`, `delete`, `my` |
-| Maintenance | `get`, `get_upcoming`, `get_complete`, `create`, `update`, `delete`, `maintenance_map/get` |
-| Power stations | `create`, `get`, `get_available`, `get_near_location`, `get_my_posts`, `update` (owner), `delete` (owner) |
-| Notifications | `get`, `mark_as_read`, `mark_all_as_read`, `create` (manager) |
-| User location | `user_location/get`, `user_location/location` |
-| Floods | `create`, `get`, `get_nearby`, `update_status` (staff) |
-| Hazards | `create`, `get`, `update_status` (owner) |
-| Risk areas | `risk/get_nearby` |
-| Heatmap / clusters | `heatmap/get`, `cluster/get`, `cluster/store` (staff) |
-
-### Coordinate model (barangay-sourced)
-
-Every report, hazard, flood, power station and saved location is placed on the
-map by its **barangay's stored centroid**. The `barangays` table holds
-`latitude`/`longitude` (filled by the backend's `database/fill_barangay_coordinates.php`
-and baked into `database/003_barangay_coordinates.sql`). The form shows a
-barangay dropdown (required); selecting one drops the map pin on that centroid.
-The user may drag the pin to refine the point. The free-text `Location name`
-field is only a label shown to others; it is **never geocoded**.
-
-A barangay with NULL coordinates is rejected by the API with **503**; the form
-will show an error listing the affected barangays before the user submits.
-
-## 6. Design system
-
-Tokens live in `tailwind.config.js` and are used consistently on every page:
-
-- **Primary** electric amber (`primary-50…950`) - primary buttons, active states
-- **Navy** (`navy-50…950`) - sidebar, top bar headings, body text
-- **Status** colours: `success` (green), `warning` (amber), `danger` (red), `info` (blue)
-- **Neutrals**: `canvas` page background, `surface`/white cards
-- **Shape**: `rounded-card` (12px) and `rounded-control` (10px), soft `shadow-card`
-- **Type**: Inter with a clear `h1 → h4` hierarchy
-- **Icons**: `lucide-react` everywhere
-- Severity and status are **always** rendered as a coloured badge **plus** text, never colour alone
-
-## 7. Accessibility and responsiveness
-
-- Mobile-first layout; sidebar becomes a drawer, tables become cards on small screens
-- Semantic landmarks, a skip link per layout, `aria-current`/`aria-selected` on navigation
-- Every input has a label, inline validation and `aria-invalid`/`aria-describedby`
-- Modals trap focus, close on `Escape`, restore focus and lock body scroll
-- Visible focus rings, status colours paired with text, `alt` on all images
-
-## 8. Confirmed API contract
-
-The contracts below were verified against the live API in `backend/`
-(every response shape and write payload was exercised with a throwaway account).
-
-### Authentication
-
-| Endpoint | Request | Response |
-| --- | --- | --- |
-| `POST api/auth/register.php` | `{ first_name*, middle_name?, last_name*, email*, password* }` (min 6 chars) | `{ success, message, user_id, token_issued }` |
-| `POST api/auth/login.php` | `{ email*, password* }` | `{ success, message, user_id, token_issued }` |
-| `GET api/auth/me.php` | – | `{ success, data: { id, first_name, middle_name, last_name, email, picture, auth_provider, role, role_id, created_at } }` |
-| `POST api/auth/logout.php` | – | `{ success, message }` |
-| `GET api/auth/google.php` | – | 302 to Google |
-| `GET api/auth/google_callback.php` | – | 302 to `{FRONTEND_URL}/auth/google-callback?token=<jwt>`, or `/login?error=<code>` |
-
-**Session handling:** the JWT is delivered as an httpOnly `jwt_token` cookie, and
-`auth/jwt_auth.php` reads **only** that cookie - the `Authorization` header is ignored. Every request
-therefore needs `credentials: 'include'` (the client does this). The one exception is the Google
-flow, which hands the JWT to the frontend in the URL; `GoogleCallback.jsx` mirrors it into the same
-cookie so the rest of the app is unchanged.
-
-**Important:** `FRONTEND_URL` in the backend `.env` must point at the dev server origin
-(`http://localhost:5174` if 5173 is taken) or the OAuth redirect lands on the wrong app.
-
-### Payload rules that differ from the obvious guess
-
-| Module | Key facts |
+| Route | Page |
 | --- | --- |
-| `outage_report/create.php` | `{ location_name*, description*, barangay_name?, category?, severity?, hazard_type?, affected_houses?, started_at? }` -> `{ report_id }`. **Coordinates are geocoded from `location_name`** (no map pin is sent). Only one active report per user (`403`), and locations outside the coverage area are rejected (`403`). |
-| `outage_report/get.php` | `?status=&category=` (matched by **name**). Rows carry **no `user_id`**, so ownership is resolved by intersecting ids with `get_my_report.php`; `get_detail.php` returns `403` for other users' reports. |
-| `outage_report/get_active.php` / `get_resolve.php` | **Counts only** (`total_active_reports`, `total_resolved`) - the Active/Resolved tabs filter `get.php?status=` instead. `get_active` counts everything `status != 'rejected' AND is_active = 1`, i.e. **open** rather than literally `active`, so it is broader than an `active` filter and the dashboard's cards are not expected to sum to the total. Both are **assignment-scoped for a lineman**, so the number always matches the rows they can open. |
-| `outage/get.php` | Staff list. `?barangay=` takes a **name** and is ANDed with the lineman's assignment scope, so naming an unassigned barangay returns `count: 0` rather than its rows. Rows now also carry `barangay_id` (not just `barangay_name`), which the lineman's "My assigned barangays" filter matches on. |
-| `outage_report_electric_com/get.php` | Company list. `?status=&severity=&active=` (0/1). Also assignment-scoped for a lineman, and returns `barangay_id`. |
-| `outage/verify.php`, `outage/add_update.php` | `{ outage_report_id*, ... }`. Both check the report's barangay **before** writing, so a lineman refused by the assignment check leaves no row in `outage_report_verifications` / `outage_report_updates`. `404` missing report, `403` outside the lineman's assigned barangays. |
-| `outage_report_electric_com/update_barangay.php` | `{ barangay*, status }` — `barangay` is a **name**. For a lineman it is resolved with a plain lookup and checked against their assignments, and unlike for company/admin `resolveBarangay()` is **not** used, so a lineman cannot create a `barangays` row. |
-| `outage_report_electric_com/update_dagupan.php` | `{ status* }`, one `UPDATE` with no `WHERE`. **Manager-only** (`403` for a lineman) — there is no barangay to narrow it to. |
-| `lineman_assignment/get.php` | `?lineman_id=&barangay_id=&status=`; each is validated and an invalid value is a `400` rather than a silently ignored "return everything". Returns `assigned_at` (the column is `created_at`). |
-| `lineman_assignment/linemen.php` | The **only** user listing in the API: `role = 'lineman'` only, exposing `id`, `name`, `email` and nothing else. Exists so the "Select Lineman" picker has something to populate — there is no general user directory. |
-| `lineman_assignment/create.php` | `{ lineman_id*, barangay_id* }` (positive integers). `400` if the target's role is not `lineman` (re-read from `roles` on every write), `409` if the pair is already active. Re-assigning a deactivated pair **reactivates the same row** and returns `201`. `assigned_by` comes from the JWT and is ignored in the body. |
-| `lineman_assignment/update.php` | **Partial update** — `{ id*, lineman_id?, barangay_id?, status? }`; omitted fields keep their stored value, so `{ id, status }` alone is valid. `409` when a move lands on a pair that lineman already holds. |
-| `lineman_assignment/delete.php` | `{ id* }` sets `status = 'inactive'` rather than deleting, so history survives and a later re-assignment reactivates the same row. Idempotent; `404` only when the id does not exist. |
-| `lineman_assignment/my.php` | Lineman-only, and has **no identity parameter** — the caller comes from the JWT alone, so a lineman cannot ask for anyone else's assignments. Active rows only; no `assigned_by`, no email. |
-| `outage_report/upload_image.php` | multipart field is **`image`** (not `file`) plus `outage_report_id`; 5 MB max. |
-| `outage_report/delete.php` | `{ id }`, soft delete (`status = rejected`). |
-| `maintenance/get.php` | one row per schedule with `locations: [{ barangay_name, lat, lng }]` and `radius` in metres. |
-| `maintenance/get_upcoming.php` | **Count only** (`upcoming_count`), so the Upcoming tab filters `get.php` by `upcoming`/`ongoing`. |
-| `power_station/create.php` | `{ station_name*, location_name*, station_type, access_type, availability_status, barangay_name?, opening_time?, closing_time?, is_24_hours?, charging_type?, description? }`. Coordinates geocoded from `location_name`; **one station per user**; returns no id. `opening_time`/`closing_time` are optional time strings (HH:MM 24-hour format). `is_24_hours` boolean defaults to false. `charging_type` is optional and defaults to `Type-2 AC`; choose `Other` to enter a custom connector type. |
-| `power_station/delete.php` | `{ station_id }` (not `id`). |
-| `power_station/get_available.php` | **Count only** (`total_available`) - the Available tab filters the list client-side. |
-| `power_station/get_near_location.php` | takes **only `radius`**; the centre is the user's saved primary location. |
-| `user_location/location.php` | `{ address*, barangay_name? }` - the client **cannot** send coordinates, so the location form is address-first. |
-| `notification/get.php` | returns `unread_count` (total unread) - used for the bell. `mark_as_read.php` expects `{ notification_id }`. |
-| `flood_report/create.php` | `{ location_name*, flood_level?, latitude?, longitude?, description?, barangay_name?, flood_depth_cm? }`; `flood_level` enum `low, moderate, high, severe`. |
-| `flood_report/update_status.php` | Staff-only. `{ flood_id*, status }` with `reported/verified/cleared`; stamps `updated_by`/`updated_at`, notifies reporter on `verified`/`cleared`. |
-| `electrical_hazard/create.php` | `{ location_name*, severity?, hazard_type?, latitude?, longitude?, description?, barangay_name? }`; `severity` enum `low, moderate, high, critical`; `update_status.php` expects `{ hazard_id, status }` with `reported/verified/resolved`. |
-| `risk/get_nearby.php` | `{ counts, data: { floods, hazards } }`; rows use `category` (`flood`/`hazard`), `risk_level` and `distance` (metres). |
-| `heatmap/get.php` | `?mode=by_barangay\|clusters&radius=&days=`; rows have `latitude`/`longitude`/`report_count`/`forecast_level` (intensity is derived from `report_count` for leaflet.heat). |
-| `cluster/get.php` | rows use `center_latitude` / `center_longitude` / `radius_meters` / `forecast_level`. |
-| `reference/get.php` | `data` keys: `roles`, `barangays`, `outage_categories`, `severity_levels`, `hazard_types`, `outage_statuses`, `power_station_types`, `notification_types`. Label columns are table specific (`barangay_name`, `category_name`, `severity_name`, `hazard_name`, `status_name`, `type_name`) and **the API looks them up by name**, so the option value is the name. Requires a session (`401` otherwise). |
-| `reference/get.php` barangays | The normalised option is `{ id: <NAME>, name: <NAME>, rowId: <numeric db id> }`. **The numeric id is in `rowId`, not `id`** — anything that needs a real `barangay_id` (the assignment form, the lineman outage filter) must read `rowId`, since sending the name where an id is expected is a `400`. |
+| `/dashboard` | Overview: summary cards, nearby risks, latest reports, maintenance |
+| `/dashboard/assignments` | My Assigned Barangays (lineman only) |
+| `/dashboard/outages`, `/dashboard/outages/:id` | Outage feed and report detail |
+| `/dashboard/floods` | Flood reports + nearby view |
+| `/dashboard/hazards` | Electrical hazards + nearby view |
+| `/dashboard/risk-areas` | Combined nearby floods and hazards |
+| `/dashboard/heatmap` | Outage heatmap / clusters (read-only) |
+| `/dashboard/maintenance` | Maintenance schedules (read-only) |
+| `/dashboard/power-stations` | All / Available / Near me / My posts |
+| `/dashboard/notifications`, `/dashboard/location`, `/dashboard/profile` | Account pages |
 
-### Still unconfirmed / server-side issues to raise with the backend team
+Residents (`user`) without a saved location are shown the location setup modal by `DashboardLayout`
+before the dashboard is usable. The Power Stations nav item is hidden for `linemen` in both the
+resident and company sidebars (direct URLs are not blocked by the route guard), and the topbar
+avatar's **My location** link is shown only to residents.
 
-- **Geocoding is inaccurate.** `api/services/get_coordinates.php` calls Geoapify without
-  `countrycodes=ph` or a proximity bias, so Dagupan addresses resolve to the wrong place
-  (e.g. "San Carlos Cathedral, Dagupan City" -> California, "Poblacion, Dagupan City" -> Mindanao).
-  Reports and power stations will land in the wrong country until the request is restricted, e.g.
-  `...&countrycodes=ph&bias=proximity:120.3329,16.0433`.
-- `outage_report/create.php` anti-spam counts reports whose status is `active`, `under_review` or
-  `verified` without checking `is_active`.
-- `flood_report/create.php` and `electrical_hazard/create.php` have a `!$geo['success'] ?? false`
-  precedence bug, so an unresolvable address produces a 500 instead of the intended 404.
-- `maintenance/update.php` and `maintenance/delete.php` return HTTP 500 (with `line`/`file` in the
-  body) for ordinary validation failures.
-- `notification/get.php` `unread_count` and `total` are not paginated totals, so the list is capped
-  at the `limit` (100 is used in the app).
-- `maintenance/get.php` drops schedules whose creator role is not `electric_company`, so an `admin`
-  who schedules maintenance sees it vanish from the list (it is still counted by `get_upcoming`).
-- There is no user-directory or role-management endpoint. `lineman_assignment/linemen.php` is the
-  only user listing and is restricted to `role = 'lineman'`; notification audiences must be
-  assembled from ids by hand.
+### Staff (`/company`, `RequireRole`)
 
-## 9. Lineman assignments
+| Route | Page |
+| --- | --- |
+| `/company` | Operations overview and recent activity |
+| `/company/heatmap` | Live outage heatmap + hottest-areas feed |
+| `/company/outages`, `/company/outages/:id` | Outage Reports / report detail |
+| `/company/floods` | Flood Review |
+| `/company/hazards` | Hazard Review |
+| `/company/assignments` | Assignments (under **Plan**, managers only for writes) |
+| `/company/maintenance` | Maintenance schedules |
+| `/company/power-stations` | Station directory |
+| `/company/notifications`, `/company/profile` | Account pages |
 
-`electric_company` and `admin` assign field linemen to barangays at
-`/company/assignments`; a lineman sees their own coverage at `/dashboard/assignments`.
+On Outage Reports, Flood Review and Hazard Review, the `all` tab hides terminal rows
+(`resolved` / `cleared`) and map pins carry no letters.
 
-The database is the source of truth. Rows live in `lineman_assignments` and the **backend**
-scopes a lineman's outage access from them — list endpoints exclude unauthorized rows in SQL,
-single-record actions answer `403` before writing. The UI mirrors that state: it posts to the
-API, then refetches. There is no local copy and localStorage is not a source of truth, so a
-deactivated assignment revokes access on the lineman's very next request.
+### Admin (`/admin`, admin only)
 
-Two things worth knowing when working on this module:
+| Route | Page |
+| --- | --- |
+| `/admin` | Platform overview: user totals, 30-day trend, top barangays |
+| `/admin/activity` | Activity History (Electric Company / Lineman tabs) |
+| `/admin/users` | Users & Roles: directory, create user, change role |
 
-- **Each assignment carries a work type** — `outage`, `maintenance` or `both`
-  (`lineman_assignments.work_type`, migration `004`), and it **gates what the lineman
-  can do**: outage endpoints accept only `outage`/`both` assignments
-  (`auth/lineman_access.php`), and maintenance **status** updates accept only
-  `maintenance`/`both` assignments (status-only — re-planning a schedule stays
-  manager-only, and lineman status changes do not re-send resident notifications).
-  A `both` assignment grants both; rows created before migration 004 default to `both`.
-- **A lineman sees both sides of their barangay.** "View outages" opens the scoped
-  outage reports; "View maintenance" lists the schedules covering that barangay
-  (read-only, from the same `maintenance/get.php` every account reads - maintenance has
-  no per-assignment scoping in the backend).
-- **Assignments can be created from the Outages and Maintenance screens too.** The "Assign"
-  action on an outage report (or a maintenance schedule) opens the assignment form with the
-  barangay prefilled; multi-barangay schedules open it for a manual pick. Managers only.
+The admin top bar deliberately has **no notification bell**. Admin sidebar links for profile and
+notifications reuse the staff pages.
 
-- **`my.php` has no id parameter on purpose.** The lineman comes from the JWT, so the question
-  "show me someone else's assignments" cannot even be asked. Don't add a parameter.
-- **The outage list is already scoped, so the "My assigned barangays" dropdown is only a
-  convenience.** It is built from the same `my.php` rows the server scopes with, so the two
-  cannot disagree — but it must never be treated as the control.
+## 5. Roles and access
 
-## 10. Out of scope
+| Role | Access |
+| --- | --- |
+| `user` | `/dashboard` only |
+| `lineman` | Both apps; outage data limited to actively assigned barangays |
+| `electric_company` | Both apps; all company writes, assignments, maintenance, broadcasts |
+| `admin` | Everything, plus `/admin` |
 
-- Role definitions — `/admin/users` grants and changes **existing** roles, but the `roles`
-  table itself is fixed; there is no endpoint to create a new role
-- Any audience/broadcast targeting: `notification/create.php` takes explicit `user_id`s, so
-  "notify a whole barangay" has to be resolved to ids client-side
+Hiding nav items is convenience only — every API call re-checks the role from the JWT.
+
+**Lineman scoping** is enforced in SQL by `backend/auth/lineman_access.php`. An active row in
+`lineman_assignments` grants access to that **whole barangay** — outages, hazards and maintenance.
+`job_type` (`all`, `outage`, `flood`, `hazard`, `maintenance`) is a **label only**; it does not narrow
+access. `jobs_done` counts distinct outage reports the lineman updated or verified that are now
+`resolved` or `verified` (floods, hazards and maintenance are not counted).
+
+## 6. API map
+
+All endpoints are under `/api/`, return `{ success, message, ...data }`, and use the HttpOnly
+`jwt_token` cookie. See **[`backend/endpoints.md`](backend/endpoints.md)** for each endpoint's
+guard and payload.
+
+| Area | Endpoints (relative to `/api/`) |
+| --- | --- |
+| Auth | `auth/{register,login,logout,me,google,google_callback}.php` |
+| Admin | `admin/{users,update_role,create_user,stats,activity}.php` |
+| Reference | `reference/get.php` |
+| Outages (resident) | `outage_report/{create,get,get_active,get_resolve,get_my_report,get_detail,update,delete,upload_image}.php` |
+| Outages (staff) | `outage/{get,verify,add_update}.php` |
+| Outages (company) | `outage_report_electric_com/{get,update_single,update_barangay,update_dagupan}.php` |
+| Assignments | `lineman_assignment/{get,create,update,delete,my,linemen,activity}.php` |
+| Maintenance | `maintenance/{get,get_upcoming,get_complete,create,update,delete}.php`, `maintenance_map/get.php` |
+| Stations | `power_station/{create,get,get_available,get_my_posts,get_near_location,update,delete}.php` |
+| Notifications | `notification/{get,mark_as_read,mark_all_as_read,create}.php` |
+| Location | `user_location/{get,location}.php` |
+| Floods | `flood_report/{create,get,get_nearby,update,delete,upload_image}.php` |
+| Hazards | `electrical_hazard/{create,get,update,update_status,upload_image}.php` |
+| Risk / heatmap / clusters | `risk/get_nearby.php`, `heatmap/get.php`, `cluster/{get,store}.php` |
+
+### Contract notes worth knowing
+
+- `reference/get.php` requires a session. Its raw barangay rows are `{ id: <numeric id>, barangay_name, city, province, latitude, longitude }`. `ReferenceContext` normalises them for the UI to `{ id: <NAME>, name: <NAME>, rowId: <numeric id>, raw, ... }`; forms use `rowId` wherever an integer `barangay_id` is expected.
+- `outage_report/get_active.php` and `get_resolve.php` return **counts only** (`total_active_reports`, `total_resolved`). `get_active` counts rows with `status != 'rejected'`, plus any supplied status/category/severity filters and lineman scope; there is no `is_active` column in the canonical schema.
+- `outage_report/upload_image.php` takes multipart `image` + `outage_report_id` (5 MB cap). `power_station/delete.php` takes `station_id`, not `id`.
+- `power_station/get_near_location.php` takes only `radius`; the centre is the caller's saved location. Station list/nearby reads are lineman-scoped too.
+- `lineman_assignment/*` accepts `job_type`. `get.php` also returns `jobs_done`. `my.php` takes no identity parameter — the caller comes from the JWT.
+- `admin/activity.php` requires `?role=electric_company|lineman` and accepts `user_id`, `target_type`, `action`, `page`, `page_size`.
+- `GET /api/auth/me.php` re-reads the live role; other endpoints trust the role claim in the JWT until it expires or the user signs in again.
+
+### Audit trail
+
+Create, update, status, verification and assignment writes to maintenance, outages, floods, hazards
+and assignments append to `activity_log` via `api/services/audit.php`. Deletes, image uploads,
+station CRUD and notifications are not audited. The actor is always the JWT user, never a client
+field. Older updates are not recoverable; migration `010_backfill_activity_log.sql` restores only
+facts still stored in the source rows (creation events and active assignments).
+
+### Coordinate model
+
+Reports, hazards, floods, stations and saved locations use the **barangay's stored centroid** from
+the `barangays` table. Forms require a barangay; the map pin can refine the point. The free-text
+location/address field is a label and is not geocoded. A barangay without coordinates is rejected.
+
+## 7. Database and migrations
+
+`backend/database/powerguide.sql` is the canonical schema: **13 tables** — `barangays`, `users`,
+`outage_reports`, `outage_report_verifications`, `outage_clusters`, `maintenance_schedules`,
+`maintenance_locations`, `power_stations`, `flood_reports`, `electrical_hazards`, `notifications`,
+`lineman_assignments` and `activity_log`. Importing it is destructive (`DROP DATABASE`).
+
+For an existing database, apply the numbered migrations in order:
+
+| Script | Effect |
+| --- | --- |
+| `005_reduce_tables.sql` | ENUM-based category / hazard_type / severity; unified severity; drops lookup tables and `outage_cluster_reports` |
+| `006_add_hazard_review_work_type.sql` | Removes `work_type`; active assignments become barangay-wide |
+| `007_add_flood_cancelled_status.sql` | Adds `cancelled` flood status |
+| `008_merge_outage_images.sql` | One `image_proof` column on outage reports |
+| `009_activity_log.sql` | Creates the append-only `activity_log` |
+| `010_backfill_activity_log.sql` | Backfills creation events and active assignments |
+| `011_assignment_job_type.sql` | Adds label-only `job_type` to assignments |
+
+A fresh import of `powerguide.sql` already contains all of these changes; migrations are for older
+databases. Run `009` → `010` → `011` before deploying the current audit / assignment UI.
+
+## 8. Design, accessibility and known limits
+
+Tailwind tokens in `tailwind.config.js`: amber primary, navy chrome, success/warning/danger/info
+statuses, `rounded-card`/`rounded-control`, Inter, `lucide-react` icons. Severity and status are
+always text plus colour. Layouts are mobile-first with a drawer sidebar; modals trap focus and
+close on Escape.
+
+Not implemented in this app: battery tracking, safety timers, a standalone map page, user-created
+roles, and audience/broadcast targeting (`notification/create.php` takes explicit user ids).
+Residents are not notified when an outage status changes; notifications are generated for flood and
+hazard status changes, maintenance schedules, assignments and new outage reports to staff.

@@ -1,0 +1,609 @@
+import { useMemo, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { MapPin, Pencil, Plus, Trash2, UserCheck, UserPlus, Clock, Info } from 'lucide-react';
+import PageHeader from '@/components/layout/PageHeader';
+import Badge from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Card, CardBody } from '@/components/ui/Card';
+import { Select } from '@/components/ui/Select';
+import { TBody, TD, TH, THead, TR, Table } from '@/components/ui/Table';
+import DataView from '@/components/DataView';
+import MyAssignmentList from '@/components/MyAssignmentList';
+import RecordCard from '@/components/RecordCard';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import Pagination from '@/components/Pagination';
+import Modal from '@/components/ui/Modal';
+import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
+import { linemanAssignmentsApi } from '@/api';
+import {
+  useAssignmentList,
+  useMyAssignments,
+  useInvalidateAssignments,
+  useLinemanActivity,
+} from '@/hooks/useLinemanAssignments';
+import { COMPANY_PAGE_SIZE, COMPANY_QUERY_KEYS } from '@/utils/constants';
+import { formatDateTime, formatRelativeTime, humanize } from '@/utils/formatters';
+import { toUserMessage } from '@/utils/errorMessage';
+import AssignmentFormModal from './components/AssignmentFormModal';
+
+/**
+ * Module ASSIGN - lineman to barangay assignments (`/company/assignments`).
+ *
+ * Two audiences share this route, because `defaultRootFor('lineman')` is `/company` and a
+ * lineman lands here first:
+ *
+ *   - Managers (`electric_company`, `admin`) get the full table, since
+ *     `lineman_assignment/{get,create,update,delete,linemen}` all admit them.
+ *   - A lineman gets their OWN active assignments from `my.php`, rendered by the shared
+ *     `MyAssignmentList` that `/dashboard/assignments` also uses. They cannot assign
+ *     anyone, and `enabled: isManager` keeps the manager queries off the wire so the tab
+ *     cannot fire a list of 403s at them.
+ *
+ * Assignment rows are the source of truth, not this screen: the backend scopes a
+ * lineman's outage endpoints from the same table, so an edit here changes what they can
+ * do immediately. Every mutation therefore invalidates the whole `lineman-assignments`
+ * prefix, which also refreshes `my.php` for whoever is signed in.
+ */
+export default function Assignments() {
+  const { isManager, role } = useAuth();
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const invalidateAssignments = useInvalidateAssignments();
+
+  const [status, setStatus] = useState('active');
+  const [page, setPage] = useState(1);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [deactivating, setDeactivating] = useState(null);
+  const [activityLinemanId, setActivityLinemanId] = useState(null);
+  const [activityLinemanName, setActivityLinemanName] = useState('');
+  const [activityOpen, setActivityOpen] = useState(false);
+  const [activityWorkFilter, setActivityWorkFilter] = useState('all'); // 'all' | 'done'
+
+  const activityQuery = useLinemanActivity(
+    { linemanId: activityLinemanId, limit: 50, work_type: activityWorkFilter },
+    { enabled: activityOpen && Boolean(activityLinemanId) && isManager }
+  );
+  const activities = useMemo(() => activityQuery.data?.activities || [], [activityQuery.data]);
+  const linemanInfo = useMemo(() => activityQuery.data?.lineman || null, [activityQuery.data]);
+  const activitySummary = useMemo(() => activityQuery.data?.summary || null, [activityQuery.data]);
+
+  const listQuery = useAssignmentList({ status: status || undefined }, { enabled: isManager });
+
+  const rows = useMemo(() => listQuery.data || [], [listQuery.data]);
+  const activityBarangays = useMemo(
+    () =>
+      rows
+        .filter((row) => row.linemanId === activityLinemanId)
+        .map((row) => row.barangayName)
+        .filter(Boolean)
+        .join(', '),
+    [rows, activityLinemanId]
+  );
+
+  /* One entry per lineman: their barangays are shown together, not as duplicate rows. */
+  const grouped = useMemo(() => {
+    const byLineman = new Map();
+    rows.forEach((assignment) => {
+      if (!byLineman.has(assignment.linemanId)) {
+        byLineman.set(assignment.linemanId, {
+          id: `lineman-${assignment.linemanId}`,
+          linemanId: assignment.linemanId,
+          linemanName: assignment.linemanName,
+          linemanEmail: assignment.linemanEmail,
+          jobsDone: assignment.jobsDone,
+          assignments: [],
+        });
+      }
+      byLineman.get(assignment.linemanId).assignments.push(assignment);
+    });
+    return [...byLineman.values()];
+  }, [rows]);
+
+  const isLineman = role === 'lineman';
+
+  /*
+   * A lineman landing here is a normal outcome rather than a mistake: `defaultRootFor`
+   * sends `lineman` to `/company`, so this tab is where they actually begin. They are
+   * shown their OWN active rows from `my.php` - the same view `/dashboard/assignments`
+   * renders - instead of a dead end, and `enabled: isManager` keeps the manager queries
+   * off the wire so the tab cannot fire a list of 403s at them.
+   */
+  const myQuery = useMyAssignments({ enabled: isLineman && !isManager });
+  const myRows = useMemo(() => myQuery.data || [], [myQuery.data]);
+  const pageCount = Math.max(1, Math.ceil(grouped.length / COMPANY_PAGE_SIZE));
+  const pageRows = useMemo(
+    () => grouped.slice((page - 1) * COMPANY_PAGE_SIZE, page * COMPANY_PAGE_SIZE),
+    [grouped, page]
+  );
+
+  const activeCount = rows.filter((row) => row.status === 'active').length;
+
+  const afterChange = () => {
+    invalidateAssignments();
+    // A lineman's outage lists are filtered by these rows server-side, so they have to be
+    // refetched too or the table would keep showing reports the lineman can no longer open.
+    queryClient.invalidateQueries({ queryKey: ['company-outages'] });
+    queryClient.invalidateQueries({ queryKey: COMPANY_QUERY_KEYS.summary });
+  };
+
+  const deactivateMutation = useMutation({
+    mutationFn: (id) => linemanAssignmentsApi.remove(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['lineman-assignments', 'all', { status }] });
+      const previous = queryClient.getQueryData(['lineman-assignments', 'all', { status }]);
+      queryClient.setQueryData(['lineman-assignments', 'all', { status }], (old) =>
+        old ? old.filter((row) => row.id !== id) : old
+      );
+      return { previous };
+    },
+    onSuccess: (result) => {
+      toast.success(result?.message || 'Assignment deactivated.', {
+        title: 'Assignment removed',
+      });
+      setDeactivating(null);
+      afterChange();
+    },
+    onError: (error, id, context) => {
+      queryClient.setQueryData(['lineman-assignments', 'all', { status }], context?.previous);
+      toast.error(toUserMessage(error, 'The assignment could not be deactivated.'), {
+        title: 'Action failed',
+      });
+    },
+  });
+
+  const openCreate = () => {
+    setEditing(null);
+    setFormOpen(true);
+  };
+
+  const openEdit = (assignment) => {
+    setEditing(assignment);
+    setFormOpen(true);
+  };
+
+  const openActivity = (linemanId, linemanName) => {
+    setActivityLinemanId(linemanId);
+    setActivityLinemanName(linemanName);
+    setActivityOpen(true);
+  };
+
+  if (!isManager) {
+    if (isLineman) {
+      return (
+        <div className="space-y-6">
+          <PageHeader
+            title="My Assigned Barangays"
+            description="The barangays you are assigned to cover. Outage reports in these areas are the ones you can review, verify and update."
+          />
+
+          <MyAssignmentList
+            assignments={myRows}
+            isLoading={myQuery.isLoading}
+            error={myQuery.isError}
+            onRetry={() => myQuery.refetch()}
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Lineman Assignments"
+          description="Assign field linemen to the barangays they cover."
+        />
+        <Card>
+          <CardBody>
+            <p className="text-sm text-navy-600">
+              Assigning linemen is limited to electric company and admin accounts.
+            </p>
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Lineman Assignments"
+        description="Assign field linemen to the barangays they cover. A lineman can only view and work on outage reports in an actively assigned barangay."
+        actions={
+          isManager ? (
+            <Button variant="primary" icon={Plus} onClick={openCreate}>
+              Assign a lineman
+            </Button>
+          ) : null
+        }
+      />
+
+      <Card>
+        <CardBody className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Select
+            label="Status"
+            aria-label="Filter assignments by status"
+            options={[
+              { value: 'active', label: 'Active' },
+              { value: 'inactive', label: 'Inactive' },
+            ]}
+            placeholder="All statuses"
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setPage(1);
+            }}
+          />
+          <div className="flex items-end">
+            <Button
+              variant="outline"
+              fullWidth
+              onClick={() => {
+                setStatus('');
+                setPage(1);
+              }}
+              disabled={!status}
+            >
+              Clear filters
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
+
+      <DataView
+        isLoading={listQuery.isLoading}
+        error={listQuery.isError}
+        onRetry={() => listQuery.refetch()}
+        loadingLabel="Loading lineman assignments…"
+        items={pageRows}
+        empty={{
+          icon: UserCheck,
+          title: 'No lineman assignments found.',
+          description: status
+            ? 'No assignment has that status yet.'
+            : 'Assign a lineman to a barangay and they will be able to work on the outage reports there.',
+          action: status ? null : (
+            <Button variant="primary" icon={Plus} onClick={openCreate}>
+              Assign a lineman
+            </Button>
+          ),
+        }}
+        renderCard={(group) => (
+          <RecordCard
+            icon={UserCheck}
+            iconTone={group.assignments.some((a) => a.status === 'active') ? 'success' : 'neutral'}
+            title={group.linemanName || 'Unknown lineman'}
+            subtitle={
+              group.assignments.map((a) => a.barangayName).filter(Boolean).join(' · ') || '—'
+            }
+            badges={[
+              {
+                label: group.assignments.some((a) => a.status === 'active') ? 'Active' : 'Inactive',
+                tone: group.assignments.some((a) => a.status === 'active') ? 'success' : 'neutral',
+              },
+              {
+                label: `${group.assignments.length} barangay${group.assignments.length === 1 ? '' : 's'}`,
+                tone: 'neutral',
+              },
+              { label: `${group.jobsDone} jobs done`, tone: 'info' },
+            ]}
+            meta={[
+              { label: 'Assigned', value: formatDateTime(group.assignments[0]?.assignedAt) },
+              group.assignments[0]?.assignedByName
+                ? { label: 'By', value: group.assignments[0].assignedByName }
+                : null,
+            ].filter(Boolean)}
+            actions={
+              <Button
+                size="sm"
+                variant="outline"
+                icon={UserPlus}
+                onClick={() => openActivity(group.linemanId, group.linemanName)}
+                aria-label={`View activity for ${group.linemanName}`}
+              >
+                Activity
+              </Button>
+            }
+          >
+            <div className="mt-3 space-y-2 border-t border-navy-100 pt-2">
+              {group.assignments.map((assignment) => (
+                <div key={assignment.id} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="inline-flex items-center gap-1.5 text-navy-600">
+                    <MapPin className="h-3.5 w-3.5 text-navy-400" aria-hidden="true" />
+                    {assignment.barangayName || '—'} · {humanize(assignment.jobType)}
+                    {assignment.status !== 'active' ? ' (inactive)' : ''}
+                  </span>
+                  <span className="flex shrink-0 gap-1">
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      icon={Pencil}
+                      onClick={() => openEdit(assignment)}
+                      aria-label={`Edit assignment of ${group.linemanName} to ${assignment.barangayName}`}
+                    />
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      icon={Trash2}
+                      className="text-danger-600"
+                      onClick={() => setDeactivating(assignment)}
+                      disabled={assignment.status !== 'active'}
+                      aria-label={`Remove ${group.linemanName} from ${assignment.barangayName}`}
+                    />
+                  </span>
+                </div>
+              ))}
+            </div>
+          </RecordCard>
+        )}
+        renderTable={(visible) => (
+          <div className="rounded-card border border-navy-100 bg-white shadow-card">
+            <Table>
+              <THead>
+                <tr>
+                  <TH>Lineman</TH>
+                  <TH>Barangay</TH>
+                  <TH>Status</TH>
+                  <TH>Jobs Done</TH>
+                  <TH>Assigned Date</TH>
+                  <TH>Assigned By</TH>
+                  <TH align="right">Actions</TH>
+                </tr>
+              </THead>
+              <TBody>
+                {visible.map((group) => (
+                  <TR key={group.id}>
+                    <TD>
+                      <span className="font-semibold text-navy-900">
+                        {group.linemanName || 'Unknown lineman'}
+                      </span>
+                      {group.linemanEmail ? (
+                        <p className="mt-0.5 text-xs text-navy-400">{group.linemanEmail}</p>
+                      ) : null}
+                    </TD>
+                    <TD className="text-sm">
+                      <div className="space-y-1">
+                        {group.assignments.map((assignment) => (
+                          <div key={assignment.id} className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center gap-1.5">
+                              <MapPin className="h-3.5 w-3.5 text-navy-400" aria-hidden="true" />
+                              {assignment.barangayName || '—'} · {humanize(assignment.jobType)}
+                              {assignment.status !== 'active' ? ' (inactive)' : ''}
+                            </span>
+                            <Button
+                              size="xs"
+                              variant="ghost"
+                              icon={Pencil}
+                              onClick={() => openEdit(assignment)}
+                              aria-label={`Edit assignment of ${group.linemanName} to ${assignment.barangayName}`}
+                            />
+                            <Button
+                              size="xs"
+                              variant="ghost"
+                              icon={Trash2}
+                              className="text-danger-600"
+                              onClick={() => setDeactivating(assignment)}
+                              disabled={assignment.status !== 'active'}
+                              aria-label={`Remove ${group.linemanName} from ${assignment.barangayName}`}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </TD>
+                    <TD>
+                      <Badge
+                        tone={group.assignments.some((a) => a.status === 'active') ? 'success' : 'neutral'}
+                      >
+                        {group.assignments.some((a) => a.status === 'active') ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </TD>
+                    <TD className="text-sm text-navy-500">{group.jobsDone}</TD>
+                    <TD className="whitespace-nowrap text-xs text-navy-500">
+                      {formatDateTime(group.assignments[0]?.assignedAt)}
+                    </TD>
+                    <TD className="text-sm text-navy-500">
+                      {group.assignments[0]?.assignedByName || '—'}
+                    </TD>
+                    <TD align="right">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        icon={UserPlus}
+                        onClick={() => openActivity(group.linemanId, group.linemanName)}
+                        aria-label={`View activity for ${group.linemanName}`}
+                      >
+                        Activity
+                      </Button>
+                    </TD>
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+            <Pagination
+              page={page}
+              pageCount={pageCount}
+              total={grouped.length}
+              pageSize={COMPANY_PAGE_SIZE}
+              onChange={setPage}
+            />
+          </div>
+        )}
+      />
+
+      {rows.length > 0 ? (
+        <p className="text-xs text-navy-400">
+          {activeCount} active assignment{activeCount === 1 ? '' : 's'} of {rows.length}. Removing
+          an assignment takes effect immediately - the lineman loses access to that
+          barangay&apos;s outages.
+        </p>
+      ) : null}
+
+      <AssignmentFormModal
+        open={formOpen}
+        assignment={editing}
+        onClose={() => {
+          setFormOpen(false);
+          setEditing(null);
+        }}
+        onSaved={afterChange}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deactivating)}
+        title="Remove this assignment?"
+        description={
+          deactivating
+            ? `${deactivating.linemanName} will no longer be able to view or work on outage reports in ${deactivating.barangayName}. The record is kept for history.`
+            : ''
+        }
+        confirmLabel="Remove assignment"
+        loading={deactivateMutation.isPending}
+        onClose={() => setDeactivating(null)}
+        onConfirm={async () => {
+          await deactivateMutation.mutateAsync(deactivating.id);
+        }}
+      />
+
+      {/* Lineman Activity Modal */}
+      <Modal
+        open={activityOpen}
+        onClose={() => {
+          setActivityOpen(false);
+          setActivityLinemanId(null);
+          setActivityLinemanName('');
+          setActivityWorkFilter('all');
+        }}
+        title="Lineman Activity"
+        description={
+          `${linemanInfo?.name || activityLinemanName}${linemanInfo?.email ? ` • ${linemanInfo.email}` : ''}` +
+          (activityBarangays ? ` • Assigned: ${activityBarangays}` : '')
+        }
+        size="xl"
+      >
+        {activityQuery.isLoading ? (
+          <div className="flex flex-col items-center justify-center py-8">
+            <Clock className="h-6 w-6 animate-spin mb-2" />
+            <p className="text-sm text-navy-500">Loading activity…</p>
+          </div>
+        ) : activityQuery.isError ? (
+          <div className="p-4 rounded-card border border-navy-100 bg-navy-50">
+            <p className="text-sm text-danger-600">
+              Could not load activity: {toUserMessage(activityQuery.error)}
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Work filter tabs */}
+            <div className="flex items-center gap-2 mb-6 border-b border-navy-100 pb-2">
+              <Button
+                size="sm"
+                variant={activityWorkFilter === 'all' ? 'primary' : 'outline'}
+                onClick={() => setActivityWorkFilter('all')}
+              >
+                All Work
+              </Button>
+              <Button
+                size="sm"
+                variant={activityWorkFilter === 'done' ? 'primary' : 'outline'}
+                onClick={() => setActivityWorkFilter('done')}
+              >
+                Done Work
+              </Button>
+              <span className="ml-auto text-xs text-navy-400">
+                {activitySummary?.total_done ?? 0} done of{' '}
+                {activitySummary?.total_activities ?? 0} total
+              </span>
+            </div>
+
+            {activities.length === 0 ? (
+              <div className="p-8 rounded-card border border-navy-100 bg-navy-50 text-center">
+                <Info className="h-8 w-8 mx-auto mb-2 text-navy-400" />
+                <h3 className="text-sm font-semibold text-navy-900">
+                  {activityWorkFilter === 'done' ? 'No done work yet' : 'No activity yet'}
+                </h3>
+                <p className="text-xs text-navy-500 mt-1">
+                  {activityWorkFilter === 'done'
+                    ? "This lineman hasn't completed any resolved or verified reports yet."
+                    : 'This lineman has no work activity recorded yet.'}
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="p-4 rounded-card border border-navy-100 bg-white">
+                    <p className="text-xs text-navy-400 uppercase font-semibold">Verifications</p>
+                    <p className="text-2xl font-bold text-navy-900">
+                      {activities.filter((a) => a.type === 'verification').length}
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-card border border-navy-100 bg-white">
+                    <p className="text-xs text-navy-400 uppercase font-semibold">Updates</p>
+                    <p className="text-2xl font-bold text-navy-900">
+                      {activities.filter((a) => a.type === 'update').length}
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-card border border-navy-100 bg-white">
+                    <p className="text-xs text-navy-400 uppercase font-semibold">Done Work</p>
+                    <p className="text-2xl font-bold text-navy-900">
+                      {activities.filter((a) => a.is_done).length}
+                    </p>
+                  </div>
+                </div>
+
+                <Table className="mt-4">
+                  <THead>
+                    <tr>
+                      <TH>Time</TH>
+                      <TH>Action</TH>
+                      <TH>Details</TH>
+                      <TH>Barangay</TH>
+                      <TH className="text-right">Status</TH>
+                    </tr>
+                  </THead>
+                  <TBody>
+                    {activities.map((activity) => (
+                      <TR key={activity.id}>
+                        <TD className="whitespace-nowrap text-xs text-navy-500">
+                          {formatRelativeTime(activity.performedAt)}
+                        </TD>
+                        <TD className="text-sm text-navy-900">
+                          {activity.action}
+                        </TD>
+                        <TD className="text-sm">
+                          {activity.type === 'verification' ? (
+                            <span className="text-navy-600">
+                              {activity.verification}{' '}
+                              {activity.reportKey ? `· #${activity.reportKey}` : ''}
+                            </span>
+                          ) : activity.type === 'update' ? (
+                            <span className="text-navy-600">
+                              {activity.reportKey ? `Report #${activity.reportKey}` : 'Report'}
+                              {activity.message ? ` · "${activity.message}"` : ''}
+                            </span>
+                          ) : null}
+                        </TD>
+                        <TD className="text-sm text-navy-500">
+                          {activity.barangayName || '—'}
+                        </TD>
+                        <TD className="text-right text-xs">
+                          <Badge
+                            tone={
+                              activity.is_done ? 'success' : 'neutral'
+                            }
+                          >
+                            {activity.report_status?.charAt(0).toUpperCase() + activity.report_status?.slice(1) || '—'}
+                          </Badge>
+                        </TD>
+                      </TR>
+                    ))}
+                  </TBody>
+                </Table>
+              </>
+            )}
+          </>
+        )}
+      </Modal>
+    </div>
+  );
+}

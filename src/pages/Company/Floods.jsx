@@ -73,12 +73,13 @@ export default function Floods() {
   const rows = useMemo(() => {
     const term = debouncedSearch.trim().toLowerCase();
     return (listQuery.data || []).filter((flood) => {
+      if (tab === 'all' && String(flood.status).toLowerCase() === 'cleared') return false;
       if (!term) return true;
       return [flood.locationName, flood.barangay, flood.description, flood.severity]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(term));
     });
-  }, [listQuery.data, debouncedSearch]);
+  }, [listQuery.data, tab, debouncedSearch]);
 
   const pageCount = Math.max(1, Math.ceil(rows.length / COMPANY_PAGE_SIZE));
   const pageRows = rows.slice((page - 1) * COMPANY_PAGE_SIZE, page * COMPANY_PAGE_SIZE);
@@ -125,7 +126,6 @@ export default function Floods() {
                 ? 'warning'
                 : 'success'
           }
-          glyphFor={() => 'F'}
         >
           {(flood) => (
             <div className="min-w-[13rem]">

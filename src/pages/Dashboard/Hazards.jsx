@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { ZoomControl } from 'react-leaflet';
-import { Activity, AlertTriangle, CalendarClock, CheckCircle2, Plus, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Activity, AlertTriangle, CalendarClock, CheckCircle2, Plus, Pencil, Trash2 } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
@@ -34,8 +34,6 @@ const SEVERITY_LEGEND = [
   { label: 'Critical', color: SEVERITY_COLORS.critical },
 ];
 
-const PAGE_SIZE = 3;
-
 /**
  * Module J - electrical hazards across Dagupan: list, map, create and an
  * owner-only status update.
@@ -62,7 +60,6 @@ export default function Hazards() {
   const [editTarget, setEditTarget] = useState(null);
   const [confirming, setConfirming] = useState(null);
   const [feedback, setFeedback] = useState(null);
-  const [page, setPage] = useState(1);
   const debouncedSearch = useDebouncedValue(search);
 
   useEffect(() => {
@@ -126,18 +123,6 @@ export default function Hazards() {
       });
     }
   };
-
-  // Pagination
-  const totalPages = Math.ceil(items.length / PAGE_SIZE);
-  const currentPage = Math.min(page, totalPages || 1);
-  const pagedItems = useMemo(
-    () => items.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
-    [items, currentPage]
-  );
-
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages || 1);
-  }, [page, totalPages]);
 
   // Hazards the map can plot.
   const plotted = useMemo(
@@ -268,7 +253,7 @@ export default function Hazards() {
         errorMessage={toUserMessage(listQuery.error)}
         onRetry={() => listQuery.refetch()}
         loadingLabel="Loading electrical hazards…"
-        items={pagedItems}
+        items={items}
         isEmpty={items.length === 0}
         empty={{
           icon: AlertTriangle,
@@ -337,31 +322,6 @@ export default function Hazards() {
         }}
       />
       </MapWorkspace>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            icon={ChevronLeft}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            aria-label="Previous page"
-          />
-          <span className="text-sm font-semibold text-white/60 w-12 text-center">
-            Page {currentPage} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            icon={ChevronRight}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            aria-label="Next page"
-          />
-        </div>
-      )}
 
       {confirming ? (
         <ReportFeedbackDialog

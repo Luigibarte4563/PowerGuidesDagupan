@@ -6,6 +6,7 @@ require_once __DIR__ . '/../../config/db_connect.php';
 require_once __DIR__ . '/../../auth/jwt_auth.php';
 require_once __DIR__ . '/../../auth/rbac.php';
 require_once __DIR__ . '/../services/create_notification.php';
+require_once __DIR__ . '/../services/audit.php';
 
 $conn = getConnection();
 $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -35,7 +36,7 @@ if ($hazard_id <= 0) {
 }
 
 try {
-    $stmt = $conn->prepare("SELECT reported_by FROM electrical_hazards WHERE id = ? LIMIT 1");
+    $stmt = $conn->prepare("SELECT reported_by, status, location_name FROM electrical_hazards WHERE id = ? LIMIT 1");
     $stmt->execute([$hazard_id]);
     $hazard = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$hazard) {
@@ -54,15 +55,8 @@ try {
         exit;
     }
 
-    $sql = "UPDATE electrical_hazards SET status = :status";
-    $params = [":status" => $status, ":id" => $hazard_id];
-
-    /* The lineman assigned to carry out this status change (optional). */
-    $updatedBy = (int)($data["updated_by"] ?? 0);
-    if ($updatedBy > 0) {
-        $sql .= ", updated_by = :updated_by";
-        $params[":updated_by"] = $updatedBy;
-    }
+    $sql = "UPDATE electrical_hazards SET status = :status, updated_by = :updated_by";
+    $params = [":status" => $status, ":updated_by" => $user_id, ":id" => $hazard_id];
 
     if ($status === 'resolved') {
         $sql .= ", resolved_at = NOW()";
@@ -71,6 +65,18 @@ try {
 
     $stmt = $conn->prepare($sql);
     $stmt->execute($params);
+
+    recordActivity(
+        $conn,
+        $user_id,
+        'hazard',
+        $hazard_id,
+        'status_changed',
+        $hazard['location_name'] ?? "Hazard #{$hazard_id}",
+        null,
+        $hazard['status'] ?? null,
+        $status
+    );
 
     if ($isStaff && ($status === 'verified' || $status === 'resolved')) {
         createNotification($conn, [(int)$hazard['reported_by']], "Electrical Hazard " . ucfirst($status),

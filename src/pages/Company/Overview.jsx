@@ -28,7 +28,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { severityTone, statusTone } from '@/utils/constants';
 import { readCompanyOutage } from '@/utils/records';
 import { formatRelativeTime, humanize } from '@/utils/formatters';
-import { roleLabel } from '@/utils/roles';
+import { ROLE, roleLabel } from '@/utils/roles';
 
 const RECENT_LIMIT = 8;
 
@@ -58,6 +58,7 @@ const RECENT_LIMIT = 8;
  */
 export default function Overview() {
   const { user, role, isManager } = useAuth();
+  const isLineman = role === ROLE.LINEMAN;
   const { roles } = useReference();
   const { summary, isLoading, isFetching, isPartial, refetch, isError } = useCompanySummary({
     // `get_complete` and the assignment endpoints are manager-only; skipping them keeps a
@@ -159,14 +160,18 @@ export default function Overview() {
   ];
 
   const assetCards = [
-    {
-      label: 'Available power stations',
-      value: summary?.availableStations?.count,
-      icon: Plug,
-      tone: 'success',
-      to: '/company/power-stations',
-      hint: 'Open to the public',
-    },
+    ...(isLineman
+      ? []
+      : [
+          {
+            label: 'Available power stations',
+            value: summary?.availableStations?.count,
+            icon: Plug,
+            tone: 'success',
+            to: '/company/power-stations',
+            hint: 'Open to the public',
+          },
+        ]),
     {
       label: 'Active clusters',
       value: summary?.activeClusters?.count,

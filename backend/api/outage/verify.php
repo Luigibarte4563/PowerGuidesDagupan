@@ -7,6 +7,7 @@ require_once __DIR__ . '/../../auth/jwt_auth.php';
 require_once __DIR__ . '/../../auth/rbac.php';
 require_once __DIR__ . '/../services/lookup.php';
 require_once __DIR__ . '/../../auth/lineman_access.php';
+require_once __DIR__ . '/../services/audit.php';
 
 $conn = getConnection();
 $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -86,6 +87,22 @@ try {
     $sql .= " WHERE id = :id";
 
     $conn->prepare($sql)->execute($params);
+
+    $labelStmt = $conn->prepare("SELECT report_key FROM outage_reports WHERE id = ? LIMIT 1");
+    $labelStmt->execute([$outageReportId]);
+    $reportKey = $labelStmt->fetchColumn() ?: "Report #{$outageReportId}";
+
+    recordActivity(
+        $conn,
+        (int)$user['id'],
+        'outage',
+        $outageReportId,
+        'verified',
+        $reportKey,
+        $notes !== '' ? $notes : null,
+        null,
+        $targetStatus
+    );
 
     echo json_encode([
         "success" => true,

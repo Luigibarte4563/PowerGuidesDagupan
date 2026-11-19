@@ -7,6 +7,7 @@ require_once __DIR__ . '/../../auth/jwt_auth.php';
 require_once __DIR__ . '/../../auth/rbac.php';
 require_once __DIR__ . '/../services/lookup.php';
 require_once __DIR__ . '/../../auth/lineman_access.php';
+require_once __DIR__ . '/../services/audit.php';
 
 $conn = getConnection();
 $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -41,15 +42,31 @@ try {
        runs before the UPDATE, so a denied request changes nothing. */
     require_outage_access($conn, $user, $id);
 
-    $sql = "UPDATE outage_reports SET status = :status, updated_at = NOW()";
-    $params = [":status" => $status, ":id" => $id];
+    $auditStmt = $conn->prepare("SELECT report_key, status FROM outage_reports WHERE id = ? LIMIT 1");
+    $auditStmt->execute([$id]);
+    $auditRow = $auditStmt->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    $sql = "UPDATE outage_reports SET status = :status, updated_by = :updated_by, updated_at = NOW()";
+    $params = [":status" => $status, ":updated_by" => (int)$user['id'], ":id" => $id];
 
     if ($status === "resolved") {
         $sql .= ", resolved_at = NOW()";
     }
 
     $sql .= " WHERE id = :id";
-    $stmt = $conn->prepare($sql)->execute($params);
+    $conn->prepare($sql)->execute($params);
+
+    recordActivity(
+        $conn,
+        (int)$user['id'],
+        'outage',
+        $id,
+        'updated',
+        $auditRow['report_key'] ?? "Report #{$id}",
+        null,
+        $auditRow['status'] ?? null,
+        $status
+    );
 
     echo json_encode(["success" => true, "message" => "Updated successfully"]);
 } catch (Throwable $e) {

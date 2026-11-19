@@ -30,6 +30,7 @@ import { QUERY_KEYS, isOpenStatus, severityTone, statusTone } from '@/utils/cons
 import { readFlood, readHazard, readMaintenance, readOutage } from '@/utils/records';
 import { formatDateTime, formatRelativeTime, humanize } from '@/utils/formatters';
 import { toUserMessage } from '@/utils/errorMessage';
+import { ROLE } from '@/utils/roles';
 
 /**
  * Module A - dashboard overview.
@@ -53,8 +54,9 @@ const reportedAt = (value) => {
 };
 
 export default function Overview() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { coords, hasLocation } = useSavedLocation();
+  const isLineman = role === ROLE.LINEMAN;
 
   const myReports = useQuery({
     queryKey: QUERY_KEYS.outages({ scope: 'mine' }),
@@ -83,6 +85,7 @@ export default function Overview() {
     queryFn: async ({ signal }) => (await powerStationsApi.getAvailable({}, { signal })).count,
     staleTime: 5 * 60 * 1000,
     retry: 1,
+    enabled: !isLineman,
   });
 
   const upcomingMaintenance = useQuery({
@@ -159,15 +162,20 @@ export default function Overview() {
         on the topbar bell. Four cards fill the `lg:grid-cols-4` row exactly, where
         eight wrapped onto two rows and pushed the quick actions below the fold.
       */}
-      <section aria-label="Summary" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryCard
-          label="Power stations available"
-          value={availableStations.data}
-          isLoading={availableStations.isLoading}
-          icon={Plug}
-          tone="success"
-          to="/dashboard/power-stations"
-        />
+      <section
+        aria-label="Summary"
+        className={`grid gap-4 sm:grid-cols-2 ${isLineman ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}
+      >
+        {!isLineman ? (
+          <SummaryCard
+            label="Power stations available"
+            value={availableStations.data}
+            isLoading={availableStations.isLoading}
+            icon={Plug}
+            tone="success"
+            to="/dashboard/power-stations"
+          />
+        ) : null}
         <SummaryCard
           label="Upcoming maintenance"
           value={upcomingMaintenance.data?.length}
@@ -389,11 +397,16 @@ export default function Overview() {
         Need the full picture? Visit{' '}
         <Link to="/dashboard/risk-areas" className="font-semibold text-[#f18f01] hover:text-[#f6c200]">
           risk areas
-        </Link>{' '}
-        or{' '}
-        <Link to="/dashboard/power-stations" className="font-semibold text-[#f18f01] hover:text-[#f6c200]">
-          power stations
         </Link>
+        {!isLineman ? (
+          <>
+            {' '}
+            or{' '}
+            <Link to="/dashboard/power-stations" className="font-semibold text-[#f18f01] hover:text-[#f6c200]">
+              power stations
+            </Link>
+          </>
+        ) : null}
         .
       </p>
     </div>

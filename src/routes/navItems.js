@@ -36,7 +36,13 @@ export const DASHBOARD_NAV = [
   { to: '/dashboard/risk-areas', label: 'Risk Areas', icon: ShieldAlert, group: 'Explore' },
   { to: '/dashboard/heatmap', label: 'Heatmap', icon: Flame, group: 'Explore' },
   { to: '/dashboard/maintenance', label: 'Maintenance', icon: Wrench, group: 'Explore' },
-  { to: '/dashboard/power-stations', label: 'Power Stations', icon: Plug, group: 'Explore' },
+  {
+    to: '/dashboard/power-stations',
+    label: 'Power Stations',
+    icon: Plug,
+    group: 'Explore',
+    roles: ['user', 'electric_company', 'admin'],
+  },
   { to: '/dashboard/notifications', label: 'Notifications', icon: Bell, group: 'Account', sidebar: false },
   { to: '/dashboard/profile', label: 'Profile', icon: LayoutDashboard, group: 'Account', sidebar: false },
 ];

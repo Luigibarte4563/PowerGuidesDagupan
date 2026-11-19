@@ -9,6 +9,7 @@ require_once __DIR__ . '/../../auth/jwt_auth.php';
 require_once __DIR__ . '/../../auth/rbac.php';
 require_once __DIR__ . '/../../auth/lineman_access.php';
 require_once __DIR__ . '/../services/create_notification.php';
+require_once __DIR__ . '/../services/audit.php';
 
 $conn = getConnection();
 $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -77,6 +78,24 @@ try {
         ]);
         exit;
     }
+
+    $assignmentLabel = trim(
+        ($assignment['first_name'] ?? '') . ' ' .
+        (($assignment['middle_name'] ?? null) ? $assignment['middle_name'] . ' ' : '') .
+        ($assignment['last_name'] ?? '')
+    ) . ' · ' . ($assignment['barangay_name'] ?? '');
+
+    recordActivity(
+        $conn,
+        current_user_id($user),
+        'assignment',
+        $id,
+        'unassigned',
+        trim($assignmentLabel, ' ·'),
+        null,
+        'active',
+        'inactive'
+    );
 
     /* Notify the lineman that their assignment was removed. */
     $assignedByStmt = $conn->prepare("SELECT first_name, last_name FROM users WHERE id = ? LIMIT 1");

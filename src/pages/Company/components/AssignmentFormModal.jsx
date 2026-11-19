@@ -15,11 +15,20 @@ import { useLinemenList } from '@/hooks/useLinemanAssignments';
 import { toFieldErrors, toUserMessage } from '@/utils/errorMessage';
 import { clearFieldError, collectErrors, hasErrors, validateRequired } from '@/utils/validators';
 
-const FIELD_ORDER = ['linemanId', 'barangayId', 'status'];
+const FIELD_ORDER = ['linemanId', 'barangayId', 'jobType', 'status'];
+
+const JOB_OPTIONS = [
+  { value: 'all', label: 'All jobs' },
+  { value: 'outage', label: 'Outage' },
+  { value: 'flood', label: 'Flood' },
+  { value: 'hazard', label: 'Hazard' },
+  { value: 'maintenance', label: 'Maintenance' },
+];
 
 const EMPTY = {
   linemanId: '',
   barangayId: '',
+  jobType: 'all',
   status: ACTIVE_ASSIGNMENT_STATUS,
 };
 
@@ -28,6 +37,7 @@ function toFormValues(assignment) {
   return {
     linemanId: String(assignment.linemanId ?? ''),
     barangayId: String(assignment.barangayId ?? ''),
+    jobType: assignment.jobType || 'all',
     status: assignment.status || ACTIVE_ASSIGNMENT_STATUS,
   };
 }
@@ -115,6 +125,7 @@ export default function AssignmentFormModal({ open, assignment, onClose, onSaved
       collectErrors({
         linemanId: () => validateRequired(values.linemanId, 'A lineman'),
         barangayId: () => validateRequired(values.barangayId, 'A barangay'),
+        jobType: () => validateRequired(values.jobType, 'A job'),
         status: () => validateRequired(values.status, 'A status'),
       }),
     [values]
@@ -140,6 +151,7 @@ export default function AssignmentFormModal({ open, assignment, onClose, onSaved
     const payload = {
       linemanId: Number(values.linemanId),
       barangayId: Number(values.barangayId),
+      jobType: values.jobType,
       status: values.status,
     };
 
@@ -150,6 +162,9 @@ export default function AssignmentFormModal({ open, assignment, onClose, onSaved
       }
       if (Number(values.barangayId) !== Number(assignment.barangayId)) {
         payload.barangayId = Number(values.barangayId);
+      }
+      if (values.jobType !== (assignment.jobType || 'all')) {
+        payload.jobType = values.jobType;
       }
       if (values.status !== assignment.status) {
         payload.status = values.status;
@@ -214,6 +229,17 @@ export default function AssignmentFormModal({ open, assignment, onClose, onSaved
           onChange={set('barangayId')}
           error={errors.barangayId}
           hint={selectedBarangay ? `Current: ${selectedBarangay.name}` : undefined}
+        />
+
+        <Select
+          label="Job"
+          required
+          options={JOB_OPTIONS}
+          disabled={mutation.isPending}
+          value={values.jobType}
+          onChange={set('jobType')}
+          error={errors.jobType}
+          hint="Label only - the lineman can still work on every job in the barangay."
         />
 
         {isEdit ? (

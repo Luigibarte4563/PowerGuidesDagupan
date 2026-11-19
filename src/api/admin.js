@@ -33,6 +33,12 @@ import { apiRequest, pickList } from './client';
  *                        status/severity, floods, hazards, maintenance, stations,
  *                        notifications, a zero-filled 30-day report trend and the
  *                        top barangays by report count.
+ *   activity.php    GET  ?role=&user_id=&target_type=&action=&page=&page_size=
+ *                        -> { success, summary, activities }
+ *                        Append-only staff activity for one role, with optional account,
+ *                        module and action filters. Sourced from `activity_log`, which
+ *                        records who created or changed maintenance, outages, floods,
+ *                        hazards and assignments.
  */
 
 /** Row shape returned by users.php. `role` is the ENUM string, not a lookup id. */
@@ -103,6 +109,23 @@ function readStats(data) {
   };
 }
 
+/** One row from activity.php -> camelCase for the timeline. */
+function readActivity(row) {
+  return {
+    id: String(row?.id ?? ''),
+    type: row?.type || '',
+    targetType: row?.target_type || row?.targetType || '',
+    actionType: row?.action_type || row?.actionType || '',
+    action: row?.action || '',
+    actorId: Number(row?.actor_id ?? 0),
+    actorName: row?.actor_name || '',
+    target: row?.target || '',
+    detail: row?.detail || '',
+    status: row?.status || '',
+    performedAt: row?.performed_at || '',
+  };
+}
+
 export const adminApi = {
   /** Admin only - the user directory, with optional role and search filters. */
   async listUsers(params = {}, { signal } = {}) {
@@ -111,6 +134,27 @@ export const adminApi = {
       signal,
     });
     return { items: pickList(payload).map(readUser), count: payload?.count ?? null, raw: payload };
+  },
+
+  /** Admin only - staff activity, optionally narrowed by account, module and action. */
+  async activity({ role, userId, targetType, action, page = 1, pageSize = 25 } = {}, { signal } = {}) {
+    const payload = await apiRequest('/api/admin/activity.php', {
+      params: {
+        role,
+        user_id: userId,
+        target_type: targetType,
+        action,
+        page,
+        page_size: pageSize,
+      },
+      signal,
+    });
+    return {
+      activities: (Array.isArray(payload?.activities) ? payload.activities : []).map(readActivity),
+      summary: payload?.summary ?? null,
+      count: payload?.count ?? null,
+      raw: payload,
+    };
   },
 
   /** Admin only. Idempotent when the target already holds the role. */

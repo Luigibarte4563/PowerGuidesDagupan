@@ -8,6 +8,7 @@ ini_set('display_errors', 0);
 require_once __DIR__ . '/../../config/db_connect.php';
 require_once __DIR__ . '/../../auth/jwt_auth.php';
 require_once __DIR__ . '/../services/lookup.php';
+require_once __DIR__ . '/../services/audit.php';
 
 try {
     $conn = getConnection();
@@ -140,6 +141,18 @@ try {
         ":description" => $description !== "" ? $description : null,
         ":image_proof" => $image_proof,
     ]);
+
+    recordActivity(
+        $conn,
+        (int)$user_id,
+        'flood',
+        $id,
+        'updated',
+        $location_name,
+        $description !== '' ? $description : null,
+        null,
+        $report['status'] ?? null
+    );
 
     echo json_encode([
         "success" => true,
