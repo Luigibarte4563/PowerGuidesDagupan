@@ -32,7 +32,7 @@ $sql = "
         b.barangay_name
     FROM flood_reports fr
     LEFT JOIN barangays b ON b.id = fr.barangay_id
-    WHERE 1=1
+    WHERE fr.status != 'cancelled'
 ";
 
 $params = [];

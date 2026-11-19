@@ -46,7 +46,7 @@ $sql = "
         ) AS distance
     FROM flood_reports fr
     LEFT JOIN barangays b ON b.id = fr.barangay_id
-    WHERE fr.status != 'cleared'
+    WHERE fr.status NOT IN ('cleared', 'cancelled')
     HAVING distance <= :radius
     ORDER BY distance ASC
 ";

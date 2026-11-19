@@ -10,7 +10,7 @@ import { apiRequest, pickList, uploadWithProgress } from './client';
  *                    `flood_level` enum: low | moderate | high | severe.
  *                    When latitude+longitude are both numeric they are used as-is, otherwise
  *                    `location_name` is geocoded.
- *   get.php        ?status=&flood_level=&barangay= -> data rows:
+ *   get.php        ?status=&flood_level=&barangay= -> data rows (hides cancelled):
  *                    { id, reported_by, location_name, latitude, longitude, flood_depth_cm,
  *                      flood_level, description, image_proof, status, reported_at, updated_at,
  *                      barangay_name }

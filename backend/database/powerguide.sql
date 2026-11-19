@@ -432,7 +432,8 @@ CREATE TABLE flood_reports (
     status ENUM(
         'reported',
         'verified',
-        'cleared'
+        'cleared',
+        'cancelled'
     ) DEFAULT 'reported',
 
     reported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
