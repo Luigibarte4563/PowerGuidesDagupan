@@ -133,9 +133,6 @@ export default function Login() {
           </div>
         </div>
 
-        <a className="auth-forgot" href="#" onClick={(e) => e.preventDefault()}>
-          Forgot Password?
-        </a>
 
         <p className="auth-msg" role="status" aria-live="polite"></p>
 
