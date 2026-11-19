@@ -8,7 +8,7 @@ import { Select } from '@/components/ui/Select';
 import DataView from '@/components/DataView';
 import RecordCard from '@/components/RecordCard';
 import ConfirmDialog from '@/components/ConfirmDialog';
-import AppMap, { FitPoints, MapLegend, MapPoints, RadiusCircle, POWER_STATION_COLORS } from '@/components/Map';
+import AppMap, { FitPoints, MapLegend, MapPoints, POWER_STATION_COLORS } from '@/components/Map';
 import MapWorkspace, { FeedActions, FeedPills, FeedToggle } from '@/components/MapWorkspace';
 import { useAuth } from '@/context/AuthContext';
 import { useReference } from '@/context/ReferenceContext';
@@ -123,7 +123,6 @@ export default function PowerStations() {
     <AppMap center={coords || undefined} zoom={coords ? 13 : undefined} zoomControl={false} className="h-full w-full">
       <ZoomControl position="bottomright" />
       <FitPoints items={items} />
-      {hasLocation ? <RadiusCircle center={coords} radius={tab === 'near' ? radius : 2000} /> : null}
       <MapPoints items={items} toneFor={(item) => availabilityTone(item.availability)}>
         {(item) => (
           <div className="min-w-[12rem]">

@@ -146,6 +146,7 @@ export function availabilityTone(value) {
   const key = String(value ?? '').toLowerCase().trim();
   if (['available', '1', 'true', 'online', 'open', 'active'].includes(key)) return 'success';
   if (['unavailable', '0', 'false', 'offline', 'closed', 'maintenance'].includes(key)) return 'danger';
+  if (key === 'busy') return 'warning';
   return 'neutral';
 }
 

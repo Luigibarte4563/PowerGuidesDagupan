@@ -103,7 +103,7 @@ export const MAINTENANCE_STATUS_COLORS = {
 
 export const POWER_STATION_COLORS = {
   available: '#34FB34',
-  busy: '#F59E0B',
+  busy: '#FFBB02',
   offline: '#FF2E1F',
 };
 
