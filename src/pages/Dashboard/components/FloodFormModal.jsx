@@ -1,14 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import FormModal from '@/components/FormModal';
-import ImageUploader from '@/components/ImageUploader';
-import MapPicker from '@/components/MapPicker';
+import { Marker, useMapEvents, ZoomControl } from 'react-leaflet';
+import { AlertTriangle, Home, Loader2, MapPin, Users, Waves, X } from 'lucide-react';
 import { Input, Textarea } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import Modal from '@/components/ui/Modal';
+import ImageUploader from '@/components/ImageUploader';
+import AppMap, { pinIcon } from '@/components/Map';
 import { useReference } from '@/context/ReferenceContext';
 import { useToast } from '@/context/ToastContext';
-import { ADDRESS_HINT, PIN_HINT, useBarangayCoords } from '@/hooks/useBarangayCoords';
+import { useGeolocation } from '@/hooks/useGeolocation';
+import { barangayCoords, useBarangayCoords } from '@/hooks/useBarangayCoords';
 import { FLOOD_LEVELS, floodsApi } from '@/api';
+import { distanceInMeters, hasCoordinates } from '@/utils/formatters';
 import { toFieldErrors, toUserMessage } from '@/utils/errorMessage';
 import { clearFieldError, collectErrors, hasErrors, validateRequired } from '@/utils/validators';
 
@@ -25,16 +29,64 @@ export const FLOOD_LEVEL_OPTIONS = FLOOD_LEVELS.map((level) => ({ id: level, nam
 
 const FIELD_ORDER = ['locationName', 'floodLevel', 'description', 'barangayName', 'depth'];
 
+const FIELD_LABEL =
+  '!text-[10px] !font-bold !uppercase !tracking-[0.16em] !text-white/45';
+const FIELD_CONTROL =
+  'h-11 !rounded-xl !border-white/10 !bg-white/[0.04] !text-sm !text-white [color-scheme:dark] placeholder:text-white/30 focus:!border-[#f18f01] focus:!ring-[#f18f01]/30 dark:!border-white/10 dark:!bg-white/[0.04] dark:!text-white dark:placeholder:text-white/30 dark:focus:!border-[#f18f01] dark:focus:!ring-[#f18f01]/30';
+
+const DEFAULT_POINT = { lat: 16.0433, lng: 120.3329 };
+
+const round6 = (value) => Number(Number(value).toFixed(6));
+
+function nearestBarangay(point, barangays) {
+  let nearest = '';
+  let nearestDistance = Infinity;
+
+  barangays.forEach((option) => {
+    const coords = barangayCoords(option);
+    if (!coords) return;
+    const distance = distanceInMeters(point.lat, point.lng, coords.lat, coords.lng);
+    if (distance !== null && distance < nearestDistance) {
+      nearestDistance = distance;
+      nearest = option.name;
+    }
+  });
+
+  return nearest;
+}
+
+function LocationClickHandler({ onPick, disabled }) {
+  useMapEvents({
+    click(event) {
+      if (disabled) return;
+      onPick({
+        lat: round6(event.latlng.lat),
+        lng: round6(event.latlng.lng),
+      });
+    },
+  });
+  return null;
+}
+
+/**
+ * Create / edit a flood report. The map chooses the point on the left and the form
+ * scrolls on the right, matching the outage and hazard report modals.
+ */
 export default function FloodFormModal({
   open,
   onClose,
   defaultLocation = null,
   initialData = null, // { id, locationName, floodLevel, description, barangayName, depth, location }
 }) {
+  const isEditing = Boolean(initialData?.id);
   const { barangays } = useReference();
   const queryClient = useQueryClient();
   const toast = useToast();
-  const { coordsFor } = useBarangayCoords();
+  const geo = useGeolocation();
+  const { coordsFor, withoutCoords } = useBarangayCoords();
+
+  const hasStoredPin = hasCoordinates(initialData?.location?.lat, initialData?.location?.lng);
+  const initialPoint = hasStoredPin ? initialData.location : defaultLocation;
 
   const [values, setValues] = useState({
     locationName: '',
@@ -44,39 +96,104 @@ export default function FloodFormModal({
     depth: '',
     location: defaultLocation,
   });
-  const [errors, setErrors] = useState({});
-  const [formError, setFormError] = useState('');
+  const [pinTouched, setPinTouched] = useState(Boolean(initialPoint));
+  const [viewCenter, setViewCenter] = useState(initialPoint || DEFAULT_POINT);
   const [image, setImage] = useState(null);
   const [progress, setProgress] = useState(0);
+  const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState('');
 
-  // Reset form when initialData changes (e.g., opening for a different report)
+  const markerPoint = useMemo(
+    () => values.location || coordsFor(values.barangayName) || DEFAULT_POINT,
+    [values.location, values.barangayName, coordsFor]
+  );
+
+  // Reset form when initialData changes (e.g., opening for a different report).
   useEffect(() => {
-    if (initialData) {
-      setValues({
-        locationName: initialData.locationName || '',
-        floodLevel: initialData.floodLevel || 'moderate',
-        description: initialData.description || '',
-        barangayName: initialData.barangayName || '',
-        depth: initialData.depth ?? '',
-        location: initialData.location || defaultLocation,
-      });
-      setErrors({});
-      setFormError('');
-    } else {
-      setValues({
-        locationName: '',
-        floodLevel: 'moderate',
-        description: '',
-        barangayName: '',
-        depth: '',
-        location: defaultLocation,
-      });
-      setErrors({});
-      setFormError('');
-    }
+    const next = initialData
+      ? {
+          locationName: initialData.locationName || '',
+          floodLevel: initialData.floodLevel || 'moderate',
+          description: initialData.description || '',
+          barangayName: initialData.barangayName || '',
+          depth: initialData.depth ?? '',
+          location: initialData.location || defaultLocation,
+        }
+      : {
+          locationName: '',
+          floodLevel: 'moderate',
+          description: '',
+          barangayName: '',
+          depth: '',
+          location: defaultLocation,
+        };
+    setValues(next);
+    setPinTouched(Boolean(next.location));
+    setViewCenter(next.location || DEFAULT_POINT);
+    setErrors({});
+    setFormError('');
   }, [initialData, defaultLocation]);
 
-  const isEditing = Boolean(initialData?.id);
+  const setField = (field, value) => {
+    setValues((current) => ({ ...current, [field]: value }));
+    setErrors((current) => clearFieldError(current, field));
+    setFormError('');
+  };
+
+  const selectPoint = useCallback(
+    (point, { fly = false } = {}) => {
+      const nearest = nearestBarangay(point, barangays);
+      setValues((current) => ({
+        ...current,
+        location: point,
+        ...(nearest
+          ? {
+              barangayName: nearest,
+              locationName:
+                !current.locationName || current.locationName === current.barangayName
+                  ? nearest
+                  : current.locationName,
+            }
+          : {}),
+      }));
+      setPinTouched(true);
+      setErrors({});
+      setFormError('');
+      if (fly) setViewCenter(point);
+    },
+    [barangays]
+  );
+
+  // Browser geolocation arrives asynchronously, so apply it when it lands.
+  useEffect(() => {
+    if (geo.lat === null || geo.lng === null) return;
+    selectPoint({ lat: round6(geo.lat), lng: round6(geo.lng) }, { fly: true });
+  }, [geo.lat, geo.lng, selectPoint]);
+
+  // Reference data can arrive after the modal opens; resolve an edit's centroid
+  // then, without touching a pin the user has already moved.
+  useEffect(() => {
+    if (!isEditing || values.location) return;
+    const coords = coordsFor(values.barangayName);
+    if (!coords) return;
+    setValues((current) => (current.location ? current : { ...current, location: coords }));
+    setPinTouched(true);
+    setViewCenter(coords);
+  }, [isEditing, coordsFor, values.barangayName, values.location]);
+
+  const handleBarangay = (name) => {
+    const coords = coordsFor(name);
+    setValues((current) => ({
+      ...current,
+      barangayName: name,
+      location: coords || current.location,
+      locationName: current.locationName || name,
+    }));
+    setPinTouched(Boolean(coords));
+    setErrors((current) => clearFieldError(current, 'barangayName'));
+    setFormError('');
+    if (coords) setViewCenter(coords);
+  };
 
   const mutation = useMutation({
     mutationFn: (payload) => isEditing ? floodsApi.update(payload) : floodsApi.create(payload),
@@ -119,22 +236,10 @@ export default function FloodFormModal({
     },
   });
 
-  const setField = (field, value) => {
-    setValues((current) => ({ ...current, [field]: value }));
-    setErrors((current) => clearFieldError(current, field));
-    setFormError('');
-  };
+  const submitting = mutation.isPending || (progress > 0 && progress < 100);
 
-  /** The pin only refines the point; the barangay decides where it starts. */
-  const handleLocation = (next) => setField('location', next);
-
-  /** Choosing a barangay moves the pin onto that barangay's stored centre. */
-  const handleBarangay = (name) => {
-    setField('barangayName', name);
-    setField('location', coordsFor(name));
-  };
-
-  const handleSubmit = () => {
+  const handleSubmit = (event) => {
+    event.preventDefault();
     setFormError('');
     const validationErrors = collectErrors({
       locationName: () => validateRequired(values.locationName, 'Location name'),
@@ -160,106 +265,235 @@ export default function FloodFormModal({
       description: String(values.description).trim(),
       barangay_name: values.barangayName || '',
       flood_depth_cm: values.depth === '' ? null : Number(values.depth),
-      // Only sent when the user refined the pin; otherwise the barangay centroid is used.
-      ...(values.location
+      ...(pinTouched && values.location
         ? { latitude: values.location.lat, longitude: values.location.lng }
         : {}),
     };
 
-    if (isEditing) {
-      payload.id = initialData.id;
-    }
-
-    mutation.mutate(payload);
+    mutation.mutate(isEditing ? { ...payload, id: initialData.id } : payload);
   };
 
   return (
-    <FormModal
+    <Modal
       open={open}
-      onClose={onClose}
-      title={isEditing ? 'Edit flood report' : 'Report flooding'}
-      description={isEditing
-        ? 'Update the details of your flood report.'
-        : 'Help your neighbours know which roads and barangays are already affected.'}
-      onSubmit={handleSubmit}
-      submitLabel={isEditing ? 'Save changes' : 'Submit report'}
-      submitting={mutation.isPending}
-      error={formError}
-      size="xl"
+      onClose={submitting ? undefined : onClose}
+      title={isEditing ? 'Update a flood report' : 'Report flooding'}
+      bare
+      className="font-montserrat h-[min(92vh,760px)] w-[calc(100%-1.5rem)] max-w-[1000px] overflow-hidden rounded-[24px] border border-white/10 bg-gradient-to-br from-[#1E203C] to-[#141527] shadow-[0_30px_100px_rgba(16,27,45,0.7)] lg:h-[640px]"
     >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Input
-          label="Location name"
-          required
-          placeholder="e.g. intersection of Rizal and Burgos Streets"
-          value={values.locationName}
-          onChange={(event) => setField('locationName', event.target.value)}
-          error={errors.locationName}
-          hint={ADDRESS_HINT}
-        />
-        <Select
-          label="Flood level"
-          required
-          options={FLOOD_LEVEL_OPTIONS}
-          value={values.floodLevel}
-          onChange={(event) => setField('floodLevel', event.target.value)}
-          error={errors.floodLevel}
-        />
-        <Select
-          label="Barangay"
-          required
-          placeholder="Select a barangay"
-          options={barangays}
-          value={values.barangayName}
-          onChange={(event) => handleBarangay(event.target.value)}
-          error={errors.barangayName}
-          hint={ADDRESS_HINT}
-        />
-        <Input
-          label="Depth in cm (optional)"
-          type="number"
-          min="0"
-          placeholder="e.g. 30"
-          value={values.depth}
-          onChange={(event) => setField('depth', event.target.value)}
-          error={errors.depth}
-        />
+      <div data-theme="dark" className="flex h-full min-h-0 flex-col lg:flex-row">
+        <div className="relative h-[210px] shrink-0 overflow-hidden border-b border-white/10 sm:h-[230px] lg:h-auto lg:w-[45%] lg:border-b-0 lg:border-r">
+          <AppMap
+            center={viewCenter}
+            zoom={hasStoredPin ? 16 : 14}
+            zoomControl={false}
+            className="h-full w-full"
+          >
+            <LocationClickHandler onPick={selectPoint} disabled={submitting} />
+            <ZoomControl position="bottomright" />
+            <Marker
+              position={[markerPoint.lat, markerPoint.lng]}
+              icon={pinIcon('#f18f01')}
+              draggable={!submitting}
+              eventHandlers={{
+                dragend: (event) => {
+                  const { lat, lng } = event.target.getLatLng();
+                  selectPoint({ lat: round6(lat), lng: round6(lng) });
+                },
+              }}
+            />
+          </AppMap>
+
+          <div className="pointer-events-none absolute inset-x-3 bottom-3 z-[500] rounded-2xl border border-white/10 bg-[#153243]/80 p-3.5 shadow-2xl backdrop-blur-md sm:inset-x-4 sm:bottom-4">
+            <p className="flex items-center gap-2 text-[9px] font-extrabold uppercase tracking-[0.18em] text-[#f18f01]">
+              <span className="relative flex h-2 w-2" aria-hidden="true">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#f18f01] opacity-70" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#f18f01]" />
+              </span>
+              Geographic Pinpoint
+            </p>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-white/50">
+              Click or drag the pin to mark where the flooding is happening.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            className="absolute right-4 top-4 z-20 rounded-full border border-white/10 bg-[#153243]/80 p-2 text-white/55 backdrop-blur-md transition hover:bg-white/10 hover:text-white disabled:opacity-40"
+            aria-label="Close dialog"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+
+          <form onSubmit={handleSubmit} noValidate className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-6 sm:px-6">
+              <div className="pr-10">
+                <h2 className="text-xl font-black tracking-tight text-white sm:text-2xl">
+                  {isEditing ? 'Update a flood report' : 'Report flooding'}
+                </h2>
+                <p className="mt-1 text-xs leading-relaxed text-white/45">
+                  {isEditing
+                    ? 'Adjust the details below. The saved location stays put until you move the pin.'
+                    : 'Pin the flooded area, then tell the community what is happening.'}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => geo.locate()}
+                disabled={submitting || geo.isLocating}
+                className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#f18f01]/30 bg-[#f18f01]/10 text-sm font-bold text-[#f18f01] transition duration-200 hover:scale-[1.01] hover:bg-[#f18f01]/15 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {geo.isLocating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <MapPin className="h-4 w-4" aria-hidden="true" />
+                )}
+                Use My Current Location
+              </button>
+              {geo.error ? (
+                <p className="mt-2 text-xs font-medium text-[#f6c200]" role="status">
+                  {geo.error}
+                </p>
+              ) : null}
+
+              {formError ? (
+                <p
+                  role="alert"
+                  className="mt-4 rounded-xl border border-[#FF2E1F]/35 bg-[#FF2E1F]/10 p-3 text-xs leading-relaxed text-[#FFB4AE]"
+                >
+                  {formError}
+                </p>
+              ) : null}
+
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Select
+                  label="Flood level"
+                  required
+                  options={FLOOD_LEVEL_OPTIONS}
+                  value={values.floodLevel}
+                  onChange={(event) => setField('floodLevel', event.target.value)}
+                  error={errors.floodLevel}
+                  labelClassName={FIELD_LABEL}
+                  className={FIELD_CONTROL}
+                  placeholder="Moderate"
+                />
+                <Input
+                  label="Depth in cm (optional)"
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 30"
+                  value={values.depth}
+                  onChange={(event) => setField('depth', event.target.value)}
+                  error={errors.depth}
+                  labelClassName={FIELD_LABEL}
+                  className={FIELD_CONTROL}
+                />
+              </div>
+
+              <div className="mt-3 space-y-3">
+                <Input
+                  label="Location Name"
+                  required
+                  placeholder="e.g. Rizal Street, Poblacion"
+                  value={values.locationName}
+                  onChange={(event) => setField('locationName', event.target.value)}
+                  error={errors.locationName}
+                  labelClassName={FIELD_LABEL}
+                  className={FIELD_CONTROL}
+                />
+                <Select
+                  label="Barangay"
+                  required
+                  options={barangays.map((option) => {
+                    const unmapped = withoutCoords.includes(option.name);
+                    return {
+                      value: option.name,
+                      label: unmapped ? `${option.name} (no map pin yet)` : option.name,
+                      disabled: unmapped,
+                    };
+                  })}
+                  value={values.barangayName}
+                  onChange={(event) => handleBarangay(event.target.value)}
+                  error={errors.barangayName}
+                  labelClassName={FIELD_LABEL}
+                  className={FIELD_CONTROL}
+                  placeholder="Select a barangay"
+                />
+                <Textarea
+                  label="Description / Notes"
+                  required
+                  rows={3}
+                  placeholder="e.g. Water rising at the intersection, ankle deep and rising. Road is not passable by cars."
+                  value={values.description}
+                  onChange={(event) => setField('description', event.target.value)}
+                  error={errors.description}
+                  labelClassName={FIELD_LABEL}
+                  className={`${FIELD_CONTROL} h-auto min-h-[98px] resize-y`}
+                  hint={`${String(values.description || '').trim().length}/10 characters minimum`}
+                />
+              </div>
+
+              {!isEditing ? (
+                <div className="mt-3">
+                  <ImageUploader
+                    value={image}
+                    onChange={setImage}
+                    progress={progress}
+                    uploading={progress > 0 && progress < 100}
+                    label="Photo proof (optional)"
+                    labelClassName={FIELD_LABEL}
+                    maxWidth="max-w-none"
+                    hint="JPG, PNG, WEBP or GIF. A photo helps the utility verify the flooding."
+                    disabled={submitting}
+                  />
+                </div>
+              ) : null}
+
+              <div className="mt-4 space-y-2 text-[11px] leading-relaxed text-white/35">
+                {!isEditing ? (
+                  <>
+                    <p className="flex items-start gap-2">
+                      <Waves className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#f18f01]/70" aria-hidden="true" />
+                      Reports outside Dagupan City are rejected by the server.
+                    </p>
+                    <p className="flex items-start gap-2">
+                      <Home className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#f18f01]/70" aria-hidden="true" />
+                      The barangay decides the area; the pin only refines the point.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="flex items-start gap-2">
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#f18f01]/70" aria-hidden="true" />
+                      Status changes are made by the utility company, so they cannot be edited here.
+                    </p>
+                    <p className="flex items-start gap-2">
+                      <Users className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#f18f01]/70" aria-hidden="true" />
+                      Only you can edit this report until the company verifies it.
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="border-t border-white/10 bg-[#141527]/50 p-4">
+              <button
+                type="submit"
+                disabled={submitting}
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#f18f01] to-[#f6c200] text-sm font-extrabold text-[#153243] shadow-[0_12px_30px_rgba(255,187,2,0.16)] transition duration-200 hover:-translate-y-0.5 hover:scale-[1.01] hover:shadow-[0_16px_36px_rgba(255,187,2,0.24)] active:translate-y-0 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+                {isEditing ? 'Save Changes' : 'Submit Community Report'}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-
-      <Textarea
-        label="Description"
-        required
-        rows={4}
-        placeholder="e.g. Water rising at the intersection, ankle deep and rising. Road is not passable by cars."
-        value={values.description}
-        onChange={(event) => setField('description', event.target.value)}
-        error={errors.description}
-      />
-
-      {!isEditing ? (
-        <ImageUploader
-          value={image}
-          onChange={setImage}
-          progress={progress}
-          uploading={progress > 0 && progress < 100}
-          label="Photo proof (optional)"
-          maxWidth="max-w-none"
-          hint="JPG, PNG, WEBP or GIF. A photo helps the utility verify the flooding."
-          disabled={mutation.isPending}
-        />
-      ) : null}
-
-      <div className="rounded-card border border-navy-100 p-4">
-        <MapPicker
-          label="Exact location (optional)"
-          value={values.location}
-          onChange={handleLocation}
-          disabled={mutation.isPending}
-        />
-        <p className="mt-2 text-xs text-navy-500">
-          {PIN_HINT}
-        </p>
-      </div>
-    </FormModal>
+    </Modal>
   );
 }
