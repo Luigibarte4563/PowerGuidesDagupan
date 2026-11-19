@@ -5,12 +5,13 @@ header("Content-Type: application/json; charset=UTF-8");
 require_once __DIR__ . '/../../config/db_connect.php';
 require_once __DIR__ . '/../../auth/jwt_auth.php';
 require_once __DIR__ . '/../../auth/rbac.php';
+require_once __DIR__ . '/../../auth/lineman_access.php';
 require_once __DIR__ . '/../services/lookup.php';
 
 $conn = getConnection();
 $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-requireAuthUser();
+$user = requireAuthUser();
 
 $mode = $_GET['mode'] ?? 'by_barangay';    /* 'by_barangay' | 'clusters' */
 $radius = (int)($_GET['radius'] ?? 1000);  /* meters, for cluster mode */
@@ -36,13 +37,16 @@ try {
             ON v.outage_report_id = o.id AND v.verification_status = 'confirmed'
         WHERE o.status = 'active'
           AND o.created_at >= :cutoff
+    ";
+    $params = [':cutoff' => $cutoff];
+    $sql .= lineman_scope_sql($conn, $user, 'o.barangay_id', $params);
+    $sql .= "
         GROUP BY o.id, o.barangay_id, b.barangay_name, o.latitude, o.longitude,
                  o.status, o.created_at, o.severity
         ORDER BY o.created_at DESC
     ";
     $stmt = $conn->prepare($sql);
-    $stmt->bindValue(":cutoff", $cutoff);
-    $stmt->execute();
+    $stmt->execute($params);
     $reports = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $result = [];

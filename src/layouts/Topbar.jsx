@@ -7,7 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useMarkAllAsRead, useMarkAsRead, useNotifications } from '@/hooks/useNotifications';
 import NotificationDetailModal from '@/components/NotificationDetailModal';
 import { findNavItem } from '@/routes/navItems';
-import { ROLE_LABELS, normaliseRole } from '@/utils/roles';
+import { ROLE_LABELS, isStaff, normaliseRole } from '@/utils/roles';
 import { formatRelativeTime, humanize } from '@/utils/formatters';
 import { NOTIFICATION_TYPE_TONES } from '@/utils/notifications';
 import { toUserMessage } from '@/utils/errorMessage';
@@ -65,7 +65,6 @@ export default function Topbar({
   profileTo = '/dashboard/profile',
   locationTo = '/dashboard/location',
   notificationsTo = '/dashboard/notifications',
-  showLocationLink = true,
 }) {
   const { user, logout, role } = useAuth();
   const navigate = useNavigate();
@@ -301,7 +300,7 @@ export default function Topbar({
                   My profile
                 </Link>
               </li>
-              {showLocationLink ? (
+              {!isStaff(role) ? (
                 <li>
                   <Link
                     to={locationTo}

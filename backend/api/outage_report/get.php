@@ -6,6 +6,7 @@ header("Content-Type: application/json; charset=UTF-8");
 
 require_once __DIR__ . '/../../config/db_connect.php';
 require_once __DIR__ . '/../../auth/jwt_auth.php';
+require_once __DIR__ . '/../../auth/lineman_access.php';
 
 try {
     $conn = getConnection();
@@ -72,6 +73,7 @@ if ($category) {
     $params[':category'] = $category;
 }
 
+$sql .= lineman_scope_sql($conn, $user, 'orp.barangay_id', $params);
 $sql .= " ORDER BY orp.created_at DESC";
 
 try {

@@ -11,7 +11,6 @@ import {
   RefreshCw,
   Search,
   ShieldAlert,
-  UserCheck,
   Waves,
   Wrench,
   Zap,
@@ -41,7 +40,6 @@ const RECENT_LIMIT = 8;
  * cards do not all mean the same kind of thing:
  *
  *   Outage reports  what needs attention right now, split by status
- *   Field crew      lineman coverage (managers only)
  *   Hazards & floods community safety reports
  *   Assets          power stations and computed outage clusters
  *
@@ -130,25 +128,6 @@ export default function Overview() {
       tone: 'danger',
       to: '/company/heatmap',
       hint: 'From the heatmap window',
-    },
-  ];
-
-  const crewCards = [
-    {
-      label: 'Active assignments',
-      value: summary?.activeAssignments?.count,
-      icon: UserCheck,
-      tone: 'primary',
-      to: '/company/assignments',
-      hint: 'Linemen currently covering a barangay',
-    },
-    {
-      label: 'All assignments',
-      value: summary?.totalAssignments?.count,
-      icon: Layers,
-      tone: 'navy',
-      to: '/company/assignments',
-      hint: 'Active and deactivated',
     },
   ];
 
@@ -253,15 +232,6 @@ export default function Overview() {
         cards={outageCards}
         isLoading={isLoading}
       />
-
-      {isManager ? (
-        <CardSection
-          title="Field crew"
-          description="Who is covering which barangay."
-          cards={crewCards}
-          isLoading={isLoading}
-        />
-      ) : null}
 
       <CardSection
         title="Hazards & floods"
@@ -377,14 +347,6 @@ export default function Overview() {
                 title="Plan maintenance"
                 text="Schedule work per barangay and notify affected residents."
               />
-              {isManager ? (
-                <QuickAction
-                  to="/company/assignments"
-                  icon={UserCheck}
-                  title="Assign linemen"
-                  text="Post field linemen to the barangays they cover."
-                />
-              ) : null}
               <QuickAction
                 to="/company/notifications"
                 icon={Bell}

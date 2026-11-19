@@ -6,6 +6,7 @@ header("Content-Type: application/json; charset=UTF-8");
 
 require_once __DIR__ . '/../../config/db_connect.php';
 require_once __DIR__ . '/../../auth/jwt_auth.php';
+require_once __DIR__ . '/../../auth/lineman_access.php';
 
 $conn = getConnection();
 $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -36,13 +37,19 @@ try {
        FIXED STATUS LOGIC (BASED ON YOUR SCHEMA)
        upcoming + ongoing only (NOT completed/cancelled)
     ========================================= */
+    $params = [];
+    $scope = lineman_scope_sql($conn, $user, 'ml.barangay_id', $params);
+    $exists = $scope !== ''
+        ? " AND EXISTS (SELECT 1 FROM maintenance_locations ml WHERE ml.maintenance_id = maintenance_schedules.id {$scope})"
+        : '';
+
     $stmt = $conn->prepare("
         SELECT COUNT(*) as total
         FROM maintenance_schedules
-        WHERE status IN ('upcoming','ongoing')
+        WHERE status IN ('upcoming','ongoing') {$exists}
     ");
 
-    $stmt->execute();
+    $stmt->execute($params);
 
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
 

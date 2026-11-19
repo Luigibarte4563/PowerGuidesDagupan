@@ -6,6 +6,7 @@ header("Content-Type: application/json; charset=UTF-8");
 
 require_once __DIR__ . '/../../config/db_connect.php';
 require_once __DIR__ . '/../../auth/jwt_auth.php';
+require_once __DIR__ . '/../../auth/lineman_access.php';
 
 $conn = getConnection();
 $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -38,11 +39,14 @@ try {
         LEFT JOIN maintenance_locations ml ON ml.maintenance_id = ms.id
         LEFT JOIN barangays b ON b.id = ml.barangay_id
         WHERE u.role = 'electric_company'
-        ORDER BY ms.id DESC
     ";
 
+    $params = [];
+    $sql .= lineman_scope_sql($conn, $user, 'ml.barangay_id', $params);
+    $sql .= " ORDER BY ms.id DESC";
+
     $stmt = $conn->prepare($sql);
-    $stmt->execute();
+    $stmt->execute($params);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $result = [];

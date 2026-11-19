@@ -4,6 +4,7 @@ header("Content-Type: application/json; charset=UTF-8");
 
 require_once __DIR__ . '/../../config/db_connect.php';
 require_once __DIR__ . '/../../auth/jwt_auth.php';
+require_once __DIR__ . '/../../auth/lineman_access.php';
 
 $conn = getConnection();
 
@@ -112,13 +113,11 @@ try {
             LEFT JOIN barangays b ON b.id = ps.barangay_id
             WHERE ps.availability_status = 'available'
         ";
+        $params = [':lat' => $lat, ':lng' => $lng];
+        $sql .= lineman_scope_sql($conn, $user, 'ps.barangay_id', $params);
 
         $stmt = $conn->prepare($sql);
-
-        $stmt->execute([
-            ":lat" => $lat,
-            ":lng" => $lng
-        ]);
+        $stmt->execute($params);
 
         $stations = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -136,7 +135,7 @@ try {
 
     } else {
 
-        $stmt = $conn->prepare("
+        $sql = "
             SELECT 
                 ps.id,
                 ps.created_by,
@@ -159,10 +158,13 @@ try {
             FROM power_stations ps
             LEFT JOIN barangays b ON b.id = ps.barangay_id
             WHERE ps.availability_status = 'available'
-            ORDER BY ps.created_at DESC
-        ");
+        ";
+        $params = [];
+        $sql .= lineman_scope_sql($conn, $user, 'ps.barangay_id', $params);
+        $sql .= " ORDER BY ps.created_at DESC";
 
-        $stmt->execute();
+        $stmt = $conn->prepare($sql);
+        $stmt->execute($params);
         $stations = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 

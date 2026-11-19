@@ -62,10 +62,6 @@ export default function CompanyLayout() {
           fallbackTitle="Dashboard"
           profileTo="/company/profile"
           notificationsTo="/company/notifications"
-          // A staff account is not a resident, but it is still a user account: the
-          // "Near my location" station search (FR-PWR-6) is centred on the saved primary
-          // location, so the link is kept for the case where one has not been set yet.
-          showLocationLink
         />
         <main
           id="company-content"

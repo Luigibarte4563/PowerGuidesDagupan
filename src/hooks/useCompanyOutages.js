@@ -4,7 +4,6 @@ import {
   floodsApi,
   hazardsApi,
   heatmapApi,
-  linemanAssignmentsApi,
   maintenanceApi,
   outagesApi,
   powerStationsApi,
@@ -24,19 +23,19 @@ import { COMPANY_QUERY_KEYS } from '@/utils/constants';
  *  1. `outage_report/get_active`, `get_resolve` and the `outage/*` endpoints are all
  *     scoped to the caller's active assignments server-side, so the numbers a lineman
  *     sees agree with the rows they can open.
- *  2. `maintenance/get_complete` and `lineman_assignment/*` are manager-only, so they are
- *     only requested when `includeManagerCounts` is set. Skipping them entirely - rather
- *     than fetching and handling the 403 - keeps a lineman from putting requests on the
- *     wire that are certain to be refused. This is a convenience, not a control: the
- *     server rejects them either way.
+ *  2. `maintenance/get_complete` is manager-only, so it is only requested when
+ *     `includeManagerCounts` is set. Skipping it entirely - rather than fetching and
+ *     handling the 403 - keeps a lineman from putting a request on the wire that is
+ *     certain to be refused. This is a convenience, not a control: the server rejects
+ *     it either way.
  *
  *     That is why `includeManagerCounts` DEFAULTS TO FALSE: rule 2 is opt-in, so a screen
- *     that forgets the flag gets a summary without the manager figures rather than one
- *     that quietly 403s. It is not cosmetic either - `maintenance/get_complete.php` and
- *     `lineman_assignment/get.php` are both in the client's `ROLE_GATED_PATHS`, so a 403
- *     from either is reported to the user as "your access may have changed", accusing a
- *     lineman of a role change that never happened. Defaulting to false removes the trap
- *     instead of relying on every future caller remembering the flag.
+ *     that forgets the flag gets a summary without the manager figure rather than one
+ *     that quietly 403s. It is not cosmetic either - `maintenance/get_complete.php` is
+ *     in the client's `ROLE_GATED_PATHS`, so a 403 from it is reported to the user as
+ *     "your access may have changed", accusing a lineman of a role change that never
+ *     happened. Defaulting to false removes the trap instead of relying on every future
+ *     caller remembering the flag.
  */
 const REFRESH_INTERVAL_MS = 60 * 1000;
 
@@ -102,16 +101,6 @@ export function useCompanySummary({
         includeManagerCounts
           ? settledCount('completedMaintenance', async () =>
               (await maintenanceApi.getComplete({}, { signal })).count
-            )
-          : null,
-        includeManagerCounts
-          ? settledCount('activeAssignments', async () =>
-              (await linemanAssignmentsApi.list({ status: 'active' }, { signal })).count
-            )
-          : null,
-        includeManagerCounts
-          ? settledCount('totalAssignments', async () =>
-              (await linemanAssignmentsApi.list({}, { signal })).count
             )
           : null,
       ]);

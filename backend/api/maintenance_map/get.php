@@ -4,6 +4,7 @@ header("Content-Type: application/json; charset=UTF-8");
 
 require_once __DIR__ . '/../../config/db_connect.php';
 require_once __DIR__ . '/../../auth/jwt_auth.php';
+require_once __DIR__ . '/../../auth/lineman_access.php';
 
 $conn = getConnection();
 $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -52,6 +53,7 @@ try {
         $params[':date'] = $date;
     }
 
+    $sql .= lineman_scope_sql($conn, $user, 'ml.barangay_id', $params);
     $sql .= " ORDER BY ms.id DESC";
 
     $stmt = $conn->prepare($sql);

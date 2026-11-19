@@ -52,7 +52,6 @@ export default function AdminLayout() {
           fallbackTitle="Dashboard"
           profileTo="/company/profile"
           notificationsTo="/company/notifications"
-          showLocationLink
         />
         <main
           id="admin-content"

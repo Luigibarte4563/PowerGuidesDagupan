@@ -7,6 +7,7 @@ ini_set('display_errors', 0);
 
 require_once __DIR__ . '/../../config/db_connect.php';
 require_once __DIR__ . '/../../auth/jwt_auth.php';
+require_once __DIR__ . '/../../auth/lineman_access.php';
 
 $conn = getConnection();
 
@@ -26,13 +27,16 @@ if (!$user || !isset($user['id'])) {
 
 try {
 
-    $stmt = $conn->prepare("
+    $sql = "
         SELECT COUNT(*) AS total_available
-        FROM power_stations
-        WHERE availability_status = 'available'
-    ");
+        FROM power_stations ps
+        WHERE ps.availability_status = 'available'
+    ";
+    $params = [];
+    $sql .= lineman_scope_sql($conn, $user, 'ps.barangay_id', $params);
 
-    $stmt->execute();
+    $stmt = $conn->prepare($sql);
+    $stmt->execute($params);
 
     $result = $stmt->fetch(PDO::FETCH_ASSOC);
 

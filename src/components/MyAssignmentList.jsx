@@ -11,10 +11,7 @@ import BarangayMaintenanceModal from './BarangayMaintenanceModal';
 /**
  * A lineman's own assigned barangays, rendered for whichever screen asks for it.
  *
- * Shared by `/dashboard/assignments` and `/company/assignments` so the two cannot drift.
- * Both are legitimate landing places for a lineman - `defaultRootFor('lineman')` is
- * `/company`, so the company nav is where they actually start - and a lineman should see
- * the same rows wherever they look.
+ * Used by `/dashboard/assignments`; `defaultRootFor('lineman')` lands on `/company`.
  *
  * Rows come from `lineman_assignment/my.php`, which derives the lineman from the JWT alone
  * and returns only ACTIVE assignments. There is nothing to select and nothing to choose:

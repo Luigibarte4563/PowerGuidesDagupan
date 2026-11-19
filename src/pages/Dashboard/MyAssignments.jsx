@@ -9,8 +9,8 @@ import { useMyAssignments } from '@/hooks/useLinemanAssignments';
  * Module ASSIGN (lineman side) - "My Assigned Barangays".
  *
  * The resident-app copy of the lineman's own view. A lineman reaches the same rows from
- * the company app's "Lineman Assignments" tab, which is where `defaultRootFor('lineman')`
- * actually sends them; `MyAssignmentList` is shared by both so they cannot drift.
+ * `defaultRootFor('lineman')` sends linemen to the company app; `MyAssignmentList` is
+ * the shared view of their own active assignments.
  */
 export default function MyAssignments() {
   const { isStaff, role } = useAuth();

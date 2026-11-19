@@ -6,6 +6,7 @@ header("Content-Type: application/json");
 
 require_once __DIR__ . '/../../config/db_connect.php';
 require_once __DIR__ . '/../../auth/jwt_auth.php';
+require_once __DIR__ . '/../../auth/lineman_access.php';
 
 $conn = getConnection();
 
@@ -35,7 +36,7 @@ try {
     /* =========================================
        FETCH POWER STATIONS
     ========================================= */
-    $stmt = $conn->prepare("
+    $sql = "
         SELECT 
             ps.id,
             ps.created_by,
@@ -56,10 +57,16 @@ try {
             b.barangay_name
         FROM power_stations ps
         LEFT JOIN barangays b ON b.id = ps.barangay_id
-        ORDER BY ps.created_at DESC
-        LIMIT :limit OFFSET :offset
-    ");
+        WHERE 1=1
+    ";
+    $params = [];
+    $sql .= lineman_scope_sql($conn, $user, 'ps.barangay_id', $params);
+    $sql .= " ORDER BY ps.created_at DESC LIMIT :limit OFFSET :offset";
 
+    $stmt = $conn->prepare($sql);
+    foreach ($params as $name => $value) {
+        $stmt->bindValue($name, $value);
+    }
     $stmt->bindValue(":limit", $limit, PDO::PARAM_INT);
     $stmt->bindValue(":offset", $offset, PDO::PARAM_INT);
     $stmt->execute();

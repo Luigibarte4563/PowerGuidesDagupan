@@ -5,11 +5,12 @@ header("Content-Type: application/json; charset=UTF-8");
 require_once __DIR__ . '/../../config/db_connect.php';
 require_once __DIR__ . '/../../auth/jwt_auth.php';
 require_once __DIR__ . '/../../auth/rbac.php';
+require_once __DIR__ . '/../../auth/lineman_access.php';
 
 $conn = getConnection();
 $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-requireAuthUser();
+$user = requireAuthUser();
 
 $status   = $_GET['status'] ?? null;
 $severity = $_GET['severity'] ?? null;
@@ -50,6 +51,7 @@ if (!empty($barangay)) {
     $params[':barangay'] = $barangay;
 }
 
+$sql .= lineman_scope_sql($conn, $user, 'eh.barangay_id', $params);
 $sql .= " ORDER BY eh.reported_at DESC";
 
 try {

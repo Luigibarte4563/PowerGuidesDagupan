@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ZoomControl } from 'react-leaflet';
-import { CalendarClock, CheckCircle2, Pencil, Plus, Trash2, UserCheck, Wrench } from 'lucide-react';
+import { ArrowUpDown, CalendarClock, CheckCircle2, Pencil, Plus, Trash2, UserCheck, Wrench } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
+import StatusChangeDialog from '@/components/StatusChangeDialog';
 import { Button } from '@/components/ui/Button';
 import DataView from '@/components/DataView';
 import RecordCard from '@/components/RecordCard';
@@ -13,7 +14,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useReference } from '@/context/ReferenceContext';
 import { useToast } from '@/context/ToastContext';
 import { useInvalidateAssignments } from '@/hooks/useLinemanAssignments';
-import { maintenanceApi, UPCOMING_STATUSES } from '@/api';
+import { maintenanceApi, MAINTAINABLE_STATUSES, UPCOMING_STATUSES } from '@/api';
 import { COMPANY_PAGE_SIZE, COMPANY_QUERY_KEYS, statusTone } from '@/utils/constants';
 import { readMaintenance } from '@/utils/records';
 import { formatDate, formatDistance, formatTime, humanize } from '@/utils/formatters';
@@ -49,6 +50,7 @@ export default function Maintenance() {
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [assigning, setAssigning] = useState(null);
+  const [statusTarget, setStatusTarget] = useState(null);
 
   const listQuery = useQuery({
     queryKey: COMPANY_QUERY_KEYS.maintenance({ tab }),
@@ -226,6 +228,23 @@ export default function Maintenance() {
       </AppMap>
     );
 
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }) => maintenanceApi.setStatus(id, status),
+    onSuccess: (result, variables) => {
+      toast.success(result?.message || `Maintenance moved to ${humanize(variables.status)}.`, {
+        title: 'Status updated',
+      });
+      setStatusTarget(null);
+      queryClient.invalidateQueries({ queryKey: ['company-maintenance'] });
+      queryClient.invalidateQueries({ queryKey: COMPANY_QUERY_KEYS.summary });
+    },
+    onError: (error) => {
+      toast.error(toUserMessage(error, 'The maintenance status could not be changed.'), {
+        title: 'Update failed',
+      });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id) => maintenanceApi.remove(id),
     onSuccess: () => {
@@ -369,7 +388,16 @@ export default function Maintenance() {
                         Delete
                       </Button>
                     </>
-                  ) : null
+                  ) : (
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      icon={ArrowUpDown}
+                      onClick={() => setStatusTarget(item)}
+                    >
+                      Change status
+                    </Button>
+                  )
                 }
               />
             )}
@@ -408,6 +436,19 @@ export default function Maintenance() {
         allowedBarangayIds={assigning?.barangayIds}
         onClose={() => setAssigning(null)}
         onSaved={invalidateAssignments}
+      />
+
+      <StatusChangeDialog
+        open={Boolean(statusTarget)}
+        reportLabel={statusTarget?.title || statusTarget?.barangay}
+        currentStatus={statusTarget?.status}
+        statuses={MAINTAINABLE_STATUSES}
+        hint="Only the status changes. The date, window and affected barangays stay as scheduled, and residents are not notified again."
+        loading={statusMutation.isPending}
+        onClose={() => setStatusTarget(null)}
+        onSubmit={(status) =>
+          statusMutation.mutateAsync({ id: statusTarget.id, status })
+        }
       />
 
       <ConfirmDialog
