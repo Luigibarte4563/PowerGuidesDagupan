@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
-import { Loader2, Save, ShieldCheck, Crosshair } from 'lucide-react';
+import { useState } from 'react';
+import { Loader2, Save, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { AuthAlert, AuthSuccess, InfoNote } from '@/components/ui/Alert';
-import { useGeolocation } from '@/hooks/useGeolocation';
 import { useReference } from '@/context/ReferenceContext';
 import { useSaveLocation } from '@/hooks/useSavedLocation';
 import { toUserMessage } from '@/utils/errorMessage';
@@ -18,22 +17,11 @@ export default function LocationSetupModal({ open, onClose, onSkip }) {
 
   const saveLocation = useSaveLocation();
   const { barangays } = useReference();
-  const geo = useGeolocation();
 
   const [address, setAddress] = useState('');
   const [barangayName, setBarangayName] = useState('');
   const [formError, setFormError] = useState('');
   const [saved, setSaved] = useState(false);
-
-  // Offer the device coordinates as the address so the server can resolve them.
-  const useMyLocation = () => {
-    geo.locate();
-  };
-
-  useEffect(() => {
-    if (geo.lat === null || geo.lng === null) return;
-    setAddress(`${geo.lat.toFixed(6)}, ${geo.lng.toFixed(6)}`);
-  }, [geo.lat, geo.lng]);
 
   const handleSave = async () => {
     setFormError('');
@@ -213,7 +201,7 @@ export default function LocationSetupModal({ open, onClose, onSkip }) {
             <label className="block space-y-2">
               <span className="block font-semibold text-sm" style={{ color: lp.navy }}>Barangay (optional)</span>
               <Select
-                placeholder="Detected automatically"
+                placeholder="Select a barangay"
                 options={barangays}
                 value={barangayName}
                 onChange={(event) => {
@@ -241,7 +229,7 @@ export default function LocationSetupModal({ open, onClose, onSkip }) {
             </label>
 
             {/* Buttons - matching landing page .btn and .btn--w */}
-            <div className="grid grid-cols-2 gap-3 pt-2">
+            <div className="grid grid-cols-1 gap-3 pt-2">
               <Button
                 variant="primary"
                 icon={saveLocation.isPending ? Loader2 : Save}
@@ -259,34 +247,7 @@ export default function LocationSetupModal({ open, onClose, onSkip }) {
               >
                 Save Location
               </Button>
-              <Button
-                variant="outline"
-                icon={geo.isLocating ? Loader2 : Crosshair}
-                loading={geo.isLocating}
-                onClick={useMyLocation}
-                className="h-11 px-6 text-base font-semibold rounded-lg"
-                style={{
-                  backgroundColor: lp.bg,
-                  color: lp.navy,
-                  border: `1px solid ${rgba(lp.navyRgb, 0.8)}`,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = rgba(lp.navyRgb, 0.05);
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = lp.bg;
-                }}
-              >
-                Use Current Location
-              </Button>
             </div>
-
-            {/* Geolocation error - landing page accent */}
-            {geo.error ? (
-              <p className="text-xs font-medium" role="status" style={{ color: lp.or }}>
-                {geo.error}
-              </p>
-            ) : null}
 
             {/* Info note - landing page muted */}
             <InfoNote
