@@ -46,8 +46,11 @@ function toFormValues(assignment) {
  * `barangays` from reference context are normalised as `{ id: <NAME>, rowId: <db id> }`
  * (see ReferenceContext), so the option value is the NAME while `rowId` carries the id
  * that `barangay_id` actually wants. Sending the name would be rejected with 400.
+ *
+ * `allowedBarangayIds`, when provided, limits the barangay picker to that set (e.g. the
+ * areas covered by the selected maintenance schedule).
  */
-export default function AssignmentFormModal({ open, assignment, onClose, onSaved, initialBarangayId }) {
+export default function AssignmentFormModal({ open, assignment, onClose, onSaved, initialBarangayId, allowedBarangayIds }) {
   const { barangays, isLoading: refLoading } = useReference();
   const linemenQuery = useLinemenList({ enabled: open });
   const toast = useToast();
@@ -87,13 +90,20 @@ export default function AssignmentFormModal({ open, assignment, onClose, onSaved
    * `value` is the barangay NAME because that is what the normalised reference option
    * carries, so the reverse lookup finds the row whose `rowId` is the real id.
    */
+  const allowedBarangaySet = useMemo(() => {
+    if (!Array.isArray(allowedBarangayIds) || allowedBarangayIds.length === 0) return null;
+    return new Set(allowedBarangayIds.map((id) => String(id)));
+  }, [allowedBarangayIds]);
+
   const barangayOptions = useMemo(
     () =>
-      (barangays || []).map((option) => ({
-        value: String(option.rowId ?? ''),
-        label: option.name,
-      })),
-    [barangays]
+      (barangays || [])
+        .filter((option) => !allowedBarangaySet || allowedBarangaySet.has(String(option.rowId ?? '')))
+        .map((option) => ({
+          value: String(option.rowId ?? ''),
+          label: option.name,
+        })),
+    [barangays, allowedBarangaySet]
   );
 
   const selectedBarangay = (barangays || []).find(

@@ -50,7 +50,7 @@ export default function Header() {
             </Link>
             <Link
               to="/register"
-              className="btn btn--w inline-flex items-center justify-center rounded-[8px] bg-white text-[#171818] font-bold text-[16px] leading-[1.2] px-6 py-3 border border-[#153243]/80 shadow-[0_4px_4px_rgba(0,0,0,0.1)] hover:brightness-110 transition-filter"
+              className="btn btn--w inline-flex items-center justify-center rounded-[8px] bg-white text-[#153243] font-bold text-[16px] leading-[1.2] px-6 py-3 border border-[#153243]/80 shadow-[0_4px_4px_rgba(16,27,45,0.12)] hover:brightness-110 transition-filter"
               onClick={closeMenu}
             >
               Create an Account

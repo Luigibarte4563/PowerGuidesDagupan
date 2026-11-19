@@ -110,10 +110,8 @@ export default function Maintenance() {
   const pageRows = rows.slice((page - 1) * COMPANY_PAGE_SIZE, page * COMPANY_PAGE_SIZE);
 
   /*
-   * "Assign" on a schedule card opens the assignment form. A schedule can cover several
-   * barangays, so the form is prefilled only when exactly ONE barangay is covered and its
-   * name matches the reference table - assignments need the numeric barangay id while
-   * schedules carry names. Anything else opens the form for a manual pick.
+   * "Assign" on a schedule card opens the assignment form. Limit choices to the
+   * schedule's barangays (fewer to pick from) and prefill when only one is covered.
    */
   const barangayIdByName = useMemo(() => {
     const map = new Map();
@@ -124,12 +122,15 @@ export default function Maintenance() {
   }, [barangays]);
 
   const openAssign = (item) => {
-    const names = String(item.barangay || '')
-      .split(',')
-      .map((name) => name.trim())
-      .filter(Boolean);
-    const rowId = names.length === 1 ? barangayIdByName.get(names[0].toLowerCase()) : null;
-    setAssigning({ item, prefillBarangayId: rowId ?? '' });
+    const names = (item.locations || []).map((location) => location.barangay).filter(Boolean);
+    if (names.length === 0 && item.barangay) {
+      names.push(...String(item.barangay).split(',').map((name) => name.trim()).filter(Boolean));
+    }
+    const barangayIds = names
+      .map((name) => barangayIdByName.get(String(name).trim().toLowerCase()))
+      .filter((id) => id != null);
+    const rowId = barangayIds.length === 1 ? barangayIds[0] : null;
+    setAssigning({ item, prefillBarangayId: rowId ?? '', barangayIds });
   };
 
   // Each schedule expands into one point per affected barangay so a multi-barangay
@@ -422,6 +423,7 @@ export default function Maintenance() {
         open={Boolean(assigning)}
         assignment={null}
         initialBarangayId={assigning?.prefillBarangayId}
+        allowedBarangayIds={assigning?.barangayIds}
         onClose={() => setAssigning(null)}
         onSaved={invalidateAssignments}
       />

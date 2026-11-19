@@ -52,7 +52,7 @@ try {
     /* Safe input */
     $location_name  = trim($data["location_name"] ?? $report["location_name"]);
     $description    = trim($data["description"] ?? $report["description"]);
-    $severity       = $data["severity"] ?? $report["severity"];
+    $severity       = $data["severity"] ?? $data["flood_level"] ?? $report["severity"];
     $flood_depth_cm = isset($data["flood_depth_cm"]) ? (float)$data["flood_depth_cm"] : $report["flood_depth_cm"];
     $image_proof    = $data["image_proof"] ?? $report["image_proof"];
 

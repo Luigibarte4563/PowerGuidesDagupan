@@ -5,7 +5,7 @@ const KINDS = {
   success: {
     icon: CheckCircle2,
     color: '#34FB34',
-    button: 'bg-[#34FB34] text-[#06140A] hover:bg-[#67FF67] focus-visible:ring-[#34FB34]/50',
+    button: 'bg-[#34FB34] text-[#153243] hover:bg-[#67FF67] focus-visible:ring-[#34FB34]/50',
   },
   error: {
     icon: XCircle,
@@ -15,12 +15,12 @@ const KINDS = {
   warning: {
     icon: TriangleAlert,
     color: '#f18f01',
-    button: 'bg-[#f18f01] text-[#191400] hover:bg-[#f6c200] focus-visible:ring-[#f18f01]/50',
+    button: 'bg-[#f18f01] text-[#153243] hover:bg-[#f6c200] focus-visible:ring-[#f18f01]/50',
   },
   info: {
     icon: Info,
     color: '#22D3EE',
-    button: 'bg-[#22D3EE] text-[#03171B] hover:bg-[#67E8F9] focus-visible:ring-[#22D3EE]/50',
+    button: 'bg-[#22D3EE] text-[#153243] hover:bg-[#67E8F9] focus-visible:ring-[#22D3EE]/50',
   },
 };
 
@@ -53,7 +53,7 @@ export default function ReportFeedbackDialog({
       onClose={loading ? undefined : onClose}
       title={title}
       bare
-      className={`font-montserrat max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[26rem] overflow-y-auto rounded-[24px] border bg-gradient-to-br from-[#1E203C] to-[#141527] p-6 text-center shadow-[0_30px_100px_rgba(0,0,0,0.65)] ${
+      className={`font-montserrat max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-[26rem] overflow-y-auto rounded-[24px] border bg-gradient-to-br from-[#1E203C] to-[#141527] p-6 text-center shadow-[0_30px_100px_rgba(16,27,45,0.7)] ${
         danger ? 'border-[#FF2E1F]/60' : 'border-white/10'
       }`}
     >

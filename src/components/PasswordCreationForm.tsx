@@ -212,7 +212,7 @@ export function PasswordCreationForm({ onSubmit, disabled }: PasswordCreationFor
       <button
         type="submit"
         disabled={!isValid || disabled}
-        className="w-full rounded-[10px] bg-[#f18f01] px-4 py-3 text-base font-semibold text-[#191400] focus:outline-none focus:ring-2 focus:ring-[#f18f01] transition-colors disabled:opacity-50 disabled:pointer-events-none hover:!bg-[#f6c200]:not(:disabled)"
+        className="w-full rounded-[10px] bg-[#f18f01] px-4 py-3 text-base font-semibold text-[#153243] focus:outline-none focus:ring-2 focus:ring-[#f18f01] transition-colors disabled:opacity-50 disabled:pointer-events-none hover:!bg-[#f6c200]:not(:disabled)"
       >
         Create account
       </button>

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { ZoomControl } from 'react-leaflet';
-import { Activity, AlertTriangle, CalendarClock, CheckCircle2, Plus } from 'lucide-react';
+import { Activity, AlertTriangle, CalendarClock, CheckCircle2, Plus, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import Badge from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
@@ -21,6 +21,7 @@ import { severityTone, statusTone } from '@/utils/constants';
 import { formatDateTime, formatTime, humanize } from '@/utils/formatters';
 import { toUserMessage } from '@/utils/errorMessage';
 import HazardFormModal, { HAZARD_SEVERITY_OPTIONS } from './components/HazardFormModal';
+import ReportFeedbackDialog from './components/ReportFeedbackDialog';
 import { HAZARD_STATUSES } from '@/api';
 
 const HAZARD_STATUS_OPTIONS = HAZARD_STATUSES.map((status) => ({ id: status, name: humanize(status) }));
@@ -31,6 +32,8 @@ const SEVERITY_LEGEND = [
   { label: 'High', color: SEVERITY_COLORS.high },
   { label: 'Critical', color: SEVERITY_COLORS.critical },
 ];
+
+const PAGE_SIZE = 3;
 
 /**
  * Module J - electrical hazards across Dagupan: list, map, create and an
@@ -48,6 +51,7 @@ export default function Hazards() {
   const { hazardTypes } = useReference();
   const { coords } = useSavedLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
 
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -55,6 +59,9 @@ export default function Hazards() {
   const [statusFilter, setStatusFilter] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
+  const [confirming, setConfirming] = useState(null);
+  const [feedback, setFeedback] = useState(null);
+  const [page, setPage] = useState(1);
   const debouncedSearch = useDebouncedValue(search);
 
   useEffect(() => {
@@ -93,6 +100,43 @@ export default function Hazards() {
         .some((value) => String(value).toLowerCase().includes(term));
     })
     .sort((a, b) => (b.createdAt ? new Date(b.createdAt).getTime() : 0) - (a.createdAt ? new Date(a.createdAt).getTime() : 0));
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => hazardsApi.remove(id),
+  });
+
+  const handleDelete = async () => {
+    if (!confirming) return;
+    try {
+      await deleteMutation.mutateAsync(confirming.id);
+      queryClient.invalidateQueries({ queryKey: ['hazards'] });
+      setConfirming(null);
+      setFeedback({
+        type: 'success',
+        title: 'Report deleted',
+        message: 'The hazard report was removed from the community feed.',
+      });
+    } catch (error) {
+      setConfirming(null);
+      setFeedback({
+        type: 'error',
+        title: 'Could not delete the report',
+        message: toUserMessage(error, 'Please try again in a moment.'),
+      });
+    }
+  };
+
+  // Pagination
+  const totalPages = Math.ceil(items.length / PAGE_SIZE);
+  const currentPage = Math.min(page, totalPages || 1);
+  const pagedItems = useMemo(
+    () => items.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [items, currentPage]
+  );
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages || 1);
+  }, [page, totalPages]);
 
   // Hazards the map can plot.
   const plotted = useMemo(
@@ -223,7 +267,7 @@ export default function Hazards() {
         errorMessage={toUserMessage(listQuery.error)}
         onRetry={() => listQuery.refetch()}
         loadingLabel="Loading electrical hazards…"
-        items={items}
+        items={pagedItems}
         isEmpty={items.length === 0}
         empty={{
           icon: AlertTriangle,
@@ -263,9 +307,26 @@ export default function Hazards() {
               ].filter(Boolean)}
               actions={
                 owned ? (
-                  <Button size="xs" variant="outline" icon={AlertTriangle} onClick={() => setEditTarget(hazard)}>
-                    Edit
-                  </Button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setEditTarget(hazard)}
+                      className="inline-flex h-6 items-center gap-1 rounded-md border border-white/10 bg-white/[0.03] px-1.5 text-[9px] font-bold text-white/55 transition:hover:border-[#f18f01]/30:hover:bg-[#f18f01]/10:hover:text-[#f18f01]"
+                      aria-label={`Edit report ${hazard.id}`}
+                    >
+                      <Pencil className="h-2.5 w-2.5" aria-hidden="true" />
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirming(hazard)}
+                      className="inline-flex h-6 items-center gap-1 rounded-md border border-white/10 bg-white/[0.03] px-1.5 text-[9px] font-bold text-white/55 transition:hover:border-[#FF2E1F]/30:hover:bg-[#FF2E1F]/10:hover:text-[#FF2E1F]"
+                      aria-label={`Delete report ${hazard.id}`}
+                    >
+                      <Trash2 className="h-2.5 w-2.5" aria-hidden="true" />
+                      Delete
+                    </button>
+                  </div>
                 ) : null
               }
             />
@@ -273,6 +334,56 @@ export default function Hazards() {
         }}
       />
       </MapWorkspace>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-4 flex items-center justify-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            icon={ChevronLeft}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            aria-label="Previous page"
+          />
+          <span className="text-sm font-semibold text-white/60 w-12 text-center">
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            icon={ChevronRight}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            aria-label="Next page"
+          />
+        </div>
+      )}
+
+      {confirming ? (
+        <ReportFeedbackDialog
+          open
+          type="warning"
+          danger
+          title="Delete this report?"
+          message={`"${confirming.locationName || confirming.hazardType || 'This report'}" will be removed from the community feed. This cannot be undone.`}
+          confirmLabel="Delete report"
+          showCancel
+          loading={deleteMutation.isPending}
+          onConfirm={handleDelete}
+          onClose={() => setConfirming(null)}
+        />
+      ) : null}
+
+      {feedback ? (
+        <ReportFeedbackDialog
+          open
+          type={feedback.type}
+          title={feedback.title}
+          message={feedback.message}
+          onClose={() => setFeedback(null)}
+        />
+      ) : null}
 
       <HazardFormModal
         open={formOpen || Boolean(editTarget)}

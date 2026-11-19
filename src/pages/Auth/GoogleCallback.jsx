@@ -9,11 +9,56 @@ import { appRootsFor, canChooseApp, landingPathFor, roleLabel } from '@/utils/ro
 import { takeOauthReturnTo } from '@/utils/oauthHandoff';
 import { GOOGLE_ERRORS } from './googleErrors';
 
+// Landing page exact colors
+const lp = {
+  navy: '#153243',
+  navyRgb: '21, 50, 67',
+  or: '#f18f01',
+  orRgb: '241, 143, 1',
+  ink: '#153243',
+  bg: '#fefeff',
+};
+
+const rgba = (rgb, alpha) => `rgba(${rgb}, ${alpha})`;
+
 const APP_CHOICES = [
   { root: '/admin', label: 'Admin dashboard', icon: ShieldCheck, hint: 'Users, roles and platform analytics' },
   { root: '/company', label: 'Company dashboard', icon: Building2, hint: 'Outage reports, maintenance and broadcasts' },
   { root: '/dashboard', label: 'Resident app', icon: LayoutDashboard, hint: 'Report and track incidents near you' },
 ];
+
+const cardStyle = {
+  backgroundColor: lp.bg,
+  border: `1px solid ${rgba(lp.navyRgb, 0.2)}`,
+  boxShadow: '0 1px 2px rgba(16, 27, 45, 0.45), 0 4px 16px rgba(16, 27, 45, 0.35)',
+};
+
+const primaryBtnStyle = {
+  backgroundColor: lp.or,
+  color: lp.ink,
+  boxShadow: '0 4px 4px rgba(16, 27, 45, 0.12)',
+  border: 'none',
+  fontWeight: 700,
+  padding: '12px 24px',
+  borderRadius: '8px',
+};
+
+const outlineBtnStyle = {
+  backgroundColor: lp.bg,
+  color: lp.navy,
+  border: `1px solid ${rgba(lp.navyRgb, 0.8)}`,
+  fontWeight: 700,
+  padding: '12px 24px',
+  borderRadius: '8px',
+};
+
+const ghostBtnStyle = {
+  color: lp.or,
+  backgroundColor: 'transparent',
+  fontWeight: 700,
+  padding: '12px 24px',
+  borderRadius: '8px',
+};
 
 /**
  * Landing page for the Google OAuth round trip.
@@ -85,17 +130,17 @@ export default function GoogleCallback() {
     const options = APP_CHOICES.filter((choice) => appRootsFor(pendingRole).includes(choice.root));
 
     return (
-      <div className="container-app flex min-h-[70vh] flex-col items-center justify-center gap-5 py-10">
-        <Card className="w-full max-w-md">
-          <CardBody className="text-center">
-            <h1 className="text-lg font-extrabold text-navy-900">Where do you want to go?</h1>
-            <p className="mt-2 text-sm text-navy-600">
+      <div className="container-app flex min-h-[70vh] flex-col items-center justify-center gap-5 py-10 dashboard-bg">
+        <Card className="w-full max-w-md" style={cardStyle}>
+          <CardBody className="text-center" style={{ color: lp.navy }}>
+            <h1 className="text-xl font-bold" style={{ color: lp.navy }}>Where do you want to go?</h1>
+            <p className="mt-3 text-base leading-relaxed" style={{ color: rgba(lp.navyRgb, 0.6) }}>
               You are signed in as{' '}
-              <span className="font-semibold text-navy-900">{roleLabel(pendingRole)}</span>. Your
+              <span className="font-semibold" style={{ color: lp.navy }}>{roleLabel(pendingRole)}</span>. Your
               account can use multiple apps - pick one to continue.
             </p>
 
-            <div className="mt-5 grid gap-2">
+            <div className="mt-6 grid gap-3">
               {options.map((choice) => (
                 <Button
                   key={choice.root}
@@ -103,13 +148,16 @@ export default function GoogleCallback() {
                   fullWidth
                   icon={choice.icon}
                   onClick={() => navigate(choice.root, { replace: true })}
+                  style={primaryBtnStyle}
+                  onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.08)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.filter = 'none'; }}
                 >
                   {choice.label}
                 </Button>
               ))}
             </div>
 
-            <p className="mt-4 text-xs text-navy-400">
+            <p className="mt-4 text-sm" style={{ color: rgba(lp.navyRgb, 0.5) }}>
               {options.map((choice) => choice.hint).join(' · ')}
             </p>
           </CardBody>
@@ -120,23 +168,45 @@ export default function GoogleCallback() {
 
   if (error) {
     return (
-      <div className="container-app flex min-h-[70vh] items-center justify-center py-10">
-        <Card className="w-full max-w-md">
-          <CardBody className="text-center">
-            <span className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-danger-500/15 text-danger-400">
+      <div className="container-app flex min-h-[70vh] items-center justify-center py-10 dashboard-bg">
+        <Card className="w-full max-w-md" style={cardStyle}>
+          <CardBody className="text-center" style={{ color: lp.navy }}>
+            <span
+              className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full"
+              style={{ backgroundColor: rgba(lp.orRgb, 0.1), color: lp.or }}
+            >
               <TriangleAlert className="h-6 w-6" aria-hidden="true" />
             </span>
-            <h1 className="mt-4 text-lg font-extrabold text-navy-900">Google sign-in did not finish</h1>
-            <p className="mt-2 text-sm text-navy-600" role="alert">
+            <h1 className="mt-4 text-xl font-bold" style={{ color: lp.navy }}>Google sign-in did not finish</h1>
+            <p className="mt-2 text-base" role="alert" style={{ color: rgba(lp.navyRgb, 0.6) }}>
               {error}
             </p>
-            <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
-              <Button to="/login" variant="primary">
+            <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+              <Button
+                to="/login"
+                variant="primary"
+                style={primaryBtnStyle}
+                onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.08)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.filter = 'none'; }}
+              >
                 Back to login
               </Button>
               <Link
                 to="/login"
-                className="inline-flex h-11 items-center justify-center rounded-control border border-navy-200 bg-white px-4 text-sm font-semibold text-navy-800 transition hover:bg-navy-50"
+                style={{
+                  ...outlineBtnStyle,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: '44px',
+                  textDecoration: 'none',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = rgba(lp.navyRgb, 0.05);
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = lp.bg;
+                }}
               >
                 Try again
               </Link>
@@ -148,12 +218,12 @@ export default function GoogleCallback() {
   }
 
   return (
-    <div className="container-app flex min-h-[70vh] flex-col items-center justify-center gap-3 py-10">
-      <Loader2 className="h-8 w-8 animate-spin text-primary-500" aria-hidden="true" />
-      <p className="text-sm font-semibold text-navy-700" role="status" aria-live="polite">
+    <div className="container-app flex min-h-[70vh] flex-col items-center justify-center gap-3 py-10 dashboard-bg">
+      <Loader2 className="h-8 w-8 animate-spin" aria-hidden="true" style={{ color: lp.or }} />
+      <p className="text-base font-semibold" role="status" aria-live="polite" style={{ color: lp.navy }}>
         Finishing Google sign-in…
       </p>
-      <p className="text-xs text-navy-400">One moment while we load your account.</p>
+      <p className="text-sm" style={{ color: rgba(lp.navyRgb, 0.5) }}>One moment while we load your account.</p>
     </div>
   );
 }

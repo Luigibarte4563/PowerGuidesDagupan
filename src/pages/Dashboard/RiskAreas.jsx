@@ -5,7 +5,7 @@ import { AlertTriangle, MapPin, ShieldAlert, Waves } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
-import AppMap, { FitPoints, MapLegend, MapPoints, RadiusCircle, RISK_COLORS, FLOOD_COLORS, SEVERITY_COLORS } from '@/components/Map';
+import AppMap, { FitPoints, MapLegend, MapPoints, RadiusCircle, RISK_COLORS } from '@/components/Map';
 import MapWorkspace, { FeedPills, FeedStatTiles, FeedToggle } from '@/components/MapWorkspace';
 import { useSavedLocation } from '@/hooks/useSavedLocation';
 import { floodsApi, hazardsApi } from '@/api';
@@ -108,12 +108,7 @@ export default function RiskAreas() {
     ...hazards.filter((item) => Number.isFinite(item.lat) && Number.isFinite(item.lng)),
   ];
 
-  const toneFor = (item) =>
-    item.kind === 'flood'
-      ? (item.severity ? FLOOD_COLORS[item.severity.toLowerCase()] : RISK_COLORS.flood)
-      : item.severity
-      ? SEVERITY_COLORS[item.severity.toLowerCase()]
-      : RISK_COLORS.hazard;
+  const toneFor = (item) => (item.kind === 'flood' ? RISK_COLORS.flood : RISK_COLORS.hazard);
 
   const mapSummary = `${plotted.length} risk${plotted.length === 1 ? '' : 's'} plotted${
     isNearby && hasLocation && !locationLooksWrong ? ` within ${formatDistance(radius)} of you` : ' across Dagupan'
@@ -159,13 +154,10 @@ export default function RiskAreas() {
         )}
       </MapPoints>
       <MapLegend
-        title="Flood level"
+        title="Risk type"
         items={[
-          { label: 'Low', color: FLOOD_COLORS.low },
-          { label: 'Moderate', color: FLOOD_COLORS.moderate },
-          { label: 'High / Severe', color: FLOOD_COLORS.high },
+          { label: 'Flood', color: RISK_COLORS.flood },
           { label: 'Electrical hazard', color: RISK_COLORS.hazard },
-          ...(hasLocation && !locationLooksWrong ? [{ label: 'Your location', color: RISK_COLORS.location }] : []),
         ]}
       />
     </AppMap>

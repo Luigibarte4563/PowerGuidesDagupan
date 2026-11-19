@@ -1,7 +1,7 @@
 :root {
   --navy: #153243;
   --or: #f18f01;
-  --ink: #171818;
+  --ink: #153243;
   --bg: #fefeff;
   --link: #337094;
   --h: 'Montserrat Alternates', system-ui, sans-serif;
@@ -56,7 +56,7 @@
 .auth-side p {
   max-width: 529px;
   margin-top: 8px;
-  font: 600 clamp(16px, 1.4vw, 20px) / 2.3 Lato, sans-serif;
+  font: 500 clamp(16px, 1.4vw, 20px) / 2.3 Lato, sans-serif;
 }
 
 .auth-side small {
@@ -75,7 +75,7 @@
   width: min(505px, 100%);
   margin: 0 auto;
   display: grid;
-  gap: 60px;
+  gap: 24px;
 }
 
 .auth-back {
@@ -99,14 +99,14 @@
 }
 
 .auth-lead {
-  margin-top: 8px;
-  font-weight: 600;
+  margin-top: 60px;
+  font-weight: 500;
   opacity: 0.6;
 }
 
 .auth-form {
   display: grid;
-  gap: 32px;
+  gap: 24px;
 }
 
 .auth-fields {
@@ -239,13 +239,14 @@
 }
 
 .auth-field ::placeholder {
-  color: #000;
+  color: #153243;
   opacity: 0.3;
 }
 
 .auth-forgot {
   justify-self: end;
-  margin-top: -8px;
+  margin-top: 8px;
+  margin-bottom: -16px;
   font-size: 14px;
   font-weight: 600;
   color: var(--link);
@@ -260,6 +261,7 @@
   min-height: 44px;
   font: 400 14px Lato, sans-serif;
   color: #526574;
+  margin-bottom: -16px;
 }
 
 .auth-agree input {
@@ -268,13 +270,13 @@
   height: 20px;
   appearance: none;
   background: #fff;
-  border: 2px solid #000;
+  border: 2px solid #153243;
   border-radius: 3px;
   cursor: pointer;
 }
 .auth-agree input:checked {
   background: #fff;
-  border-color: #000;
+  border-color: #153243;
   position: relative;
 }
 .auth-agree input:checked::after {
@@ -284,7 +286,7 @@
   top: 2px;
   width: 5px;
   height: 9px;
-  border: solid #000;
+  border: solid #153243;
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
@@ -298,6 +300,11 @@
   min-height: 1.5em;
   font-size: 14px;
   color: #c0392b;
+}
+
+.auth-msg:empty {
+  min-height: 0;
+  margin: 0;
 }
 
 .auth-msg.ok {
@@ -322,7 +329,11 @@
 
 .auth-actions {
   display: grid;
-  gap: 24px;
+  gap: 16px;
+}
+
+.auth-actions .btn--w {
+  margin-top: 8px;
 }
 
 .auth-btn {
@@ -334,7 +345,7 @@
   min-height: 43px;
   padding: 12px 24px;
   border-radius: 8px;
-  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 4px rgba(16, 27, 45, 0.12);
   font: 700 16px/1.2 Lato, sans-serif;
   color: var(--ink);
   background: var(--or);
@@ -398,6 +409,6 @@
     display: none;
   }
   .auth-card {
-    gap: 40px;
+    gap: 24px;
   }
 }

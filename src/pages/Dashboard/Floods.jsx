@@ -11,13 +11,12 @@ import RecordCard from '@/components/RecordCard';
 import AppMap, {
   FitPoints,
   MapLegend,
-  MapPin as MapPinMarker,
   MapPoints,
   RadiusCircle,
   FLOOD_COLORS,
-  RISK_COLORS,
 } from '@/components/Map';
 import MapWorkspace, { FeedActions, FeedPills, FeedToggle } from '@/components/MapWorkspace';
+import { useAuth } from '@/context/AuthContext';
 import { useReference } from '@/context/ReferenceContext';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useSavedLocation } from '@/hooks/useSavedLocation';
@@ -28,6 +27,7 @@ import { DEFAULT_RADIUS_METERS, RADIUS_OPTIONS, severityTone, statusTone } from 
 import { formatDateTime, formatDistance, formatTime, humanize } from '@/utils/formatters';
 import { toUserMessage } from '@/utils/errorMessage';
 import FloodFormModal, { FLOOD_LEVEL_OPTIONS } from './components/FloodFormModal';
+import ReportFeedbackDialog from './components/ReportFeedbackDialog';
 
 /**
  * Module I - flood reports: list, map and create.
@@ -45,6 +45,7 @@ const LEVEL_LEGEND = [
 ];
 
 export default function Floods() {
+  const { user } = useAuth();
   const { barangays } = useReference();
   const { coords, hasLocation } = useSavedLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -56,7 +57,8 @@ export default function Floods() {
   const [radius, setRadius] = useState(DEFAULT_RADIUS_METERS);
   const [formOpen, setFormOpen] = useState(false);
   const [editor, setEditor] = useState(null); // { flood, mode: 'edit' }
-  const [confirming, setConfirming] = useState(null); // flood id to delete
+  const [confirming, setConfirming] = useState(null); // flood object to delete
+  const [feedback, setFeedback] = useState(null);
   const debouncedSearch = useDebouncedValue(search);
   const isNearby = tab === 'nearby';
 
@@ -75,23 +77,38 @@ export default function Floods() {
       queryClient.invalidateQueries({ queryKey: ['floods'] });
       queryClient.invalidateQueries({ queryKey: ['risks'] });
       setEditor(null);
+      toast.success('Flood report updated successfully.', { title: 'Report updated' });
     },
     onError: (error) => {
-      // Error handled in modal
+      toast.error(toUserMessage(error, 'We could not update your flood report.'), { title: 'Error' });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id) => floodsApi.remove(id),
-    onSuccess: () => {
+  });
+
+  const handleDelete = async () => {
+    if (!confirming) return;
+    try {
+      await deleteMutation.mutateAsync(confirming.id);
       queryClient.invalidateQueries({ queryKey: ['floods'] });
       queryClient.invalidateQueries({ queryKey: ['risks'] });
       setConfirming(null);
-    },
-    onError: (error) => {
-      // Error handled in modal
-    },
-  });
+      setFeedback({
+        type: 'success',
+        title: 'Report deleted',
+        message: 'The flood report was removed from the community feed.',
+      });
+    } catch (error) {
+      setConfirming(null);
+      setFeedback({
+        type: 'error',
+        title: 'Could not delete the report',
+        message: toUserMessage(error, 'Please try again in a moment.'),
+      });
+    }
+  };
 
   // The barangay/level filters are applied client-side below, so they are kept out
   // of this key - otherwise every keystroke would refetch the same unfiltered set.
@@ -127,6 +144,15 @@ export default function Floods() {
         .some((value) => String(value).toLowerCase().includes(term));
     })
     .sort((a, b) => (b.createdAt ? new Date(b.createdAt).getTime() : 0) - (a.createdAt ? new Date(a.createdAt).getTime() : 0));
+
+  // "Report once" prevention: check if user has any unresolved flood reports
+  const hasUnresolvedFlood = useMemo(
+    () =>
+      (listQuery.data || [])
+        .map(readFlood)
+        .some((flood) => isOwnedBy(flood.raw, user) && flood.status && flood.status !== 'resolved'),
+    [listQuery.data, user]
+  );
 
   // Reports the map can actually plot.
   const plotted = useMemo(
@@ -165,7 +191,13 @@ export default function Floods() {
       <ZoomControl position="bottomright" />
       {isNearby ? null : <FitPoints items={framedPoints} />}
       {isNearby && hasLocation ? <RadiusCircle center={coords} radius={radius} /> : null}
-      <MapPoints items={plotted} toneFor={(item) => (item.severity ? FLOOD_COLORS[item.severity.toLowerCase()] : 'neutral')}>
+      <MapPoints items={plotted} toneFor={(item) => {
+        const level = String(item.severity || '').toLowerCase();
+        if (level === 'high' || level === 'severe') return FLOOD_COLORS.high;
+        if (level === 'moderate') return FLOOD_COLORS.moderate;
+        if (level === 'low') return FLOOD_COLORS.low;
+        return 'neutral';
+      }}>
         {(item) => (
           <div className="min-w-[12rem]">
             <p className="font-bold text-navy-900">
@@ -195,18 +227,7 @@ export default function Floods() {
           </div>
         )}
       </MapPoints>
-      {hasLocation ? (
-        <MapPinMarker position={coords} tone="success" size={30}>
-          <p className="text-xs font-semibold text-navy-700">Your saved location</p>
-        </MapPinMarker>
-      ) : null}
-      <MapLegend
-        title="Flood level"
-        items={[
-          ...LEVEL_LEGEND,
-          ...(hasLocation ? [{ label: 'Your location', color: RISK_COLORS.location }] : []),
-        ]}
-      />
+      <MapLegend title="Flood level" items={LEVEL_LEGEND} />
     </AppMap>
   );
 
@@ -222,9 +243,10 @@ export default function Floods() {
             variant="primary"
             icon={Plus}
             onClick={() => setFormOpen(true)}
+            disabled={hasUnresolvedFlood}
             className="rounded-xl px-5 shadow-[0_8px_24px_rgba(255,187,2,0.18)]"
           >
-            Report Flood
+            {hasUnresolvedFlood ? 'Resolve existing flood first' : 'Report Flood'}
           </Button>
         }
         search={search}
@@ -315,13 +337,13 @@ export default function Floods() {
                 Set my location
               </Button>
             ) : (
-              <Button variant="primary" icon={Plus} onClick={() => setFormOpen(true)}>
-                Report Flood
+              <Button variant="primary" icon={Plus} onClick={() => setFormOpen(true)} disabled={hasUnresolvedFlood}>
+                {hasUnresolvedFlood ? 'Resolve existing flood first' : 'Report Flood'}
               </Button>
             ),
         }}
         renderCard={(flood) => {
-          const owned = isOwnedBy(flood.raw);
+          const owned = isOwnedBy(flood.raw, user);
           return (
             <RecordCard
               variant="feed"
@@ -342,23 +364,26 @@ export default function Floods() {
                 flood.createdAt ? { label: 'Reported', value: formatDateTime(flood.createdAt), icon: CalendarClock } : null,
               ].filter(Boolean)}
               actions={owned ? (
-                <>
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    icon={Pencil}
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
                     onClick={() => setEditor({ flood, mode: 'edit' })}
-                    aria-label="Edit this flood report"
-                  />
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    icon={Trash2}
-                    className="text-danger-600"
-                    onClick={() => setConfirming(flood.id)}
-                    aria-label="Delete this flood report"
-                  />
-                </>
+                    className="inline-flex h-6 items-center gap-1 rounded-md border border-white/10 bg-white/[0.03] px-1.5 text-[9px] font-bold text-white/55 transition:hover:border-[#f18f01]/30:hover:bg-[#f18f01]/10:hover:text-[#f18f01]"
+                    aria-label={`Edit report ${flood.id}`}
+                  >
+                    <Pencil className="h-2.5 w-2.5" aria-hidden="true" />
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirming(flood)}
+                    className="inline-flex h-6 items-center gap-1 rounded-md border border-white/10 bg-white/[0.03] px-1.5 text-[9px] font-bold text-white/55 transition:hover:border-[#FF2E1F]/30:hover:bg-[#FF2E1F]/10:hover:text-[#FF2E1F]"
+                    aria-label={`Delete report ${flood.id}`}
+                  >
+                    <Trash2 className="h-2.5 w-2.5" aria-hidden="true" />
+                    Delete
+                  </button>
+                </div>
               ) : null}
             />
           );
@@ -390,27 +415,27 @@ export default function Floods() {
           : null}
       />
       {confirming && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#1C1D30] p-6 shadow-pop-dark">
-            <h3 className="text-lg font-bold text-white">Delete this flood report?</h3>
-            <p className="mt-2 text-sm text-white/60">
-              This will mark the report as cancelled. This action cannot be undone.
-            </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setConfirming(null)}>
-                Keep it
-              </Button>
-              <Button
-                variant="primary"
-                className="bg-danger-600 hover:bg-danger-700"
-                onClick={() => deleteMutation.mutate(confirming)}
-                loading={deleteMutation.isPending}
-              >
-                Delete report
-              </Button>
-            </div>
-          </div>
-        </div>
+        <ReportFeedbackDialog
+          open
+          type="warning"
+          danger
+          title="Delete this report?"
+          message={`"${confirming.locationName || confirming.barangay || 'This report'}" will be removed from the community feed. This cannot be undone.`}
+          confirmLabel="Delete report"
+          showCancel
+          loading={deleteMutation.isPending}
+          onConfirm={handleDelete}
+          onClose={() => setConfirming(null)}
+        />
+      )}
+      {feedback && (
+        <ReportFeedbackDialog
+          open
+          type={feedback.type}
+          title={feedback.title}
+          message={feedback.message}
+          onClose={() => setFeedback(null)}
+        />
       )}
     </div>
   );

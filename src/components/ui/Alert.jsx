@@ -2,15 +2,16 @@ import clsx from 'clsx';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
 /** Inline form-level error banner. Always human-readable text. */
-export function AuthAlert({ children, className }) {
+export function AuthAlert({ children, className, style }) {
   if (!children) return null;
   return (
     <div
       role="alert"
       className={clsx(
-        'flex items-start gap-2.5 rounded-control border border-danger-200 bg-danger-50 p-3.5 text-sm font-medium text-danger-700 dark:border-danger-500/40 dark:bg-danger-500/15 dark:text-danger-200',
+        'flex items-start gap-2.5 rounded-control border p-3.5 text-sm font-medium',
         className
       )}
+      style={style}
     >
       <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
       <span>{children}</span>
@@ -19,15 +20,16 @@ export function AuthAlert({ children, className }) {
 }
 
 /** Inline success banner (registration confirmations, saved settings). */
-export function AuthSuccess({ children, className }) {
+export function AuthSuccess({ children, className, style }) {
   if (!children) return null;
   return (
     <div
       role="status"
       className={clsx(
-        'flex items-start gap-2.5 rounded-control border border-success-200 bg-success-50 p-3.5 text-sm font-medium text-success-700 dark:border-success-500/40 dark:bg-success-500/15 dark:text-success-200',
+        'flex items-start gap-2.5 rounded-control border p-3.5 text-sm font-medium',
         className
       )}
+      style={style}
     >
       <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
       <span>{children}</span>
@@ -36,10 +38,10 @@ export function AuthSuccess({ children, className }) {
 }
 
 /** Neutral inline notice (tips, hints, permission messages). */
-export function InfoNote({ children, className }) {
+export function InfoNote({ children, className, style }) {
   if (!children) return null;
   return (
-    <p className={clsx('rounded-control bg-navy-50 p-3 text-xs text-navy-600 dark:bg-navy-800 dark:text-navy-300', className)}>
+    <p className={clsx('rounded-control p-3 text-xs', className)} style={style}>
       {children}
     </p>
   );

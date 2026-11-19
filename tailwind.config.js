@@ -22,7 +22,7 @@ export default {
           950: '#451A03',
         },
         // Dark navy - text, sidebar, headers.
-        // High stops follow the Outages workspace: #03041A canvas, #0B0D20
+        // High stops follow the Outages workspace: #141527 canvas, #1E203C
         // topbar, #1C1D30 card surface, #31324C panel tint.
         navy: {
           50: '#F4F6FA',
@@ -34,8 +34,8 @@ export default {
           600: '#3D3F5C',
           700: '#31324C',
           800: '#1C1D30',
-          900: '#0B0D20',
-          950: '#03041A',
+          900: '#1E203C',
+          950: '#141527',
         },
         // Status colours - keyed to the Outages workspace accents:
         // success #34FB34, warning #FFBB02 (the amber), danger #FF2E1F, info #22D3EE.
@@ -91,11 +91,11 @@ export default {
         card: '0 1px 2px rgba(16, 27, 45, 0.04), 0 4px 16px rgba(16, 27, 45, 0.06)',
         'card-hover': '0 2px 4px rgba(16, 27, 45, 0.06), 0 12px 28px rgba(16, 27, 45, 0.10)',
         pop: '0 10px 30px rgba(16, 27, 45, 0.18)',
-        // Dark surfaces need a deeper, blacker shadow - the light tokens are too
+        // Dark surfaces need a deeper, navy-tinted shadow - the light tokens are too
         // faint to separate a card from the dark canvas.
-        'card-dark': '0 1px 2px rgba(0, 0, 0, 0.40), 0 4px 16px rgba(0, 0, 0, 0.30)',
-        'card-hover-dark': '0 2px 4px rgba(0, 0, 0, 0.45), 0 12px 28px rgba(0, 0, 0, 0.45)',
-        'pop-dark': '0 10px 30px rgba(0, 0, 0, 0.60)',
+        'card-dark': '0 1px 2px rgba(16, 27, 45, 0.45), 0 4px 16px rgba(16, 27, 45, 0.35)',
+        'card-hover-dark': '0 2px 4px rgba(16, 27, 45, 0.50), 0 12px 28px rgba(16, 27, 45, 0.50)',
+        'pop-dark': '0 10px 30px rgba(16, 27, 45, 0.65)',
       },
       keyframes: {
         'fade-in': { from: { opacity: '0' }, to: { opacity: '1' } },

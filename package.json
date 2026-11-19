@@ -9,6 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "check:outage-feed": "node scripts/check-outage-feed.mjs",
+    "check:no-black": "node scripts/check-no-black.mjs",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {

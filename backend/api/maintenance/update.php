@@ -98,6 +98,7 @@ try {
         exit;
     }
 
+    $barangaysProvided = array_key_exists('barangays', $data) && $data['barangays'] !== null;
     $barangays = $data['barangays'] ?? null;
     if ($barangays === null) {
         $oldStmt = $conn->prepare("
@@ -125,6 +126,10 @@ try {
         throw new Exception("Maintenance date, start time, end time are required");
     }
 
+    if ($barangaysProvided && empty($barangays)) {
+        throw new Exception("No barangays selected");
+    }
+
     /* Check record exists */
     $checkStmt = $conn->prepare("SELECT id FROM maintenance_schedules WHERE id = :id LIMIT 1");
     $checkStmt->execute([":id" => $maintenance_id]);
@@ -132,64 +137,8 @@ try {
         throw new Exception("Maintenance record not found");
     }
 
-    /* ============ STATUS LOGIC ============ */
-    $validStatuses = ['upcoming', 'ongoing', 'completed', 'cancelled'];
-    $now = new DateTime();
-
-    try {
-        $startDT = new DateTime("$maintenance_date $start_time");
-        $endDT   = new DateTime("$maintenance_date $end_time");
-    } catch (Exception $e) {
-        throw new Exception("Invalid date/time values");
-    }
-
-    if (in_array($manualStatus, $validStatuses, true)) {
-        $finalStatus = $manualStatus;
-    } else {
-        if ($now > $endDT) {
-            $finalStatus = "completed";
-        } elseif ($now >= $startDT && $now <= $endDT) {
-            $finalStatus = "ongoing";
-        } else {
-            $finalStatus = "upcoming";
-        }
-    }
-
-    /* Update schedule */
-    $updateStmt = $conn->prepare("
-        UPDATE maintenance_schedules
-        SET maintenance_date = :date,
-            start_time = :start,
-            end_time = :end,
-            description = :desc,
-            radius = :radius,
-            status = :status
-        WHERE id = :id
-    ");
-    $updateStmt->execute([
-        ":date" => $maintenance_date,
-        ":start" => $start_time,
-        ":end" => $end_time,
-        ":desc" => $description,
-        ":radius" => $radius,
-        ":status" => $finalStatus,
-        ":id" => $maintenance_id
-    ]);
-
-    /* Replace locations (barangay_id based) */
-    $conn->prepare("DELETE FROM maintenance_locations WHERE maintenance_id = :id")
-        ->execute([":id" => $maintenance_id]);
-
-    $barangayCoords = [];
-    $insertLoc = $conn->prepare("
-        INSERT INTO maintenance_locations (maintenance_id, barangay_id, latitude, longitude)
-        VALUES (:maintenance_id, :barangay_id, :lat, :lng)
-    ");
-
-/* Resolve every chosen barangay up front, so a typo fails loudly instead of
-       silently dropping that barangay from the affected area, and so a known
-       barangay with no coordinates is reported rather than stored as a point
-       nothing can draw. */
+    /* Resolve every chosen barangay before changing anything, so a bad name or missing
+       coordinates cannot wipe the saved locations. */
     $resolvedLocations = [];
     $missingCoords = [];
 
@@ -231,18 +180,82 @@ try {
         exit;
     }
 
-    foreach ($resolvedLocations as $chosen => $barangay) {
-        $barangayCoords[$chosen] = [
-            'lat' => $barangay["latitude"],
-            'lng' => $barangay["longitude"]
-        ];
+    /* ============ STATUS LOGIC ============ */
+    $validStatuses = ['upcoming', 'ongoing', 'completed', 'cancelled'];
+    $now = new DateTime();
 
-        $insertLoc->execute([
-            ":maintenance_id" => $maintenance_id,
-            ":barangay_id" => $barangay["id"],
-            ":lat" => $barangay["latitude"],
-            ":lng" => $barangay["longitude"]
+    try {
+        $startDT = new DateTime("$maintenance_date $start_time");
+        $endDT   = new DateTime("$maintenance_date $end_time");
+    } catch (Exception $e) {
+        throw new Exception("Invalid date/time values");
+    }
+
+    if (in_array($manualStatus, $validStatuses, true)) {
+        $finalStatus = $manualStatus;
+    } else {
+        if ($now > $endDT) {
+            $finalStatus = "completed";
+        } elseif ($now >= $startDT && $now <= $endDT) {
+            $finalStatus = "ongoing";
+        } else {
+            $finalStatus = "upcoming";
+        }
+    }
+
+    $conn->beginTransaction();
+    try {
+        /* Update schedule */
+        $updateStmt = $conn->prepare("
+            UPDATE maintenance_schedules
+            SET maintenance_date = :date,
+                start_time = :start,
+                end_time = :end,
+                description = :desc,
+                radius = :radius,
+                status = :status
+            WHERE id = :id
+        ");
+        $updateStmt->execute([
+            ":date" => $maintenance_date,
+            ":start" => $start_time,
+            ":end" => $end_time,
+            ":desc" => $description,
+            ":radius" => $radius,
+            ":status" => $finalStatus,
+            ":id" => $maintenance_id
         ]);
+
+        /* Replace locations (barangay_id based) */
+        $conn->prepare("DELETE FROM maintenance_locations WHERE maintenance_id = :id")
+            ->execute([":id" => $maintenance_id]);
+
+        $barangayCoords = [];
+        $insertLoc = $conn->prepare("
+            INSERT INTO maintenance_locations (maintenance_id, barangay_id, latitude, longitude)
+            VALUES (:maintenance_id, :barangay_id, :lat, :lng)
+        ");
+
+        foreach ($resolvedLocations as $chosen => $barangay) {
+            $barangayCoords[$chosen] = [
+                'lat' => $barangay["latitude"],
+                'lng' => $barangay["longitude"]
+            ];
+
+            $insertLoc->execute([
+                ":maintenance_id" => $maintenance_id,
+                ":barangay_id" => $barangay["id"],
+                ":lat" => $barangay["latitude"],
+                ":lng" => $barangay["longitude"]
+            ]);
+        }
+
+        $conn->commit();
+    } catch (Throwable $e) {
+        if ($conn->inTransaction()) {
+            $conn->rollBack();
+        }
+        throw $e;
     }
 
     /* ============ NOTIFICATIONS ============ */

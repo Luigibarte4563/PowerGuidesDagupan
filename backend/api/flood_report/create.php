@@ -19,7 +19,7 @@ if (!is_array($data)) {
 
 $location_name  = trim($data["location_name"] ?? "");
 $description    = trim($data["description"] ?? "");
-$severity      = $data["severity"] ?? "low";
+$severity      = $data["severity"] ?? $data["flood_level"] ?? "low";
 $flood_depth_cm = isset($data["flood_depth_cm"]) ? (float)$data["flood_depth_cm"] : null;
 $image_proof    = $data["image_url"] ?? $data["image_proof"] ?? null;
 

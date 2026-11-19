@@ -40,7 +40,7 @@ export default function MapWorkspace({
   return (
     <div className={clsx('mt-5 flex flex-col gap-6 xl:flex-row xl:items-stretch', className)}>
       <section
-        className="relative h-[440px] min-w-0 overflow-hidden rounded-2xl border border-white/5 bg-[#0E0F26] shadow-[0_20px_50px_rgba(0,0,0,0.25)] lg:h-[550px] xl:flex-1"
+        className="relative h-[440px] min-w-0 overflow-hidden rounded-2xl border border-white/5 bg-[#0E0F26] shadow-[0_20px_50px_rgba(16,27,45,0.35)] lg:h-[550px] xl:flex-1"
         aria-label={mapLabel || mapTitle || 'Map'}
       >
         <div className="h-full w-full">{map}</div>
@@ -62,7 +62,7 @@ export default function MapWorkspace({
         ) : null}
       </section>
 
-      <aside className="flex h-[440px] w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-[0_20px_50px_rgba(0,0,0,0.25)] lg:h-[550px] xl:w-[420px] xl:shrink-0">
+      <aside className="flex h-[440px] w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-[0_20px_50px_rgba(16,27,45,0.35)] lg:h-[550px] xl:w-[420px] xl:shrink-0">
         {hasHeader ? (
           <div className="border-b border-white/5 p-3">
             {mapTitle || live ? (
@@ -186,7 +186,7 @@ export function FeedToggle({ options, value, onChange, ariaLabel = 'Feed scope' 
             onClick={() => onChange(option.value)}
             className={`flex h-8 items-center justify-center gap-1.5 rounded-lg px-1 text-[11px] font-bold transition ${
               active
-                ? 'bg-[#f18f01] text-[#191400] shadow-[0_4px_16px_rgba(255,187,2,0.16)]'
+                ? 'bg-[#f18f01] text-[#153243] shadow-[0_4px_16px_rgba(255,187,2,0.16)]'
                 : 'text-white/45 hover:bg-white/5 hover:text-white/75'
             }`}
           >
@@ -194,7 +194,7 @@ export function FeedToggle({ options, value, onChange, ariaLabel = 'Feed scope' 
             {option.count !== undefined && option.count !== null ? (
               <span
                 className={`shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-extrabold ${
-                  active ? 'bg-[#191400]/15 text-[#191400]' : 'bg-white/10 text-white/40'
+                  active ? 'bg-[#153243]/15 text-[#153243]' : 'bg-white/10 text-white/40'
                 }`}
               >
                 {option.count}

@@ -5,17 +5,20 @@ export default function Footer() {
   return (
     <footer className="foot" role="contentinfo">
       <div className="wrap mx-auto max-w-[1240px] px-[clamp(20px,6.94vw,100px)]">
-        <div>
+        <div className="foot__left">
           <p className="q text-justify">With the <em>right information</em> at the <em>right time</em>, you can make <em>smarter decisions</em> and face every blackout with <em>greater confidence</em>.</p>
-          <Link className="logo logo--l" to="#top" aria-label="PowerGuide - Home">
-            <img
-              src={logoWordmark}
-              alt=""
-              className="shrink-0"
-              style={{ height: '34px', width: 'auto', maxWidth: '100%' }}
-              aria-hidden="true"
-            />
-          </Link>
+          <div className="foot__brand">
+            <Link className="logo logo--l" to="#top" aria-label="PowerGuide - Home">
+              <img
+                src={logoWordmark}
+                alt=""
+                className="shrink-0"
+                style={{ height: '34px', width: 'auto', maxWidth: '100%' }}
+                aria-hidden="true"
+              />
+            </Link>
+            <small>© 2026 PowerGuide. Team META. All Rights Reserved.</small>
+          </div>
         </div>
         <div className="fr">
           <Link className="btn" href="#contact">
@@ -33,7 +36,6 @@ export default function Footer() {
             </ul>
           </div>
         </div>
-        <small>© 2026 PowerGuide. Team META. All Rights Reserved.</small>
       </div>
     </footer>
   );

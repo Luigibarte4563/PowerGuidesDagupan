@@ -59,7 +59,7 @@ export default function Maintenance() {
         if (tab === 'upcoming') return UPCOMING_STATUSES.includes(s);
         if (tab === 'ongoing') return s === 'ongoing';
         if (tab === 'completed') return s === 'completed';
-        return true; // 'all' tab
+        return s !== 'completed'; // 'all' tab, excludes completed
       });
   }, [mapQuery.data, tab]);
 
@@ -73,6 +73,7 @@ export default function Maintenance() {
         if (tab === 'upcoming' && !UPCOMING_STATUSES.includes(status)) return false;
         if (tab === 'ongoing' && status !== 'ongoing') return false;
         if (tab === 'completed' && status !== 'completed') return false;
+        if (tab === 'all' && status === 'completed') return false;
         if (statusFilter && item.status !== statusFilter) return false;
         if (!term) return true;
         return [item.title, item.barangay, item.description, item.company]
@@ -210,7 +211,7 @@ export default function Maintenance() {
               { value: 'upcoming', label: 'Upcoming', count: upcomingCountQuery.data ?? upcomingCount },
               { value: 'ongoing', label: 'Ongoing', count: ongoingCount },
               { value: 'completed', label: 'Completed', count: completedCount },
-              { value: 'all', label: 'All schedules', count: all.length },
+              { value: 'all', label: 'All schedules', count: all.length - completedCount },
             ]}
           />
         }

@@ -3,7 +3,7 @@ import { createContext, useContext, useMemo } from 'react';
 /**
  * Theme: permanently dark.
  *
- * The app is standardised on the Outages workspace look (#03041A canvas), so
+ * The app is standardised on the Outages workspace look (#141527 canvas), so
  * `data-theme="dark"` is applied unconditionally on <html> - including portals
  * (modals, toasts) and Leaflet panes, which live outside the app root. The
  * context keeps its original shape (`theme`, `isDark`, `setTheme`, `toggleTheme`)

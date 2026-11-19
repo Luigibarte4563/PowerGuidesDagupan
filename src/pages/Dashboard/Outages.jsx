@@ -5,18 +5,19 @@ import { CircleMarker, Popup, ZoomControl } from 'react-leaflet';
 import {
   Activity,
   AlertTriangle,
-  ChevronLeft,
   ChevronRight,
   Clock3,
   Home,
   Loader2,
   MapPin,
-  Pencil,  Plus,
+  Pencil,
+  Plus,
   Search,
   Trash2,
   X,
   Zap,
 } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 import AppMap, { MapLegend, SEVERITY_COLORS } from '@/components/Map';
 import { outagesApi } from '@/api';
 import { QUERY_KEYS } from '@/utils/constants';
@@ -141,6 +142,12 @@ export default function Outages() {
     };
   }, [activeScopeReports]);
 
+  // "Report once" prevention: check if user has any active (unresolved) outage reports
+  const hasUnresolvedOutage = useMemo(
+    () => reports.some((report) => isOwnedBy(report, null, { myIds }) && report.status && report.status !== 'resolved'),
+    [reports, myIds]
+  );
+
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
@@ -215,14 +222,15 @@ export default function Outages() {
       className="min-h-full bg-[#153243] dashboard-grid px-4 pb-8 pt-5 font-montserrat text-white lg:px-8 lg:pt-6"
     >
       <div className="flex flex-wrap items-center justify-end gap-2">
-        <button
-          type="button"
+        <Button
+          variant="primary"
+          icon={Plus}
           onClick={openCreate}
-          className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#f18f01] px-5 text-sm font-extrabold text-[#191400] shadow-[0_8px_24px_rgba(255,187,2,0.18)] transition hover:bg-[#f6c200]"
+          disabled={hasUnresolvedOutage}
+          className="rounded-xl px-5 shadow-[0_8px_24px_rgba(255,187,2,0.18)]"
         >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Report Outage
-        </button>
+          {hasUnresolvedOutage ? 'Resolve existing outage first' : 'Report Outage'}
+        </Button>
         <div className="relative w-full sm:w-[260px] xl:w-[280px]">
           <Search
             className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35"
@@ -260,7 +268,7 @@ export default function Outages() {
 
       <div className="mt-5 flex flex-col gap-6 xl:flex-row xl:items-stretch">
         <section
-          className="relative h-[440px] min-w-0 overflow-hidden rounded-2xl border border-white/5 bg-white/[0.04] shadow-[0_20px_50px_rgba(0,0,0,0.25)] lg:h-[550px] xl:flex-1"
+          className="relative h-[440px] min-w-0 overflow-hidden rounded-2xl border border-white/5 bg-white/[0.04] shadow-[0_20px_50px_rgba(16,27,45,0.35)] lg:h-[550px] xl:flex-1"
           aria-label="Outage map"
         >
           <AppMap
@@ -342,9 +350,9 @@ export default function Outages() {
             <MapLegend
               title="Severity level"
               items={[
-                { label: 'Critical', color: SEVERITY_COLORS.critical },
-                { label: 'Moderate', color: SEVERITY_COLORS.moderate },
                 { label: 'Minor', color: SEVERITY_COLORS.low },
+                { label: 'Moderate', color: SEVERITY_COLORS.moderate },
+                { label: 'Critical', color: SEVERITY_COLORS.critical },
               ]}
             />
 
@@ -361,7 +369,7 @@ export default function Outages() {
             ) : null}
           </section>
 
-          <aside className="flex h-[440px] w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-[0_20px_50px_rgba(0,0,0,0.25)] lg:h-[550px] xl:w-[420px] xl:shrink-0">
+          <aside className="flex h-[440px] w-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-[0_20px_50px_rgba(16,27,45,0.35)] lg:h-[550px] xl:w-[420px] xl:shrink-0">
             <div className="border-b border-white/5 p-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -395,14 +403,14 @@ export default function Outages() {
                       aria-pressed={active}
                       className={`flex h-8 items-center justify-center gap-1.5 rounded-lg text-[11px] font-bold transition ${
                         active
-                          ? 'bg-[#f18f01] text-[#191400] shadow-[0_4px_16px_rgba(255,187,2,0.16)]'
+                          ? 'bg-[#f18f01] text-[#153243] shadow-[0_4px_16px_rgba(255,187,2,0.16)]'
                           : 'text-white/45 hover:bg-white/5 hover:text-white/75'}
                       }`}
                     >
                       {option.label}
                       <span
                         className={`rounded-full px-1.5 py-0.5 text-[8px] font-extrabold ${
-                          active ? 'bg-[#191400]/15 text-[#191400]' : 'bg-white/10 text-white/40'}
+                          active ? 'bg-[#153243]/15 text-[#153243]' : 'bg-white/10 text-white/40'}
                         }`}
                       >
                         {option.count}
@@ -490,14 +498,16 @@ export default function Outages() {
                       ? 'Try a different location, description or category.'
                       : 'New community reports will appear here automatically.'}
                   </p>
-                  <button
-                    type="button"
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={Plus}
                     onClick={openCreate}
-                    className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-[#f18f01]/30 bg-[#f18f01]/10 px-3 py-1.5 text-[10px] font-bold text-[#f18f01] transition:hover:bg-[#f18f01]/15"
+                    disabled={hasUnresolvedOutage}
+                    className="mt-3 rounded-lg"
                   >
-                    <Plus className="h-3 w-3" aria-hidden="true" />
-                    Report an outage
-                  </button>
+                    {hasUnresolvedOutage ? 'Resolve existing outage first' : 'Report an outage'}
+                  </Button>
                 </div>
               ) : (
                 <div className="space-y-2">

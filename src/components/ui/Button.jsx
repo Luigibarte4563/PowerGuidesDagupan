@@ -12,7 +12,7 @@ import clsx from 'clsx';
  */
 const VARIANTS = {
   primary:
-    'bg-primary-500 text-[#191400] shadow-[0_8px_24px_rgba(255,187,2,0.18)] hover:bg-primary-400 active:bg-primary-600 disabled:bg-primary-200 disabled:text-navy-400 disabled:shadow-none dark:disabled:bg-primary-500/30 dark:disabled:text-navy-300',
+    'bg-primary-500 text-[#153243] shadow-[0_8px_24px_rgba(255,187,2,0.18)] hover:bg-primary-400 active:bg-primary-600 disabled:bg-primary-200 disabled:text-navy-400 disabled:shadow-none dark:disabled:bg-primary-500/30 dark:disabled:text-navy-300',
   secondary:
     'bg-navy-900 text-white hover:bg-navy-800 active:bg-navy-950 disabled:bg-navy-300 dark:bg-navy-100 dark:text-navy-900 dark:hover:bg-white dark:active:bg-navy-200 dark:disabled:bg-navy-700 dark:disabled:text-navy-500',
   outline:
@@ -38,6 +38,7 @@ export const Button = forwardRef(function Button(
     variant = 'primary',
     size = 'md',
     className,
+    style,
     type = 'button',
     loading = false,
     disabled = false,
@@ -45,6 +46,8 @@ export const Button = forwardRef(function Button(
     icon: Icon,
     iconRight: IconRight,
     fullWidth = false,
+    onMouseEnter,
+    onMouseLeave,
     ...rest
   },
   ref
@@ -78,7 +81,7 @@ export const Button = forwardRef(function Button(
 
   if (to && !disabled && !loading) {
     return (
-      <Link ref={ref} to={to} className={classes} {...rest}>
+      <Link ref={ref} to={to} className={classes} style={style} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} {...rest}>
         {content}
       </Link>
     );
@@ -89,8 +92,11 @@ export const Button = forwardRef(function Button(
       ref={ref}
       type={type}
       className={classes}
+      style={style}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       {...rest}
     >
       {content}

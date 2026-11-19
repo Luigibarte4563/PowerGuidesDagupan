@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import { useAuth } from '@/context/AuthContext';
 import { navItemsForRole } from '@/routes/navItems';
+import { useSavedLocation } from '@/hooks/useSavedLocation';
+import { ROLE } from '@/utils/roles';
+import LocationSetupModal from '@/components/dashboard/LocationSetupModal';
 
 /**
  * Full-height, dark map workspaces (the Outages layout family). These pages
@@ -23,21 +26,51 @@ const WORKSPACE_PATHS = new Set([
 
 /** Dashboard chrome: persistent sidebar + top bar with the routed page inside. */
 export default function DashboardLayout() {
-  const { role } = useAuth();
+  const { role, refresh } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { location: savedLocation, isLoading, hasLocation } = useSavedLocation();
 
   useEffect(() => {
     setSidebarOpen(false);
   }, [location.pathname]);
 
   const isWorkspace = WORKSPACE_PATHS.has(location.pathname);
+  const isResident = role === ROLE.USER;
+  const needsLocationSetup = isResident && !isLoading && !hasLocation;
+  const [showLocationModal, setShowLocationModal] = useState(needsLocationSetup);
+
+  // Keep modal state in sync with location data
+  useEffect(() => {
+    if (!isLoading) {
+      setShowLocationModal(isResident && !hasLocation);
+    }
+  }, [isLoading, isResident, hasLocation]);
+
+  const handleLocationSaved = () => {
+    setShowLocationModal(false);
+    refresh(); // Refresh user data to get updated location
+  };
+
+  // Prevent access to dashboard pages until location is set for residents
+  if (needsLocationSetup) {
+    return (
+      <div
+        data-theme="dark"
+        data-surface="dark"
+        className="flex h-screen overflow-hidden font-montserrat text-white dashboard-bg"
+      >
+        <LocationSetupModal open={true} onClose={handleLocationSaved} onSkip={() => navigate('/login')} />
+      </div>
+    );
+  }
 
   return (
     <div
       data-theme="dark"
       data-surface="dark"
-      className="flex h-screen overflow-hidden bg-[#153243] font-montserrat text-white"
+      className="flex h-screen overflow-hidden font-montserrat text-white dashboard-bg"
     >
       <a href="#dashboard-content" className="skip-link">
         Skip to main content
@@ -64,6 +97,10 @@ export default function DashboardLayout() {
           )}
         </main>
       </div>
+
+      {showLocationModal && (
+        <LocationSetupModal open={true} onClose={handleLocationSaved} onSkip={() => navigate('/login')} />
+      )}
     </div>
   );
 }

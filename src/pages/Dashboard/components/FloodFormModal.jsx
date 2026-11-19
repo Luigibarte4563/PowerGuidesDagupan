@@ -137,6 +137,7 @@ export default function FloodFormModal({
 
     const payload = {
       location_name: values.locationName.trim(),
+      severity: values.floodLevel,
       flood_level: values.floodLevel,
       description: String(values.description).trim(),
       barangay_name: values.barangayName || '',

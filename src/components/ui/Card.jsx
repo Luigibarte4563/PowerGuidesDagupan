@@ -2,13 +2,14 @@ import clsx from 'clsx';
 import { Link } from 'react-router-dom';
 
 /** Card: the standard white surface used across every page. */
-export function Card({ children, className, as: Tag = 'div', ...rest }) {
+export function Card({ children, className, style, as: Tag = 'div', ...rest }) {
   return (
     <Tag
       className={clsx(
         'rounded-card border border-navy-100 bg-white shadow-card dark:border-white/10 dark:bg-navy-700 dark:shadow-card-dark',
         className
       )}
+      style={style}
       {...rest}
     >
       {children}
@@ -28,9 +29,9 @@ export function CardHeader({ children, className, description, action }) {
   );
 }
 
-export function CardBody({ children, className, ...rest }) {
+export function CardBody({ children, className, style, ...rest }) {
   return (
-    <div className={clsx('p-5', className)} {...rest}>
+    <div className={clsx('p-5', className)} style={style} {...rest}>
       {children}
     </div>
   );
