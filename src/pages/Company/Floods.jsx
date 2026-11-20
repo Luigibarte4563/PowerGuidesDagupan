@@ -1,7 +1,15 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ZoomControl } from 'react-leaflet';
-import { AlertTriangle, ArrowUpDown, CheckCircle2, MapPin, ShieldCheck, Waves } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowUpDown,
+  CheckCircle2,
+  MapPin,
+  ShieldCheck,
+  UserCheck,
+  Waves,
+} from 'lucide-react';
 import Pagination from '@/components/Pagination';
 import Badge from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -17,6 +25,7 @@ import AppMap, {
 } from '@/components/Map';
 import MapWorkspace, { FeedActions, FeedPills, FeedToggle } from '@/components/MapWorkspace';
 import StatusChangeDialog from '@/components/StatusChangeDialog';
+import { useAuth } from '@/context/AuthContext';
 import { useReference } from '@/context/ReferenceContext';
 import { useToast } from '@/context/ToastContext';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -25,9 +34,17 @@ import { COMPANY_PAGE_SIZE, COMPANY_QUERY_KEYS, severityTone, statusTone } from 
 import { readFlood } from '@/utils/records';
 import { formatDateTime, formatRelativeTime, formatTime, humanize } from '@/utils/formatters';
 import { toUserMessage } from '@/utils/errorMessage';
+import AssignLinemanDialog from '@/components/AssignLinemanDialog';
 
 /** The flood_reports enums, from backend/database/powerguide.sql. */
 const FLOOD_SEVERITIES = ['low', 'moderate', 'high', 'critical'];
+
+/** Next status when a manager assigns a lineman to a flood report. */
+const ASSIGN_STATUS_ACTIONS = {
+  reported: 'verified',
+  verified: 'cleared',
+  cleared: 'reported',
+};
 
 const TABS = [
   { value: 'all', label: 'All floods', icon: Waves },
@@ -42,6 +59,7 @@ const TABS = [
  * the same list endpoint already filters on status, severity and barangay.
  */
 export default function Floods() {
+  const { isManager } = useAuth();
   const { barangays } = useReference();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -52,6 +70,7 @@ export default function Floods() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [statusTarget, setStatusTarget] = useState(null);
+  const [assignTarget, setAssignTarget] = useState(null); // { report, status }
   const debouncedSearch = useDebouncedValue(search);
 
   const listQuery = useQuery({
@@ -85,10 +104,12 @@ export default function Floods() {
   const pageRows = rows.slice((page - 1) * COMPANY_PAGE_SIZE, page * COMPANY_PAGE_SIZE);
 
   const statusMutation = useMutation({
-    mutationFn: ({ floodId, status }) => floodsApi.updateStatus({ flood_id: floodId, status }),
+    mutationFn: ({ floodId, status, updatedBy }) =>
+      floodsApi.updateStatus({ flood_id: floodId, status, updated_by: updatedBy }),
     onSuccess: (_result, variables) => {
       toast.success(`Flood moved to ${humanize(variables.status)}.`, { title: 'Status updated' });
       setStatusTarget(null);
+      setAssignTarget(null);
       queryClient.invalidateQueries({ queryKey: COMPANY_QUERY_KEYS.floods({}) });
       // The map layer and the risk query read the same table.
       queryClient.invalidateQueries({ queryKey: ['company-outages'] });
@@ -256,46 +277,62 @@ export default function Floods() {
               description:
                 'Nothing matching these filters. Flood reports from residents appear in this list.',
             }}
-            renderCard={(flood) => (
-              <RecordCard
-                variant="feed"
-                icon={Waves}
-                iconTone={severityTone(flood.severity)}
-                title={flood.locationName || flood.barangay || 'Flood report'}
-                subtitle={[
-                  humanize(flood.severity, 'Flood'),
-                  flood.barangay,
-                  `reported ${formatRelativeTime(flood.createdAt)}`,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-                badges={[
-                  flood.severity
-                    ? { label: humanize(flood.severity), tone: severityTone(flood.severity) }
-                    : null,
-                  flood.status ? { label: humanize(flood.status), tone: statusTone(flood.status) } : null,
-                ].filter(Boolean)}
-                description={flood.description}
-                meta={[
-                  Number.isFinite(flood.depthCm)
-                    ? { label: 'Depth', value: `${flood.depthCm} cm` }
-                    : null,
-                  { label: 'Reported', value: formatDateTime(flood.createdAt), icon: MapPin },
-                ].filter(Boolean)}
-                actions={
-                  <Button
-                    size="xs"
-                    variant="outline"
-                    icon={ArrowUpDown}
-                    onClick={() => setStatusTarget(flood)}
-                  >
-                    Change status
-                  </Button>
-                }
-              >
-                {flood.image ? <ViewableImage src={flood.image} alt="Flood evidence" /> : null}
-              </RecordCard>
-            )}
+            renderCard={(flood) => {
+              const nextStatus = ASSIGN_STATUS_ACTIONS[String(flood.status ?? '').toLowerCase()];
+              return (
+                <RecordCard
+                  variant="feed"
+                  icon={Waves}
+                  iconTone={severityTone(flood.severity)}
+                  title={flood.locationName || flood.barangay || 'Flood report'}
+                  subtitle={[
+                    humanize(flood.severity, 'Flood'),
+                    flood.barangay,
+                    `reported ${formatRelativeTime(flood.createdAt)}`,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                  badges={[
+                    flood.severity
+                      ? { label: humanize(flood.severity), tone: severityTone(flood.severity) }
+                      : null,
+                    flood.status ? { label: humanize(flood.status), tone: statusTone(flood.status) } : null,
+                  ].filter(Boolean)}
+                  description={flood.description}
+                  meta={[
+                    Number.isFinite(flood.depthCm)
+                      ? { label: 'Depth', value: `${flood.depthCm} cm` }
+                      : null,
+                    { label: 'Reported', value: formatDateTime(flood.createdAt), icon: MapPin },
+                  ].filter(Boolean)}
+                  actions={
+                    <>
+                      {isManager && nextStatus ? (
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          icon={UserCheck}
+                          onClick={() => setAssignTarget({ report: flood, status: nextStatus })}
+                          aria-label={`Assign a lineman in ${flood.barangay || 'this barangay'}`}
+                        >
+                          Assign
+                        </Button>
+                      ) : null}
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        icon={ArrowUpDown}
+                        onClick={() => setStatusTarget(flood)}
+                      >
+                        Change status
+                      </Button>
+                    </>
+                  }
+                >
+                  {flood.image ? <ViewableImage src={flood.image} alt="Flood evidence" /> : null}
+                </RecordCard>
+              );
+            }}
           />
 
           <Pagination
@@ -319,6 +356,22 @@ export default function Floods() {
           statusMutation.mutateAsync({ floodId: statusTarget.id, status: nextStatus })
         }
         loading={statusMutation.isPending}
+      />
+
+      <AssignLinemanDialog
+        open={Boolean(assignTarget)}
+        reportLabel={assignTarget?.report.locationName || assignTarget?.report.barangay || 'this flood'}
+        nextStatus={assignTarget?.status}
+        noun="flood"
+        loading={statusMutation.isPending}
+        onClose={() => setAssignTarget(null)}
+        onSubmit={(linemanId) =>
+          statusMutation.mutateAsync({
+            floodId: assignTarget.report.id,
+            status: assignTarget.status,
+            updatedBy: linemanId,
+          })
+        }
       />
 
       <p className="text-xs text-navy-400">

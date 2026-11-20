@@ -30,7 +30,6 @@ import { useReference } from '@/context/ReferenceContext';
 import { useToast } from '@/context/ToastContext';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useCompanyOutageList } from '@/hooks/useCompanyOutages';
-import { useInvalidateAssignments } from '@/hooks/useLinemanAssignments';
 import { companyOutagesApi } from '@/api';
 import {
   COMPANY_PAGE_SIZE,
@@ -48,8 +47,17 @@ import {
   isInDagupanBounds,
 } from '@/utils/formatters';
 import { toUserMessage } from '@/utils/errorMessage';
-import AssignmentFormModal from './components/AssignmentFormModal';
+import AssignLinemanDialog from '@/components/AssignLinemanDialog';
 import StatusChangeDialog from '@/components/StatusChangeDialog';
+
+/** Next status when a manager assigns a lineman to an outage report. */
+const ASSIGN_STATUS_ACTIONS = {
+  active: 'verified',
+  under_review: 'verified',
+  verified: 'resolved',
+  resolved: 'active',
+  rejected: 'active',
+};
 
 const TABS = [
   { value: 'all', label: 'All', icon: AlertTriangle },
@@ -76,8 +84,7 @@ export default function Outages() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [statusTarget, setStatusTarget] = useState(null);
-  const [assigning, setAssigning] = useState(null);
-  const invalidateAssignments = useInvalidateAssignments();
+  const [assignTarget, setAssignTarget] = useState(null); // { report, status }
   const debouncedSearch = useDebouncedValue(search);
 
   // Keep the status filter in the URL so an Overview summary card can deep-link here.
@@ -190,10 +197,12 @@ export default function Outages() {
   ).length;
 
   const singleMutation = useMutation({
-    mutationFn: ({ id, nextStatus }) => companyOutagesApi.updateSingle({ id, status: nextStatus }),
+    mutationFn: ({ id, nextStatus, updatedBy }) =>
+      companyOutagesApi.updateSingle({ id, status: nextStatus, updated_by: updatedBy }),
     onSuccess: (_result, variables) => {
       toast.success(`Report moved to ${humanize(variables.nextStatus)}.`, { title: 'Status updated' });
       setStatusTarget(null);
+      setAssignTarget(null);
       // FR-OUT-11: the whole outage cache is invalidated so the list, the counts and
       // the Overview cards all agree.
       queryClient.invalidateQueries({ queryKey: ['company-outages'] });
@@ -291,52 +300,55 @@ export default function Outages() {
               description:
                 'Nothing matching these filters. Outages reported by residents appear in this list.',
             }}
-            renderCard={(outage) => (
-              <RecordCard
-                variant="feed"
-                icon={Zap}
-                iconTone={outage.severity ? severityTone(outage.severity) : 'primary'}
-                title={outage.locationName || outage.barangay || 'Unspecified location'}
-                subtitle={[outage.barangay, outage.reporter, `reported ${formatRelativeTime(outage.createdAt)}`]
-                  .filter(Boolean)
-                  .join(' · ')}
-                badges={[
-                  outage.severity
-                    ? { label: humanize(outage.severity), tone: severityTone(outage.severity) }
-                    : null,
-                  outage.status ? { label: humanize(outage.status), tone: statusTone(outage.status) } : null,
-                  outage.isVerified ? { label: 'Verified', tone: 'info' } : null,
-                ]}
-                description={outage.description}
-                meta={[
-                  { label: 'Category', value: humanize(outage.category, 'Uncategorised') },
-                  outage.affectedHouses
-                    ? { label: 'Houses affected', value: String(outage.affectedHouses) }
-                    : null,
-                  { label: 'Reported', value: formatDateTime(outage.createdAt), icon: CalendarClock },
-                ].filter(Boolean)}
-                actions={
-                  <>
-                    {isManager ? (
-                      <Button
-                        size="xs"
-                        variant="outline"
-                        icon={UserCheck}
-                        onClick={() => setAssigning(outage)}
-                        aria-label={`Assign a lineman in ${outage.barangay || 'this barangay'}`}
-                      >
-                        Assign
+            renderCard={(outage) => {
+              const nextStatus = ASSIGN_STATUS_ACTIONS[String(outage.status ?? '').toLowerCase()];
+              return (
+                <RecordCard
+                  variant="feed"
+                  icon={Zap}
+                  iconTone={outage.severity ? severityTone(outage.severity) : 'primary'}
+                  title={outage.locationName || outage.barangay || 'Unspecified location'}
+                  subtitle={[outage.barangay, outage.reporter, `reported ${formatRelativeTime(outage.createdAt)}`]
+                    .filter(Boolean)
+                    .join(' · ')}
+                  badges={[
+                    outage.severity
+                      ? { label: humanize(outage.severity), tone: severityTone(outage.severity) }
+                      : null,
+                    outage.status ? { label: humanize(outage.status), tone: statusTone(outage.status) } : null,
+                    outage.isVerified ? { label: 'Verified', tone: 'info' } : null,
+                  ]}
+                  description={outage.description}
+                  meta={[
+                    { label: 'Category', value: humanize(outage.category, 'Uncategorised') },
+                    outage.affectedHouses
+                      ? { label: 'Houses affected', value: String(outage.affectedHouses) }
+                      : null,
+                    { label: 'Reported', value: formatDateTime(outage.createdAt), icon: CalendarClock },
+                  ].filter(Boolean)}
+                  actions={
+                    <>
+                      {isManager && nextStatus ? (
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          icon={UserCheck}
+                          onClick={() => setAssignTarget({ report: outage, status: nextStatus })}
+                          aria-label={`Assign a lineman in ${outage.barangay || 'this barangay'}`}
+                        >
+                          Assign
+                        </Button>
+                      ) : null}
+                      <Button size="xs" variant="outline" icon={ArrowUpDown} onClick={() => setStatusTarget(outage)}>
+                        Change status
                       </Button>
-                    ) : null}
-                    <Button size="xs" variant="outline" icon={ArrowUpDown} onClick={() => setStatusTarget(outage)}>
-                      Change status
-                    </Button>
-                  </>
-                }
-              >
-                {outage.images[0] ? <ViewableImage src={outage.images[0]} alt="Outage evidence" /> : null}
-              </RecordCard>
-            )}
+                    </>
+                  }
+                >
+                  {outage.images[0] ? <ViewableImage src={outage.images[0]} alt="Outage evidence" /> : null}
+                </RecordCard>
+              );
+            }}
           />
 
           <Pagination
@@ -362,12 +374,20 @@ export default function Outages() {
         loading={singleMutation.isPending}
       />
 
-      <AssignmentFormModal
-        open={Boolean(assigning)}
-        assignment={null}
-        initialBarangayId={assigning?.barangayId}
-        onClose={() => setAssigning(null)}
-        onSaved={invalidateAssignments}
+      <AssignLinemanDialog
+        open={Boolean(assignTarget)}
+        reportLabel={assignTarget?.report.locationName || assignTarget?.report.barangay || 'this outage'}
+        nextStatus={assignTarget?.status}
+        noun="outage"
+        loading={singleMutation.isPending}
+        onClose={() => setAssignTarget(null)}
+        onSubmit={(linemanId) =>
+          singleMutation.mutateAsync({
+            id: assignTarget.report.id,
+            nextStatus: assignTarget.status,
+            updatedBy: linemanId,
+          })
+        }
       />
     </div>
   );

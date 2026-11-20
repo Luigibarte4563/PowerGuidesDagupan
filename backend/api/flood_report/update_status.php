@@ -22,6 +22,7 @@ if (!is_array($data)) {
 
 $flood_id = (int)($data["flood_id"] ?? 0);
 $status   = trim($data["status"] ?? "");
+$assignedTo = (int)($data["updated_by"] ?? 0);
 
 /* flood_reports.status enum - the same three values the company tabs filter on. */
 $validStatuses = ['reported', 'verified', 'cleared'];
@@ -35,6 +36,26 @@ if ($flood_id <= 0) {
     http_response_code(400);
     echo json_encode(["success" => false, "message" => "flood_id required"]);
     exit;
+}
+
+/* Managers may hand the report to a lineman; the stamp records that lineman
+ * instead of the manager who clicked the button. */
+$updatedBy = $user_id;
+if ($assignedTo > 0) {
+    $role = $user['role'] ?? '';
+    if (!in_array($role, ['electric_company', 'admin'], true)) {
+        http_response_code(403);
+        echo json_encode(["success" => false, "message" => "Only managers can assign a lineman"]);
+        exit;
+    }
+    $linemanStmt = $conn->prepare("SELECT id FROM users WHERE id = ? AND role = 'lineman' LIMIT 1");
+    $linemanStmt->execute([$assignedTo]);
+    if (!$linemanStmt->fetch()) {
+        http_response_code(400);
+        echo json_encode(["success" => false, "message" => "updated_by must be a lineman"]);
+        exit;
+    }
+    $updatedBy = $assignedTo;
 }
 
 try {
@@ -55,7 +76,7 @@ try {
     ");
     $stmt->execute([
         ":status"    => $status,
-        ":updated_by" => $user_id,
+        ":updated_by" => $updatedBy,
         ":id"        => $flood_id,
     ]);
 

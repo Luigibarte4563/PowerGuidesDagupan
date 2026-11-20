@@ -290,6 +290,7 @@ export const readFlood = (record) => ({
   id: readId(record),
   locationName: readField(record, ['location_name'], ''),
   barangay: readField(record, ['barangay_name', 'barangay'], ''),
+  barangayId: readField(record, ['barangay_id'], ''),
   severity: readField(record, ['severity', 'flood_level', 'risk_level'], ''),
   status: readField(record, ['status'], ''),
   description: readField(record, ['description'], ''),

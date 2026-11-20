@@ -105,10 +105,14 @@ export const companyOutagesApi = {
   },
 
   /** FR-OUT-6 - one report. No row count is returned, so the list is refetched. */
-  async updateSingle({ id, status }, { signal } = {}) {
+  async updateSingle({ id, status, updated_by }, { signal } = {}) {
     return apiRequest('/api/outage_report_electric_com/update_single.php', {
       method: 'POST',
-      body: { id, status },
+      body: {
+        id,
+        status,
+        ...(updated_by ? { updated_by: Number(updated_by) } : {}),
+      },
       signal,
     });
   },

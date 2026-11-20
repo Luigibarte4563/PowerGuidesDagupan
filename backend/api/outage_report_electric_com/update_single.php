@@ -23,6 +23,7 @@ if (!is_array($data)) {
 
 $id     = (int)($data["id"] ?? 0);
 $status = trim($data["status"] ?? "");
+$assignedTo = (int)($data["updated_by"] ?? 0);
 
 if ($id <= 0 || $status === "") {
     http_response_code(400);
@@ -37,6 +38,26 @@ if (!in_array($status, $valid, true)) {
     exit;
 }
 
+/* Managers may hand the report to a lineman; the stamp records that lineman
+ * instead of the manager who clicked the button. */
+$updatedBy = (int)$user['id'];
+if ($assignedTo > 0) {
+    $role = $user['role'] ?? '';
+    if (!in_array($role, ['electric_company', 'admin'], true)) {
+        http_response_code(403);
+        echo json_encode(["success" => false, "message" => "Only managers can assign a lineman"]);
+        exit;
+    }
+    $linemanStmt = $conn->prepare("SELECT id FROM users WHERE id = ? AND role = 'lineman' LIMIT 1");
+    $linemanStmt->execute([$assignedTo]);
+    if (!$linemanStmt->fetch()) {
+        http_response_code(400);
+        echo json_encode(["success" => false, "message" => "updated_by must be a lineman"]);
+        exit;
+    }
+    $updatedBy = $assignedTo;
+}
+
 try {
     /* A lineman may only set the status of a report in an assigned barangay. The check
        runs before the UPDATE, so a denied request changes nothing. */
@@ -47,7 +68,7 @@ try {
     $auditRow = $auditStmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
     $sql = "UPDATE outage_reports SET status = :status, updated_by = :updated_by, updated_at = NOW()";
-    $params = [":status" => $status, ":updated_by" => (int)$user['id'], ":id" => $id];
+    $params = [":status" => $status, ":updated_by" => $updatedBy, ":id" => $id];
 
     if ($status === "resolved") {
         $sql .= ", resolved_at = NOW()";

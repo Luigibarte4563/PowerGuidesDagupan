@@ -19,6 +19,7 @@ $barangay   = $_GET['barangay'] ?? null;
 $sql = "
     SELECT
         fr.id,
+        fr.barangay_id,
         fr.reported_by,
         fr.location_name,
         fr.latitude,
