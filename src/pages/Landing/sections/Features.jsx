@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import outagePicture from '@/assets/outage.png';
 import hazardPicture from '@/assets/hazard.png';
+import floodPicture from '@/assets/floods.png';
 
 const FEATURES_DATA = [
   {
@@ -17,11 +18,19 @@ const FEATURES_DATA = [
     image: hazardPicture,
     alt: 'Electrical hazard alert',
   },
+  {
+    eb: 'Report floods • Stay prepared',
+    ti: 'Track flooding in your area before it disrupts your day',
+    bo: 'Report flooded roads and areas, share location and depth details, and follow community updates so you can plan safer routes and stay prepared.',
+    image: floodPicture,
+    alt: 'Flood reporting',
+  },
 ];
 
 const TABS = [
   { id: 't0', label: 'Outage Reporting' },
-  { id: 't1', label: 'Risks & Hazards Alert' },
+  { id: 't1', label: 'Hazard Alert' },
+  { id: 't2', label: 'Flood Reporting' },
 ];
 
 export default function Features() {
