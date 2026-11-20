@@ -15,13 +15,13 @@ export default function Blackout() {
         <div className="wrap mx-auto max-w-[1240px] px-[clamp(20px,6.94vw,100px)]">
           <div>
             <h2 id="dark-heading">
-              A Blackout Shouldn&apos;t Leave You
+              A Blackout Shouldn&apos;t Leave You{' '}
               <em>Powerless</em>
             </h2>
             <p>
               When the electricity goes out, knowing what to
-              do makes all the difference. Stay informed
-              and make every bit of power
+              do makes all the difference. Stay informed,
+              manage your battery, and make every bit of power
               count.
             </p>
             <a className="link" href="#features">

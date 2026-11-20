@@ -906,7 +906,7 @@
 [data-theme='light'] .mock {
   width: min(1240px, 100% - 2 * var(--g));
   margin: 60px auto 0;
-  padding: clamp(12px, 3.6vw, 52px) clamp(12px, 8.4vw, 105px);
+  padding: 0;
   border-radius: 24px;
   background:
     radial-gradient(circle at 15% 85%, rgba(80, 120, 140, 0.55), transparent 55%),
@@ -918,7 +918,10 @@
 [data-theme='light'] .mock img {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  box-shadow: 0 8px 24px rgba(255, 255, 255, 0.16);
 }
 
 /* Dark section - Lights */
@@ -948,9 +951,9 @@
       rgba(254, 254, 255, 0),
       rgba(190, 190, 191, 0.81) 135px,
       #595959 305px,
-      var(--ink) 413px
+      #0e2d3b 413px
     ) top / 100% 413px no-repeat,
-    linear-gradient(var(--ink), var(--ink)) 0 412px / 100% 100% no-repeat;
+    linear-gradient(#0e2d3b, #0e2d3b) 0 412px / 100% 100% no-repeat;
 }
 
 [data-theme='light'] .dark .wrap {
@@ -980,9 +983,20 @@
   display: inline-flex;
   align-items: center;
   gap: 16px;
-  color: var(--or);
+  color: #e67e00;
   font: 600 20px Lato, sans-serif;
   text-decoration: none;
+}
+
+[data-theme='light'] .link svg {
+  flex: none;
+  transform: scaleX(0.42);
+  transform-origin: left center;
+  transition: transform 0.25s ease;
+}
+
+[data-theme='light'] .link:hover svg {
+  transform: scaleX(1);
 }
 
 [data-theme='light'] .imgs {
@@ -1079,6 +1093,11 @@
 
 [data-theme='light'] .about .hd {
   max-width: 820px;
+}
+
+[data-theme='light'] .about .hd h2,
+[data-theme='light'] .about .hd .sub {
+  text-align: center;
 }
 
 /* Features */
@@ -1303,44 +1322,52 @@
 
 /* Footer */
 [data-theme='light'] .foot {
-  background: var(--navy);
+  background: #0e2d3b;
   color: var(--bg);
   padding: 80px 0 40px;
 }
 
 [data-theme='light'] .foot .wrap {
   display: grid;
-  grid-template-columns: minmax(0, 716px) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "statement statement"
+    "brand actions";
   justify-content: space-between;
   gap: 48px 64px;
   align-items: start;
 }
 
 [data-theme='light'] .q {
+  grid-area: statement;
+  max-width: 716px;
   font: 500 clamp(22px, 2.2vw, 32px)/1.45 Lato, sans-serif;
 }
 
+/* Let the statement and branding participate in the footer grid without
+   adding a wrapper or changing the existing DOM. */
 [data-theme='light'] .foot__left {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  min-height: 280px;
+  display: contents;
 }
 
 [data-theme='light'] .foot__brand {
+  grid-area: brand;
   display: grid;
   gap: 16px;
-  align-content: end;
+  align-content: start;
 }
 
 [data-theme='light'] .fr {
+  grid-area: actions;
   padding-top: 0;
   display: grid;
-  gap: 48px;
+  gap: 32px;
   align-content: start;
 }
 
 [data-theme='light'] .fr .btn {
   justify-self: end;
+  background: #e67e00;
 }
 
 [data-theme='light'] .links {
@@ -1416,13 +1443,12 @@
   [data-theme='light'] .pane {
     padding-inline: 0;
   }
-  [data-theme='light'] .foot__left {
-    min-height: auto;
-    grid-template-rows: auto auto;
-    gap: 40px;
-  }
-  [data-theme='light'] .foot__brand {
-    align-content: start;
+  [data-theme='light'] .foot .wrap {
+    grid-template-areas:
+      "statement"
+      "brand"
+      "actions";
+    gap: 32px;
   }
   [data-theme='light'] .fr .btn {
     justify-self: start;

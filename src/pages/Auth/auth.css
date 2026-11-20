@@ -34,7 +34,7 @@
   background: radial-gradient(ellipse 80% 55% at 45% 75%, rgba(85, 120, 140, 0.65), transparent 70%),
     linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px) 0 0 / 150px 150px,
     linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px) 0 0 / 150px 150px,
-    var(--navy);
+    #0d2c3a;
 }
 
 .auth-side .logo {
@@ -57,7 +57,7 @@
 .auth-side p {
   max-width: 529px;
   margin-top: 8px;
-  font: 500 clamp(16px, 1.4vw, 20px) / 2.3 Lato, sans-serif;
+  font: 500 clamp(16px, 1.4vw, 20px) / 1.9 Lato, sans-serif;
   text-align: left;
 }
 
@@ -247,17 +247,22 @@
 
 .auth-agree {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   min-height: 44px;
-  font: 400 14px Lato, sans-serif;
+  font: 400 14px/1.5 Lato, sans-serif;
   color: #526574;
+}
+
+.auth-agree span {
+  line-height: 1.5;
 }
 
 .auth-agree input {
   flex: none;
   width: 20px;
   height: 20px;
+  margin-top: 1px;
   appearance: none;
   background: #efefef;
   border: 2px solid #153243;
