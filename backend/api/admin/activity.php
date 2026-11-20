@@ -172,7 +172,7 @@ try {
         SELECT
             a.id, a.target_type, a.target_id, a.target_label, a.actor_id,
             a.action, a.detail, a.previous_status, a.status, a.created_at,
-            CONCAT_WS(' ', actor.first_name, actor.middle_name, actor.last_name) AS actor_name
+            CONCAT_WS(' ', actor.first_name, actor.last_name) AS actor_name
         FROM activity_log a
         JOIN users actor ON actor.id = a.actor_id
         WHERE {$whereSql}

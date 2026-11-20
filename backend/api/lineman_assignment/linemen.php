@@ -29,7 +29,6 @@ try {
         SELECT
             u.id,
             u.first_name,
-            u.middle_name,
             u.last_name,
             u.email
         FROM users u
@@ -42,7 +41,7 @@ try {
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $rows[] = [
             "id"    => (int)$row['id'],
-            "name"  => trim($row['first_name'] . ' ' . ($row['middle_name'] ? $row['middle_name'] . ' ' : '') . $row['last_name']),
+            "name"  => trim($row['first_name'] . ' ' . $row['last_name']),
             "email" => $row['email']
         ];
     }

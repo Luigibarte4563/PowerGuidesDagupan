@@ -235,9 +235,10 @@ For an existing database, apply the numbered migrations in order:
 | `009_activity_log.sql` | Creates the append-only `activity_log` |
 | `010_backfill_activity_log.sql` | Backfills creation events and active assignments |
 | `011_assignment_job_type.sql` | Adds label-only `job_type` to assignments |
+| `012_drop_middle_name.sql` | Drops `users.middle_name`; existing values are discarded |
 
 A fresh import of `powerguide.sql` already contains all of these changes; migrations are for older
-databases. Run `009` → `010` → `011` before deploying the current audit / assignment UI.
+databases. Run `009` → `010` → `011` → `012` before deploying the current audit / assignment UI.
 
 ## 8. Design, accessibility and known limits
 

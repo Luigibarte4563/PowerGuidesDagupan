@@ -192,7 +192,7 @@ try {
     $userStmt->execute();
     $users = $userStmt->fetchAll(PDO::FETCH_ASSOC);
 
-    $companyNameStmt = $conn->prepare("SELECT CONCAT_WS(' ', first_name, middle_name, last_name) AS name FROM users WHERE id = ? LIMIT 1");
+    $companyNameStmt = $conn->prepare("SELECT CONCAT_WS(' ', first_name, last_name) AS name FROM users WHERE id = ? LIMIT 1");
     $companyNameStmt->execute([$company_id]);
     $companyRow = $companyNameStmt->fetch(PDO::FETCH_ASSOC);
     $company_name = trim($companyRow['name'] ?? 'Electric Company');

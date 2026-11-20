@@ -48,7 +48,7 @@ if (!$isManager && (int)$user['id'] !== $linemanId) {
 }
 
 /* Confirm the target is actually a lineman. */
-$targetStmt = $conn->prepare("SELECT id, first_name, middle_name, last_name, email, role FROM users WHERE id = :id LIMIT 1");
+$targetStmt = $conn->prepare("SELECT id, first_name, last_name, email, role FROM users WHERE id = :id LIMIT 1");
 $targetStmt->bindValue(':id', $linemanId, PDO::PARAM_INT);
 $targetStmt->execute();
 $target = $targetStmt->fetch(PDO::FETCH_ASSOC);
@@ -220,7 +220,7 @@ echo json_encode([
     "success" => true,
     "lineman" => [
         "id"       => (int)$target['id'],
-        "name"     => trim(($target['first_name'] ?? '') . ' ' . ($target['middle_name'] ?? '') . ($target['last_name'] ?? '')),
+        "name"     => trim(($target['first_name'] ?? '') . ' ' . ($target['last_name'] ?? '')),
         "email"    => $target['email'],
         "role"     => $target['role'],
     ],

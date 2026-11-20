@@ -43,7 +43,6 @@ CREATE TABLE users (
     google_id VARCHAR(100) UNIQUE NULL,
 
     first_name VARCHAR(100) NOT NULL,
-    middle_name VARCHAR(100) NULL,
     last_name VARCHAR(100) NOT NULL,
 
     email VARCHAR(150) NOT NULL UNIQUE,

@@ -33,7 +33,6 @@ if (!is_array($data)) {
 }
 
 $first_name  = trim($data["first_name"] ?? "");
-$middle_name = trim($data["middle_name"] ?? "");
 $last_name   = trim($data["last_name"] ?? "");
 $email       = strtolower(trim($data["email"] ?? ""));
 $password    = $data["password"] ?? "";
@@ -78,17 +77,15 @@ try {
     $insert = $conn->prepare("
         INSERT INTO users (
             first_name,
-            middle_name,
             last_name,
             email,
             password,
             auth_provider,
             role
-        ) VALUES (?, ?, ?, ?, ?, 'local', ?)
+        ) VALUES (?, ?, ?, ?, 'local', ?)
     ");
     $insert->execute([
         $first_name,
-        $middle_name === "" ? null : $middle_name,
         $last_name,
         $email,
         password_hash($password, PASSWORD_DEFAULT),

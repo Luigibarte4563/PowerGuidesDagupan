@@ -25,7 +25,7 @@ $sql = "
         orp.id,
         orp.report_key,
         orp.user_id,
-        CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name) AS reporter_name,
+        CONCAT_WS(' ', u.first_name, u.last_name) AS reporter_name,
         orp.location_name,
         orp.latitude,
         orp.longitude,

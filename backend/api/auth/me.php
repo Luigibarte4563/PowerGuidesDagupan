@@ -38,7 +38,6 @@ echo json_encode([
         "id"            => (int)$record['id'],
         "google_id"     => $record['google_id'],
         "first_name"    => $record['first_name'],
-        "middle_name"   => $record['middle_name'],
         "last_name"     => $record['last_name'],
         "email"         => $record['email'],
         "picture"       => $record['picture'],

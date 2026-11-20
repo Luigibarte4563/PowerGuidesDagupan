@@ -38,7 +38,7 @@ try {
     /* Load the assignment details before deactivating so we can notify the lineman. */
     $assignmentStmt = $conn->prepare("
         SELECT la.lineman_id, la.barangay_id, b.barangay_name,
-               u.first_name, u.middle_name, u.last_name
+               u.first_name, u.last_name
         FROM lineman_assignments la
         JOIN users u ON u.id = la.lineman_id
         LEFT JOIN barangays b ON b.id = la.barangay_id
@@ -80,9 +80,7 @@ try {
     }
 
     $assignmentLabel = trim(
-        ($assignment['first_name'] ?? '') . ' ' .
-        (($assignment['middle_name'] ?? null) ? $assignment['middle_name'] . ' ' : '') .
-        ($assignment['last_name'] ?? '')
+        ($assignment['first_name'] ?? '') . ' ' . ($assignment['last_name'] ?? '')
     ) . ' · ' . ($assignment['barangay_name'] ?? '');
 
     recordActivity(
@@ -104,7 +102,7 @@ try {
     $assignedByName = $assignedByRow
         ? trim(($assignedByRow['first_name'] ?? '') . ' ' . ($assignedByRow['last_name'] ?? ''))
         : 'Electric Company';
-    $linemanFullName = trim(($assignment['first_name'] ?? '') . ' ' . (($assignment['middle_name'] ?? null) ? $assignment['middle_name'] . ' ' : '') . ($assignment['last_name'] ?? ''));
+    $linemanFullName = trim(($assignment['first_name'] ?? '') . ' ' . ($assignment['last_name'] ?? ''));
 
     createNotification(
         $conn,

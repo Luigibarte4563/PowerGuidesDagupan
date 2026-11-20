@@ -25,7 +25,7 @@ try {
         SELECT
             orp.*,
             b.barangay_name,
-            CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name) AS reporter_name,
+            CONCAT_WS(' ', u.first_name, u.last_name) AS reporter_name,
             orp.category,
             orp.severity,
             orp.hazard_type,

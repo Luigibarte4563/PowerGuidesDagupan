@@ -77,7 +77,7 @@ Apply the numbered scripts in `backend/database/` in order (Command Prompt):
 
 ```bat
 cd C:\xampp\htdocs\PowerGuidesDagupan\backend\database
-for %f in (005_reduce_tables.sql 006_add_hazard_review_work_type.sql 007_add_flood_cancelled_status.sql 008_merge_outage_images.sql 009_activity_log.sql 010_backfill_activity_log.sql 011_assignment_job_type.sql) do "C:\xampp\mysql\bin\mysql.exe" -u root powerguide < %f
+for %f in (005_reduce_tables.sql 006_add_hazard_review_work_type.sql 007_add_flood_cancelled_status.sql 008_merge_outage_images.sql 009_activity_log.sql 010_backfill_activity_log.sql 011_assignment_job_type.sql 012_drop_middle_name.sql) do "C:\xampp\mysql\bin\mysql.exe" -u root powerguide < %f
 ```
 
 | Script | Effect |
@@ -89,9 +89,11 @@ for %f in (005_reduce_tables.sql 006_add_hazard_review_work_type.sql 007_add_flo
 | `009_activity_log.sql` | Creates the append-only `activity_log` table |
 | `010_backfill_activity_log.sql` | Backfills creation events and active assignments |
 | `011_assignment_job_type.sql` | Adds label-only `job_type` to assignments |
+| `012_drop_middle_name.sql` | Drops `users.middle_name`; existing values are discarded |
 
-**Deployment requirement:** an existing database must run `009`, then `010`, then `011` before the
-current audit and assignment UI is used. Without `activity_log`, audited write endpoints fail.
+**Deployment requirement:** an existing database must run `009`, then `010`, then `011`, then `012`
+before the current audit and assignment UI is used. Without `activity_log`, audited write endpoints
+fail.
 
 ### 3.4 Create `backend/.env`
 
@@ -271,4 +273,5 @@ empty. `job_type` is only a label — an active assignment covers every job in t
 | Google sign-in lands on a blank page | `FRONTEND_URL` mismatch | Set `FRONTEND_URL=http://localhost:5174` in `backend/.env` |
 | Dashboard is empty after login | `user` has no saved location, or API calls failed | Save a location; check `reference/get.php` in the network tab |
 | Audited writes fail after upgrading an old DB | `activity_log` missing | Apply `009_activity_log.sql`, `010_backfill_activity_log.sql` and `011_assignment_job_type.sql` |
+| `Unknown column 'middle_name'` after upgrading | Old `users` table still has the column | Apply `012_drop_middle_name.sql` |
 | Lineman sees no reports | No active assignment | Create one in `/company/assignments`; `job_type` does not grant access by itself |

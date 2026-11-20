@@ -64,7 +64,7 @@ if (!in_array($jobType, LINEMAN_ASSIGNMENT_JOB_TYPES, true)) {
    rule can live - it must never be skipped. A plain `user`, `electric_company` or
    `admin` id is rejected even though the id itself is valid. */
 $linemanStmt = $conn->prepare("
-    SELECT u.id, u.first_name, u.middle_name, u.last_name, u.email, u.role
+    SELECT u.id, u.first_name, u.last_name, u.email, u.role
     FROM users u
     WHERE u.id = ?
     LIMIT 1
@@ -153,9 +153,7 @@ try {
     $conn->commit();
 
     $assignmentLabel = trim(
-        $lineman['first_name'] . ' ' .
-        ($lineman['middle_name'] ? $lineman['middle_name'] . ' ' : '') .
-        $lineman['last_name']
+        $lineman['first_name'] . ' ' . $lineman['last_name']
     ) . ' · ' . $barangay['barangay_name'];
 
     recordActivity(
@@ -178,7 +176,7 @@ try {
         ? trim(($assignedByRow['first_name'] ?? '') . ' ' . ($assignedByRow['last_name'] ?? ''))
         : 'Electric Company';
 
-    $linemanFullName = trim($lineman['first_name'] . ' ' . ($lineman['middle_name'] ? $lineman['middle_name'] . ' ' : '') . $lineman['last_name']);
+    $linemanFullName = trim($lineman['first_name'] . ' ' . $lineman['last_name']);
 
     createNotification(
         $conn,
@@ -222,7 +220,7 @@ try {
    ========================================= */
 $readStmt = $conn->prepare("
     SELECT la.id, la.created_at, la.updated_at, la.status,
-           au.first_name AS ab_first, au.middle_name AS ab_middle, au.last_name AS ab_last
+           au.first_name AS ab_first, au.last_name AS ab_last
     FROM lineman_assignments la
     JOIN users au ON au.id = la.assigned_by
     WHERE la.id = ?
@@ -238,13 +236,13 @@ echo json_encode([
     "data" => [
         "id"               => $assignmentId,
         "lineman_id"       => (int)$linemanId,
-        "lineman_name"     => trim($lineman['first_name'] . ' ' . ($lineman['middle_name'] ? $lineman['middle_name'] . ' ' : '') . $lineman['last_name']),
+        "lineman_name"     => trim($lineman['first_name'] . ' ' . $lineman['last_name']),
         "lineman_email"    => $lineman['email'],
         "barangay_id"      => (int)$barangayId,
         "barangay_name"    => $barangay['barangay_name'],
         "job_type"         => $jobType,
         "assigned_by"      => $assignedBy,
-        "assigned_by_name" => trim($saved['ab_first'] . ' ' . ($saved['ab_middle'] ? $saved['ab_middle'] . ' ' : '') . $saved['ab_last']),
+        "assigned_by_name" => trim($saved['ab_first'] . ' ' . $saved['ab_last']),
         "assigned_at"      => $saved['created_at'],
         "updated_at"       => $saved['updated_at'],
         "status"           => $saved['status']

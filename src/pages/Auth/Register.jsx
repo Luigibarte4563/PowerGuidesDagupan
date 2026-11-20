@@ -15,7 +15,7 @@ export default function Register() {
   const { register, loginWithRegisteredAccount } = useAuth();
   const navigate = useNavigate();
 
-  const [values, setValues] = useState({ firstName: '', middleName: '', lastName: '', email: '', password: '', confirmPassword: '' });
+  const [values, setValues] = useState({ firstName: '', lastName: '', email: '', password: '', confirmPassword: '' });
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -55,7 +55,6 @@ export default function Register() {
       // Only database attributes are sent: confirmPassword is client-side only.
       const result = await register({
         firstName: values.firstName.trim(),
-        middleName: values.middleName.trim(),
         lastName: values.lastName.trim(),
         email: values.email.trim(),
         password: values.password,
@@ -104,17 +103,6 @@ export default function Register() {
                 onChange={update('firstName')}
               />
               {errors.firstName && <span className="auth-field-error">{errors.firstName}</span>}
-            </label>
-          </div>
-          <div className="auth-field">
-            <label>Middle Name
-              <input
-                name="middleName"
-                placeholder="Enter your middle name (optional)"
-                autoComplete="additional-name"
-                value={values.middleName}
-                onChange={update('middleName')}
-              />
             </label>
           </div>
           <div className="auth-field">

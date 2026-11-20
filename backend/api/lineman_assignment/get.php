@@ -59,7 +59,6 @@ $sql = "
         la.id,
         la.lineman_id,
         lu.first_name,
-        lu.middle_name,
         lu.last_name,
         lu.email,
         la.barangay_id,
@@ -67,7 +66,6 @@ $sql = "
         la.job_type,
         la.assigned_by,
         au.first_name AS assigned_by_first_name,
-        au.middle_name AS assigned_by_middle_name,
         au.last_name  AS assigned_by_last_name,
         la.created_at,
         la.updated_at,
@@ -112,13 +110,13 @@ try {
         $rows[] = [
             "id"               => (int)$row['id'],
             "lineman_id"       => (int)$row['lineman_id'],
-            "lineman_name"     => trim($row['first_name'] . ' ' . ($row['middle_name'] ? $row['middle_name'] . ' ' : '') . $row['last_name']),
+            "lineman_name"     => trim($row['first_name'] . ' ' . $row['last_name']),
             "lineman_email"    => $row['email'],
             "barangay_id"      => (int)$row['barangay_id'],
             "barangay_name"    => $row['barangay_name'],
             "job_type"         => $row['job_type'] ?? 'all',
             "assigned_by"      => (int)$row['assigned_by'],
-            "assigned_by_name" => trim($row['assigned_by_first_name'] . ' ' . ($row['assigned_by_middle_name'] ? $row['assigned_by_middle_name'] . ' ' : '') . $row['assigned_by_last_name']),
+            "assigned_by_name" => trim($row['assigned_by_first_name'] . ' ' . $row['assigned_by_last_name']),
             /* The column is created_at, matching every other table; the API calls it
                assigned_at because that is what the assignment date means to a reader. */
             "assigned_at"      => $row['created_at'],

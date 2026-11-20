@@ -34,7 +34,7 @@ label only. `electric_company` and `admin` are never scoped.
 
 | Endpoint | Method | Access | Inputs / behavior |
 | --- | --- | --- | --- |
-| `auth/register.php` | POST | Public | `first_name`, `middle_name?`, `last_name`, `email`, `password` (min 6). Always creates `user`; any body role is ignored. |
+| `auth/register.php` | POST | Public | `first_name`, `last_name`, `email`, `password` (min 6). Always creates `user`; any body role is ignored. |
 | `auth/login.php` | POST | Public | `email`, `password`. Rejects Google-only accounts. |
 | `auth/logout.php` | GET/POST | Public | Expires the `jwt_token` cookie. |
 | `auth/me.php` | GET | Any | Re-reads the live user row from the database; returns current role/profile. |
@@ -51,7 +51,7 @@ JWT details: HS256, 24-hour expiry, claims `iat`, `exp`, `id`, `email`, `role`; 
 | Endpoint | Method | Access | Inputs / behavior |
 | --- | --- | --- | --- |
 | `admin/users.php` | GET | Admin | Optional `role`, `q` (name/email substring). Directory with name, email, role, provider, dates; no secrets. |
-| `admin/create_user.php` | POST | Admin | `first_name`, `middle_name?`, `last_name`, `email`, `password`, `role` (default `user`). Duplicate email → 409. |
+| `admin/create_user.php` | POST | Admin | `first_name`, `last_name`, `email`, `password`, `role` (default `user`). Duplicate email → 409. |
 | `admin/update_role.php` | POST | Admin | `user_id`, `role`; rejects unknown roles and changing your own role. |
 | `admin/stats.php` | GET | Admin | Platform aggregates: user totals/roles, report totals, 30-day trend, top barangays. |
 | `admin/activity.php` | GET | Admin | Audit feed. Required `role=electric_company\|lineman`; optional `user_id`, `target_type`, `action`, `page`, `page_size` (max 100). |

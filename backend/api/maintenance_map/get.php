@@ -24,7 +24,7 @@ try {
         SELECT
             ms.id,
             ms.created_by,
-            CONCAT_WS(' ', u.first_name, u.middle_name, u.last_name) AS company_name,
+            CONCAT_WS(' ', u.first_name, u.last_name) AS company_name,
             ms.radius,
             ms.maintenance_date,
             ms.start_time,

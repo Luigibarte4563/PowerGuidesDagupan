@@ -35,7 +35,7 @@ backend/
 ├── auth/                        # jwt_auth.php, rbac.php, lineman_access.php,
 │                                # issue_jwt.php, google_oauth.php
 ├── config/                      # env.php, cors.php, db_connect.php
-├── database/                    # powerguide.sql + migrations 005–011
+├── database/                    # powerguide.sql + migrations 005–012
 ├── .env.example
 ├── composer.json
 └── README.md, endpoints.md, FRONTEND_SPECIFICATION.md
@@ -114,9 +114,10 @@ the numbered migrations in order:
 | `009_activity_log.sql` | Creates append-only `activity_log` |
 | `010_backfill_activity_log.sql` | Backfills creation events and active assignments |
 | `011_assignment_job_type.sql` | Adds label-only `job_type` to assignments |
+| `012_drop_middle_name.sql` | Drops `users.middle_name`; existing values are discarded |
 
-A fresh import already contains all of these changes. For an upgraded database, **009 → 010 → 011
-must run before deploying the current audit/assignment UI**; without `activity_log`, audited write
+A fresh import already contains all of these changes. For an upgraded database, **009 → 010 → 011 →
+012 must run before deploying the current audit/assignment UI**; without `activity_log`, audited write
 endpoints fail.
 
 ---

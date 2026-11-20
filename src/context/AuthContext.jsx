@@ -10,7 +10,7 @@ const AuthContext = createContext(null);
 /**
  * Normalise the `me.php` payload into the user object the UI needs.
  * Confirmed response: `data` holds the user row directly:
- *   { id, google_id, first_name, middle_name, last_name, email, picture, auth_provider }
+ *   { id, google_id, first_name, last_name, email, picture, auth_provider }
  */
 export function normaliseUser(payload) {
   if (!payload) return null;
@@ -21,10 +21,9 @@ export function normaliseUser(payload) {
   if (!readField(candidate, ['id', 'user_id'], null)) return null;
 
   const first = readField(candidate, ['first_name', 'firstname'], '');
-  const middle = readField(candidate, ['middle_name', 'middlename'], '');
   const last = readField(candidate, ['last_name', 'lastname'], '');
   const fullName = readField(candidate, ['name', 'full_name', 'display_name'], '') ||
-    [first, middle, last].filter(Boolean).join(' ');
+    [first, last].filter(Boolean).join(' ');
 
   return {
     id: readField(candidate, ['id', 'user_id'], null),

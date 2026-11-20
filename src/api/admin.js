@@ -170,9 +170,8 @@ export const adminApi = {
    * Admin only. Creates a local account; `role` may be omitted, which the server
    * reads as the plain `user` role.
    */
-  async createUser({ firstName, middleName, lastName, email, password, role }, { signal } = {}) {
+  async createUser({ firstName, lastName, email, password, role }, { signal } = {}) {
     const body = { first_name: firstName, last_name: lastName, email, password };
-    if (middleName) body.middle_name = middleName;
     if (role) body.role = role;
     return apiRequest('/api/admin/create_user.php', { method: 'POST', body, signal });
   },

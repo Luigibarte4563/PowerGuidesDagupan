@@ -5,9 +5,9 @@ import { apiRequest, absoluteUrl, setStoredToken, unwrapPayload } from './client
  *
  * Confirmed contract (see `backend\api\auth`):
  *   login    POST { email, password } -> { success, message, user_id, token_issued }
- *   register POST { first_name, middle_name?, last_name, email, password }
+ *   register POST { first_name, last_name, email, password }
  *                  -> { success, message } (min password length 6)
- *   me       GET -> { success, data: { id, first_name, middle_name, last_name,
+ *   me       GET -> { success, data: { id, first_name, last_name,
  *                                       email, picture, auth_provider, ... } }
  *   logout   POST -> { success, message }
  *
@@ -24,12 +24,11 @@ export const authApi = {
     });
   },
 
-  async register({ firstName, middleName, lastName, email, password }) {
+  async register({ firstName, lastName, email, password }) {
     return apiRequest('/api/auth/register.php', {
       method: 'POST',
       body: {
         first_name: firstName,
-        middle_name: middleName || '',
         last_name: lastName,
         email,
         password,
@@ -64,7 +63,7 @@ export function userFromAuthResponse(payload) {
   if (!data || typeof data !== 'object') return null;
   return {
     id: data.id ?? data.user_id ?? null,
-    name: [data.first_name, data.middle_name, data.last_name].filter(Boolean).join(' ') || '',
+    name: [data.first_name, data.last_name].filter(Boolean).join(' ') || '',
     email: data.email || '',
   };
 }
